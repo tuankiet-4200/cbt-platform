@@ -62,7 +62,7 @@ type RichTextNode =
   | { type: 'bold';        content: string }                          // Chữ đậm
   | { type: 'italic';      content: string }                          // Chữ nghiêng
   | { type: 'break' }                                                 // Xuống dòng
-  | { type: 'blank' }                                                 // Ô trống cần điền (dùng trong stem của FILL_NUMBER)
+  | { type: 'blank'; blankId: string }                                 // Ô trống cần điền — blankId khớp với blanks[].id trong payload
 ```
 
 **Frontend rendering rule:** Iterate qua mảng `RichTextNode[]`, render từng node theo `type`.  
@@ -247,15 +247,17 @@ Nếu **bất kỳ 1 slot nào sai** → toàn câu **0 điểm**.
 
 ---
 
-## Type 5: FILL_NUMBER (Điền số — Exact Match)
+## Type 5: FILL_NUMBER (Điền số — All-or-Nothing)
 
-Thí sinh điền **một số** vào ô trống. Giá trị phải khớp **chính xác** với `correctValue`.
+Một câu hỏi có thể có **một hoặc nhiều ô trống**. Phải điền đúng **tất cả** các ô thì mới được điểm.
 
-> **Lưu ý:** Không còn `tolerance`. Backend so sánh `answer.value === payload.correctValue` (sau khi parse về Number).  
-> Frontend chịu trách nhiệm format input theo `displayFormat` trước khi submit.
+> **Exact match:** Backend so sánh `submittedValue === correctValue` (sau khi parse về Number). Không có tolerance.
 
 ```typescript
-interface FillNumberPayload {
+interface FillBlank {
+  /** ID khớp với node { type: 'blank', blankId } trong stem */
+  id: string;            // 'B1' | 'B2' | ...
+
   /** Đáp án đúng — exact match required */
   correctValue: number;
 
@@ -274,29 +276,58 @@ interface FillNumberPayload {
   min?: number;
   max?: number;
 }
+
+interface FillNumberPayload {
+  /** Danh sách các ô trống — có thể 1 hoặc nhiều ô */
+  blanks: FillBlank[];
+}
 ```
 
-**Grading logic (exact match):**
+**Grading logic (all-or-nothing — áp dụng khi có nhiều ô trống):**
 ```
-submittedNum = parseFloat(answer.value.toString().replace(',', '.'))
-isCorrect = submittedNum === payload.correctValue
+isCorrect = blanks.every(b => {
+  submitted = parseFloat(answer.blanks[b.id].toString().replace(',', '.'))
+  return submitted === b.correctValue
+})
 ```
+Nếu **bất kỳ 1 ô nào sai** → toàn câu **0 điểm**.
 
-**Answer format:** `{ value: number }`
+**Answer format:** `{ blanks: { blankId: string, value: number }[] }`
 
-**Example:**
+**Example — 1 ô trống:**
 ```json
 {
   "stem": [
     {"type": "text", "content": "Khoảng cách giữa hai ngôi sao xấp xỉ "},
-    {"type": "blank"},
+    {"type": "blank", "blankId": "B1"},
     {"type": "text", "content": " năm ánh sáng."}
   ],
   "type": "FILL_NUMBER",
   "payload": {
-    "correctValue": 25000,
-    "displayFormat": "integer",
-    "unit": "năm ánh sáng"
+    "blanks": [
+      {"id": "B1", "correctValue": 25000, "displayFormat": "integer", "unit": "năm ánh sáng"}
+    ]
+  },
+  "_version": 2
+}
+```
+
+**Example — nhiều ô trống:**
+```json
+{
+  "stem": [
+    {"type": "text", "content": "Cho hàm số y = ax + b. Biết đồ thị đi qua (1; 3) và (2; 5), tìm a = "},
+    {"type": "blank", "blankId": "B1"},
+    {"type": "text", "content": " và b = "},
+    {"type": "blank", "blankId": "B2"},
+    {"type": "text", "content": "."}
+  ],
+  "type": "FILL_NUMBER",
+  "payload": {
+    "blanks": [
+      {"id": "B1", "correctValue": 2, "displayFormat": "integer"},
+      {"id": "B2", "correctValue": 1, "displayFormat": "integer"}
+    ]
   },
   "_version": 2
 }
@@ -359,7 +390,7 @@ P(θ) = c + (1-c) / (1 + e^(-a(θ-b)))
 | MULTIPLE_CHOICE | `{ "selectedOptionIds": ["A", "C", "D"] }` |
 | TRUE_FALSE_MATRIX | `{ "answers": [{"statementId": "S1", "value": true}, ...] }` |
 | DRAG_DROP | `{ "slots": [{"slotId": "slot1", "itemId": "I2"}, ...] }` |
-| FILL_NUMBER | `{ "value": 25000 }` |
+| FILL_NUMBER | `{ "blanks": [{"blankId": "B1", "value": 2}, {"blankId": "B2", "value": 1}] }` |
 
 ---
 
@@ -385,3 +416,4 @@ interface SectionScore {
 |---------|------|--------|
 | 1.0 | Sprint 1.1 | Initial spec — 4 question types |
 | 2.0 | Sprint 1.1 Rev2 | Add MULTIPLE_CHOICE; FILL_NUMBER → exact match (remove tolerance); TRUE_FALSE/DRAG_DROP → all-or-nothing; Add Passage concept; Add section score schema |
+| 2.1 | Sprint 1.1 Rev3 | FILL_NUMBER → multi-blank support (blanks[]) with all-or-nothing; blank RichTextNode adds blankId field |
