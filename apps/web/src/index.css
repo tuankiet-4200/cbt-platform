@@ -1,204 +1,420 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* ── Google Fonts ─────────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── CSS Custom Properties ────────────────────────────────────────────────── */
-:root {
-  --color-primary: #3b82f6;
-  --color-primary-dark: #1d4ed8;
-  --color-bg: #f8fafc;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-text: #0f172a;
-  --color-text-muted: #64748b;
-  --radius-base: 0.5rem;
-  --shadow-soft: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04);
+/* ── Tailwind v4 ──────────────────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* ── Design Tokens ────────────────────────────────────────────────────────── */
+/* In v4, all theme customization happens inside @theme via CSS variables.    */
+/* These automatically generate utility classes: bg-primary-500, text-neutral-700, etc. */
+@theme {
+  /* ── Colors: Primary (Blue) ─────────────────────────────────────────── */
+  --color-primary-50:  #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8f;
+  --color-primary-950: #172554;
+
+  /* ── Colors: Accent (Indigo) ─────────────────────────────────────────── */
+  --color-accent-50:  #eef2ff;
+  --color-accent-100: #e0e7ff;
+  --color-accent-500: #6366f1;
+  --color-accent-600: #4f46e5;
+  --color-accent-700: #4338ca;
+
+  /* ── Colors: Success ─────────────────────────────────────────────────── */
+  --color-success-50:  #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  /* ── Colors: Danger ──────────────────────────────────────────────────── */
+  --color-danger-50:  #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+
+  /* ── Colors: Warning ─────────────────────────────────────────────────── */
+  --color-warning-50:  #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  /* ── Colors: Neutral ─────────────────────────────────────────────────── */
+  --color-neutral-50:  #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* ── Colors: Exam Navigator States ──────────────────────────────────── */
+  --color-q-unanswered: #e2e8f0;
+  --color-q-answered:   #3b82f6;
+  --color-q-flagged:    #f59e0b;
+  --color-q-skipped:    #94a3b8;
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* ── Spacing ─────────────────────────────────────────────────────────── */
+  --spacing-18:  4.5rem;
+  --spacing-88:  22rem;
+  --spacing-112: 28rem;
+  --spacing-128: 32rem;
+
+  /* ── Border Radius ───────────────────────────────────────────────────── */
+  --radius-xl:  0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+
+  /* ── Box Shadows ─────────────────────────────────────────────────────── */
+  --shadow-soft: 0 2px 15px -3px rgba(0,0,0,.07), 0 10px 20px -2px rgba(0,0,0,.04);
+  --shadow-card: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -1px rgba(0,0,0,.04);
+  --shadow-exam: 0 8px 32px rgba(59,130,246,.08);
+
+  /* ── Animations ──────────────────────────────────────────────────────── */
+  --animate-fade-in:    fadeIn 0.2s ease-in-out;
+  --animate-slide-up:   slideUp 0.3s ease-out;
+  --animate-slide-down: slideDown 0.3s ease-out;
+  --animate-pulse-soft: pulseSoft 2s ease-in-out infinite;
+  --animate-spin-slow:  spin 3s linear infinite;
+
+  /* ── Breakpoints ─────────────────────────────────────────────────────── */
+  --breakpoint-xs: 475px;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
 }
 
 /* ── Base Resets ──────────────────────────────────────────────────────────── */
 @layer base {
   * {
-    @apply border-neutral-200;
+    border-color: var(--color-neutral-200);
   }
 
   html {
-    @apply antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-900 font-sans;
+    background-color: var(--color-neutral-50);
+    color: var(--color-neutral-900);
+    font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-neutral-100 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-neutral-300 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-neutral-400;
-  }
+  /* Scrollbar */
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { background: var(--color-neutral-100); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb  { background: var(--color-neutral-300); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
 
-  /* Selection color */
+  /* Selection */
   ::selection {
-    @apply bg-primary-200 text-primary-900;
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-900);
   }
 
-  /* KaTeX font size normalization */
-  .katex {
-    font-size: 1em !important;
-  }
+  /* KaTeX normalization */
+  .katex { font-size: 1em !important; }
 
-  /* Focus outline */
+  /* Focus ring */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-primary-500;
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
   }
 }
 
 /* ── Component Classes ────────────────────────────────────────────────────── */
+/* In Tailwind v4, @layer components still works exactly as before.           */
 @layer components {
+
   /* ── Card ─────────────────────────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-xl border border-neutral-200 shadow-card;
+    background-color: white;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-neutral-200);
+    box-shadow: var(--shadow-card);
   }
 
   .card-hover {
-    @apply card transition-all duration-200 hover:shadow-soft hover:border-neutral-300 hover:-translate-y-0.5;
+    background-color: white;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-neutral-200);
+    box-shadow: var(--shadow-card);
+    transition: all 0.2s;
   }
 
-  /* ── Buttons ──────────────────────────────────────────────────────────── */
+  .card-hover:hover {
+    box-shadow: var(--shadow-soft);
+    border-color: var(--color-neutral-300);
+    transform: translateY(-2px);
+  }
+
+  /* ── Button Base ──────────────────────────────────────────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium
-           transition-all duration-150 focus-visible:outline-none focus-visible:ring-2
-           focus-visible:ring-primary-500 focus-visible:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
-           select-none cursor-pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.15s;
+    cursor: pointer;
+    user-select: none;
+    outline: none;
   }
 
-  .btn-sm   { @apply btn px-3 py-1.5 text-sm h-8; }
-  .btn-md   { @apply btn px-4 py-2 text-sm h-9; }
-  .btn-lg   { @apply btn px-6 py-2.5 text-base h-11; }
+  .btn:focus-visible {
+    ring: 2px solid var(--color-primary-500);
+    ring-offset: 2px;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn-sm  { padding: 0.375rem 0.75rem;  font-size: 0.875rem; height: 2rem; }
+  .btn-md  { padding: 0.5rem 1rem;       font-size: 0.875rem; height: 2.25rem; }
+  .btn-lg  { padding: 0.625rem 1.5rem;   font-size: 1rem;     height: 2.75rem; }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800
-           shadow-sm hover:shadow;
+    background-color: var(--color-primary-600);
+    color: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
   }
+  .btn-primary:hover {
+    background-color: var(--color-primary-700);
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+  }
+  .btn-primary:active { background-color: var(--color-primary-800); }
 
   .btn-secondary {
-    @apply bg-white text-neutral-700 border border-neutral-300
-           hover:bg-neutral-50 hover:border-neutral-400;
+    background-color: white;
+    color: var(--color-neutral-700);
+    border: 1px solid var(--color-neutral-300);
+  }
+  .btn-secondary:hover {
+    background-color: var(--color-neutral-50);
+    border-color: var(--color-neutral-400);
   }
 
   .btn-danger {
-    @apply bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800;
+    background-color: var(--color-danger-600);
+    color: white;
   }
+  .btn-danger:hover  { background-color: var(--color-danger-700); }
+  .btn-danger:active { background-color: var(--color-danger-700); }
 
   .btn-ghost {
-    @apply text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900;
+    color: var(--color-neutral-600);
+  }
+  .btn-ghost:hover {
+    background-color: var(--color-neutral-100);
+    color: var(--color-neutral-900);
   }
 
-  /* ── Form elements ────────────────────────────────────────────────────── */
+  /* ── Form ─────────────────────────────────────────────────────────────── */
   .input {
-    @apply w-full rounded-lg border border-neutral-300 bg-white px-3 py-2
-           text-sm text-neutral-900 placeholder:text-neutral-400
-           transition-colors duration-150
-           focus:border-primary-500 focus:outline-none focus:ring-2
-           focus:ring-primary-500/20
-           disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-neutral-300);
+    background-color: white;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-neutral-900);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .input::placeholder { color: var(--color-neutral-400); }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-500) 20%, transparent);
+  }
+
+  .input:disabled {
+    cursor: not-allowed;
+    background-color: var(--color-neutral-50);
+    color: var(--color-neutral-500);
   }
 
   .input-error {
-    @apply border-danger-400 focus:border-danger-500 focus:ring-danger-500/20;
+    border-color: var(--color-danger-400);
+  }
+  .input-error:focus {
+    border-color: var(--color-danger-500);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger-500) 20%, transparent);
   }
 
   .label {
-    @apply block text-sm font-medium text-neutral-700 mb-1;
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-neutral-700);
+    margin-bottom: 0.25rem;
   }
 
   .form-error {
-    @apply text-xs text-danger-600 mt-1 flex items-center gap-1;
+    font-size: 0.75rem;
+    color: var(--color-danger-600);
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   /* ── Badge ────────────────────────────────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
   }
 
-  .badge-primary { @apply badge bg-primary-100 text-primary-700; }
-  .badge-success { @apply badge bg-success-100 text-success-700; }
-  .badge-warning { @apply badge bg-warning-100 text-warning-700; }
-  .badge-danger  { @apply badge bg-danger-100 text-danger-700; }
-  .badge-neutral { @apply badge bg-neutral-100 text-neutral-700; }
+  .badge-primary { background-color: var(--color-primary-100); color: var(--color-primary-700); }
+  .badge-success { background-color: var(--color-success-100); color: var(--color-success-700); }
+  .badge-warning { background-color: var(--color-warning-100); color: var(--color-warning-700); }
+  .badge-danger  { background-color: var(--color-danger-100);  color: var(--color-danger-700); }
+  .badge-neutral { background-color: var(--color-neutral-100); color: var(--color-neutral-700); }
 
-  /* ── Exam Question Navigator States ──────────────────────────────────── */
+  /* ── Question Navigator ───────────────────────────────────────────────── */
   .q-nav-item {
-    @apply w-9 h-9 rounded-lg flex items-center justify-center text-xs font-semibold
-           cursor-pointer transition-all duration-150 border-2 border-transparent;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 2px solid transparent;
   }
 
   .q-nav-unanswered {
-    @apply q-nav-item bg-neutral-100 text-neutral-600 hover:bg-neutral-200;
+    background-color: var(--color-neutral-100);
+    color: var(--color-neutral-600);
   }
+  .q-nav-unanswered:hover { background-color: var(--color-neutral-200); }
 
   .q-nav-answered {
-    @apply q-nav-item bg-primary-500 text-white hover:bg-primary-600;
+    background-color: var(--color-primary-500);
+    color: white;
   }
+  .q-nav-answered:hover { background-color: var(--color-primary-600); }
 
   .q-nav-flagged {
-    @apply q-nav-item bg-warning-400 text-white hover:bg-warning-500;
+    background-color: var(--color-warning-400);
+    color: white;
   }
+  .q-nav-flagged:hover { background-color: var(--color-warning-500); }
 
   .q-nav-current {
-    @apply border-primary-500 ring-2 ring-primary-500/30 scale-110;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-500) 30%, transparent);
+    transform: scale(1.1);
   }
 
-  /* ── Layout ───────────────────────────────────────────────────────────── */
+  /* ── Layout Helpers ───────────────────────────────────────────────────── */
   .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
-  .section-title {
-    @apply text-2xl font-bold text-neutral-900;
+  @media (min-width: 640px) {
+    .page-container { padding-left: 1.5rem; padding-right: 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .page-container { padding-left: 2rem; padding-right: 2rem; }
   }
 
-  .section-subtitle {
-    @apply text-neutral-500 text-sm mt-1;
-  }
+  .section-title    { font-size: 1.5rem; font-weight: 700; color: var(--color-neutral-900); }
+  .section-subtitle { color: var(--color-neutral-500); font-size: 0.875rem; margin-top: 0.25rem; }
 }
 
 /* ── Utility Extensions ───────────────────────────────────────────────────── */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 
   /* Exam full-screen overlay */
   .exam-fullscreen {
-    @apply fixed inset-0 z-50 bg-white overflow-hidden flex flex-col;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background-color: white;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* Skeleton loading animation */
+  /* Skeleton loading */
   .skeleton {
-    @apply animate-pulse bg-neutral-200 rounded;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    background-color: var(--color-neutral-200);
+    border-radius: 0.25rem;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
   }
 
   /* Gradient text */
   .gradient-text {
-    @apply bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent;
+    background: linear-gradient(to right, var(--color-primary-600), var(--color-accent-500));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
-  /* Smooth number transition */
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
+  /* Tabular numbers for timers */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 }
