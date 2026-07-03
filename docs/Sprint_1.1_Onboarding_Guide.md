@@ -1,10 +1,10 @@
-# Hướng Dẫn Chi Tiết Triển Khai Sprint 1.1 (Onboarding Guide)
+# Hướng Dẫn Chi Tiết Khởi Tạo Dự Án Từ Đầu (Sprint 1.1 Onboarding Guide)
 
 > **Dành cho:** Kỹ sư mới gia nhập dự án  
 > **Người viết:** Senior Tech Lead / Technical Project Manager  
 > **Dự án:** CBT Platform — TSA HUST Simulation
 
-Tài liệu này hướng dẫn chi tiết từng bước tái lập lại toàn bộ môi trường và cấu trúc của **Sprint 1.1 (Project Bootstrap & Infrastructure Core)**. Bạn sẽ hiểu không chỉ *cách làm* mà còn *tại sao* chúng ta lại đưa ra các quyết định kiến trúc này.
+Tài liệu này hướng dẫn chi tiết toàn bộ các câu lệnh terminal và thao tác cấu hình để thiết lập dự án **từ một thư mục hoàn toàn trống rỗng**. Bạn sẽ hiểu không chỉ *cách làm* mà còn *tại sao* chúng ta lại đưa ra các quyết định kiến trúc này.
 
 ---
 
@@ -19,12 +19,26 @@ Chúng ta chọn cấu trúc **NPM Workspaces Monorepo** để quản lý cả h
 
 ---
 
-## 🛠️ BƯỚC 1: Khởi Tạo Monorepo Gốc (Root Workspace)
+## 🛠️ BƯỚC 1: Khởi Tạo Monorepo Từ Thư Mục Trống
 
-Tạo thư mục dự án và thiết lập workspaces.
+Giả sử bạn bắt đầu từ một thư mục hoàn toàn trống rỗng trên máy tính.
 
-### 1. Tạo file `package.json` ở thư mục gốc
-Tại thư mục gốc `cbt-platform/`, tạo file `package.json` để khai báo các workspace con nằm trong `apps/`:
+### 1. Khởi tạo Git và npm ở thư mục gốc
+Mở terminal và chạy các lệnh sau:
+```bash
+# Tạo thư mục dự án và truy cập vào
+mkdir cbt-platform
+cd cbt-platform
+
+# Khởi tạo Git repository
+git init
+
+# Khởi tạo file package.json gốc của monorepo
+npm init -y
+```
+
+### 2. Cấu hình npm Workspaces trong file package.json gốc
+Khi chạy `npm init -y`, npm sẽ tự sinh ra file `package.json` cơ bản. Hãy mở file đó ra và sửa đổi phần khai báo workspace con và các scripts tổng:
 
 ```json
 {
@@ -50,9 +64,9 @@ Tại thư mục gốc `cbt-platform/`, tạo file `package.json` để khai bá
 }
 ```
 
-* **Giải thích:** Lệnh `npm run dev` sử dụng `concurrently` giúp chạy đồng thời cả API Server (NestJS) và Web App (Vite React) bằng 1 câu lệnh duy nhất từ thư mục gốc.
+* **Giải thích:** Khai báo `"workspaces": ["apps/*"]` chỉ định cho npm biết rằng các thư mục con trong `apps/` sẽ là các ứng dụng độc lập nhưng chia sẻ cùng một `node_modules` ở gốc để tiết kiệm bộ nhớ và đồng nhất phiên bản thư viện.
 
-### 2. Thiết lập `.gitignore`
+### 3. Thiết lập `.gitignore` gốc
 Tránh commit các thư mục runtime, log, build artifact, và đặc biệt là file `.env` chứa mật khẩu bí mật:
 
 ```gitignore
@@ -67,7 +81,74 @@ coverage/
 
 ---
 
-## 🐳 BƯỚC 2: Thiết Lập Infrastructure Qua Docker Compose
+## ⚡ BƯỚC 2: Khởi Tạo NestJS API Server (Backend app)
+
+Chúng ta sử dụng Nest CLI để scaffold cấu trúc thư mục chuẩn.
+
+### 1. Dựng khung dự án NestJS
+Tại thư mục gốc, tạo thư mục `apps/` và chạy lệnh Nest CLI:
+```bash
+# Tạo thư mục chứa các ứng dụng
+mkdir apps
+cd apps
+
+# Sử dụng npx để chạy Nest CLI khởi tạo project 'api' không cần cài global cli
+npx -y @nestjs/cli new api --package-manager npm --strict
+```
+*(Nếu Nest CLI hỏi cấu hình, hãy chọn các giá trị mặc định).*
+
+Lúc này, cấu trúc `apps/api/` đã được sinh ra hoàn chỉnh với cấu hình TypeScript, Linter, và boilerplate code cơ bản.
+
+### 2. Cài đặt các thư viện bổ sung cho API
+Di chuyển vào thư mục `apps/api` và cài đặt các thư viện phục vụ cho Database, Queue và Security:
+```bash
+cd api
+
+# Cài đặt Prisma ORM (Dev Dependency)
+npm install prisma --save-dev
+
+# Cài đặt Prisma Client và các thư viện core của NestJS/Auth
+npm install @prisma/client @nestjs/config @nestjs/jwt @nestjs/passport @nestjs/swagger @nestjs/terminus @nestjs/throttler @nestjs/schedule ioredis bullmq bcrypt passport passport-jwt passport-local class-validator class-transformer helmet compression
+npm install @types/bcrypt @types/passport-jwt @types/passport-local @types/compression --save-dev
+```
+
+---
+
+## 🎨 BƯỚC 3: Khởi Tạo React SPA (Frontend App)
+
+Chúng ta dùng Vite để scaffold nhanh ứng dụng React + TypeScript.
+
+### 1. Dựng khung dự án React Vite
+Quay lại thư mục `apps/` và chạy trình khởi tạo của Vite:
+```bash
+# Di chuyển đến thư mục cbt-platform/apps
+cd ..
+
+# Sử dụng Vite scaffold dự án 'web'
+npx -y create-vite web --template react-ts
+```
+
+Lúc này thư mục `apps/web/` đã được tạo xong với React + TypeScript.
+
+### 2. Cài đặt Tailwind v4 và các thư viện cần thiết cho UI/UX
+Di chuyển vào thư mục `apps/web` để cài đặt:
+```bash
+cd web
+
+# Cài đặt Tailwind CSS v4 và Vite plugin hỗ trợ v4
+npm install tailwindcss@4.1.11 @tailwindcss/vite@4.1.11
+
+# Cài đặt các thư viện UI/UX, State Management và Icons
+npm install zustand @tanstack/react-query @tanstack/react-query-devtools axios react-router-dom lucide-react clsx tailwind-merge class-variance-authority react-hook-form @hookform/resolvers zod recharts react-katex katex @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities react-markdown remark-math rehype-katex
+npm install @types/katex --save-dev
+
+# Cài đặt các Radix UI Primitives hỗ trợ cho accessible component (Shadcn base)
+npm install @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-select @radix-ui/react-toast @radix-ui/react-tooltip @radix-ui/react-progress @radix-ui/react-separator @radix-ui/react-avatar @radix-ui/react-switch
+```
+
+---
+
+## 🐳 BƯỚC 4: Thiết Lập Infrastructure Qua Docker Compose
 
 Hệ thống của chúng ta đòi hỏi PostgreSQL làm Primary DB và Redis làm In-memory database phục vụ đồng bộ đáp án thực tế và Message Broker (BullMQ).
 
@@ -124,7 +205,7 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";
 
 ---
 
-## 🗄️ BƯỚC 3: Thiết Lập Cơ Sở Dữ Liệu Với Prisma (Backend Schema)
+## 🗄️ BƯỚC 5: Thiết Lập Cơ Sở Dữ Liệu Với Prisma (Backend Schema)
 
 Chúng ta sử dụng **Prisma ORM** để quản lý cơ sở dữ liệu PostgreSQL.
 
@@ -205,7 +286,7 @@ Tạo dữ liệu mẫu (Admin Account, Đề thi mặc định, Câu hỏi mẫ
 
 ---
 
-## ⚡ BƯỚC 4: Khởi Tạo NestJS API Server (Backend)
+## ⚡ BƯỚC 6: Khấu Cấu Trúc NestJS API Server (Backend)
 
 Cơ cấu NestJS được tổ chức theo tính module hóa rõ rệt.
 
@@ -239,7 +320,7 @@ Tạo `PrismaService` kế thừa từ `PrismaClient` và `RedisService` wrap cl
 
 ---
 
-## 🎨 BƯỚC 5: Thiết Lập React SPA (Frontend + Tailwind v4)
+## 🎨 BƯỚC 7: Thiết Lập React SPA (Frontend + Tailwind v4)
 
 Chúng ta sử dụng **Vite + React 19 + Tailwind v4**.
 
@@ -293,7 +374,7 @@ Tạo `api-client.ts` để:
 
 ---
 
-## 🧪 BƯỚC 6: Kiểm Tra và Vận Hành Hệ Thống
+## 🧪 BƯỚC 8: Kiểm Tra và Vận Hành Hệ Thống
 
 Để đảm bảo code của bạn chạy đúng chuẩn và không làm hỏng build của người khác:
 
@@ -324,7 +405,7 @@ Truy cập:
 
 ---
 
-## 📌 Các File Tài Liệu Thiết Kế Cốt Lõi Cần Đọc
+## 📌 Các File Tài Liệu Thiết Kẽ Cốt Lõi Cần Đọc
 
 Để phục vụ phát triển các Sprint tiếp theo, hãy đọc kỹ 2 tài liệu thiết kế sau đã được cấu trúc sẵn trong dự án:
 1. **[`docs/QuestionContentSpec.md`](file:///Users/kietnt/Documents/dev/cbt-platform/docs/QuestionContentSpec.md):** Định nghĩa cấu trúc JSON của 4 dạng câu hỏi (Single Choice, Matrix Đúng/Sai, Kéo thả, Điền số) và cấu trúc chấm điểm.
