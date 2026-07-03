@@ -23,28 +23,28 @@ enum UserRole {
   USER
 }
 
-/// Lifecycle status of a question in the question bank
+/// Lifecycle status of a question / passage bundle in the question bank
 enum QuestionStatus {
   DRAFT          // Being created, not yet submitted for review
   PENDING_REVIEW // Submitted by contributor, awaiting Admin review
-  PUBLISHED      // Approved and visible in exams
+  PUBLISHED      // Approved and available for exam generation
   ARCHIVED       // Retired, no longer used in new exams
 }
 
 /// Question format — determines which renderer component to use on FE
 enum QuestionType {
   SINGLE_CHOICE     // Radio buttons — 1 correct answer from N options
-  MULTIPLE_CHOICE   // Checkboxes — multiple correct answers; ALL must be selected (all-or-nothing)
+  MULTIPLE_CHOICE   // Checkboxes — ALL correct options must be selected (all-or-nothing)
   TRUE_FALSE_MATRIX // Table with statements — Đúng/Sai per row (all-or-nothing)
   DRAG_DROP         // Drag items into target slots (all-or-nothing)
-  FILL_NUMBER       // Numeric input — exact match required (no tolerance)
+  FILL_NUMBER       // Numeric input blanks — exact match, all blanks must be correct (all-or-nothing)
 }
 
 /// TSA Exam section type — determines layout and score grouping
 enum ExamSectionType {
-  MATH     // Toán học — individual questions, single-column layout
-  READING  // Đọc hiểu — passage-based, 2-column layout (passage left, questions right)
-  SCIENCE  // Khoa học (Lý/Hoá/Sinh) — passage-based, 2-column layout
+  MATH     // Toán học — individual standalone questions, single-column layout
+  READING  // Đọc hiểu — PassageBundle of exactly 10 questions, 2-column layout
+  SCIENCE  // Khoa học (Lý/Hoá/Sinh) — PassageBundle of exactly 5 questions, 2-column layout
 }
 
 /// Cognitive level based on Bloom's Taxonomy (adapted for Vietnamese curriculum)
@@ -85,12 +85,14 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  refreshTokens  RefreshToken[]
-  examAccesses   ExamAccess[]
-  sessions       ExamSession[]
-  authoredQuestions Question[] @relation("QuestionAuthor")
-  reviewedQuestions Question[] @relation("QuestionReviewer")
-  createdAccessCodes AccessCode[] @relation("AccessCodeCreator")
+  refreshTokens      RefreshToken[]
+  examAccesses       ExamAccess[]
+  sessions           ExamSession[]
+  authoredQuestions  Question[]      @relation("QuestionAuthor")
+  reviewedQuestions  Question[]      @relation("QuestionReviewer")
+  authoredBundles    PassageBundle[] @relation("BundleAuthor")
+  reviewedBundles    PassageBundle[] @relation("BundleReviewer")
+  createdAccessCodes AccessCode[]    @relation("AccessCodeCreator")
 
   @@map("users")
 }
@@ -119,60 +121,64 @@ model RefreshToken {
 
 /// Hierarchical content taxonomy (Subject → Chapter → Topic → SubTopic)
 model Tag {
-  id       String  @id @default(uuid())
-  name     String
-  slug     String  @unique // URL-safe identifier
-  parentId String? @map("parent_id")
-  depth    Int     @default(0) // 0=Subject, 1=Chapter, 2=Topic, 3=SubTopic
-  orderIndex Int   @default(0) @map("order_index")
+  id         String  @id @default(uuid())
+  name       String
+  slug       String  @unique // URL-safe identifier
+  parentId   String? @map("parent_id")
+  depth      Int     @default(0) // 0=Subject, 1=Chapter, 2=Topic, 3=SubTopic
+  orderIndex Int     @default(0) @map("order_index")
 
-  parent   Tag?  @relation("TagHierarchy", fields: [parentId], references: [id])
-  children Tag[] @relation("TagHierarchy")
+  parent    Tag?          @relation("TagHierarchy", fields: [parentId], references: [id])
+  children  Tag[]         @relation("TagHierarchy")
   questions QuestionTag[]
 
   @@index([parentId])
   @@map("tags")
 }
 
-/// Questions in the question bank
-/// contentJson stores the full question content as JSONB (see QuestionContentSpec.md)
-/// irtParams stores the 3PL IRT calibration parameters
+/// An individual question in the question bank.
+///
+/// MATH questions are standalone: they can be picked individually into an exam.
+/// READING/SCIENCE questions must belong to a PassageBundle and are
+/// always selected as part of their bundle — never in isolation.
+///
+/// contentJson schema: see docs/QuestionContentSpec.md
 model Question {
-  id           String         @id @default(uuid())
-  type         QuestionType
-  status       QuestionStatus @default(DRAFT)
-  level        CognitiveLevel @default(RECOGNITION)
+  id    String         @id @default(uuid())
+  type  QuestionType
+  status QuestionStatus @default(DRAFT)
+  level  CognitiveLevel @default(RECOGNITION)
 
-  /// Full question content stored as JSONB
-  /// Schema: { stem: RichTextNode[], payload: SingleChoicePayload | ... , solution: RichTextNode[] }
-  contentJson  Json           @map("content_json") @db.JsonB
+  /// Full question content stored as JSONB (see QuestionContentSpec.md v2.1)
+  contentJson Json @map("content_json") @db.JsonB
 
-  /// IRT 3PL parameters: { a: number, b: number, c: number }
-  /// Defaults: { a: 1.0, b: 0.0, c: 0.25 }
-  irtParams    Json           @default("{\"a\": 1.0, \"b\": 0.0, \"c\": 0.25}") @map("irt_params") @db.JsonB
+  /// IRT 3PL parameters: { a, b, c }
+  /// Admin may override on creation; defaults to { a:1.0, b:0.0, c:0.25 }
+  irtParams Json @default("{\"a\": 1.0, \"b\": 0.0, \"c\": 0.25}") @map("irt_params") @db.JsonB
 
-  /// Expected time in seconds (used for time analysis)
-  expectedTimeSecs Int        @default(90) @map("expected_time_secs")
+  /// Expected solving time in seconds (used for time-analysis in Sprint 4)
+  expectedTimeSecs Int @default(90) @map("expected_time_secs")
 
-  authorId     String         @map("author_id")
-  reviewedById String?        @map("reviewed_by_id")
-  reviewNote   String?        @map("review_note")
-  publishedAt  DateTime?      @map("published_at")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  authorId     String    @map("author_id")
+  reviewedById String?   @map("reviewed_by_id")
+  reviewNote   String?   @map("review_note")
+  publishedAt  DateTime? @map("published_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  author       User           @relation("QuestionAuthor", fields: [authorId], references: [id])
-  reviewedBy   User?          @relation("QuestionReviewer", fields: [reviewedById], references: [id])
-  tags         QuestionTag[]
-  examQuestions ExamQuestion[]
+  author         User                    @relation("QuestionAuthor", fields: [authorId], references: [id])
+  reviewedBy     User?                   @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+  tags           QuestionTag[]
+  bundleQuestion PassageBundleQuestion?  // null = standalone MATH question
+  mathExamItems  ExamMathQuestion[]
   sessionAnswers SessionAnswer[]
 
   @@index([status])
   @@index([type])
   @@index([level])
   @@index([authorId])
-  // GIN index on contentJson for JSONB operations (created via raw migration)
+  // GIN index on contentJson (applied via raw SQL in migration: docs/manual_indexes.sql)
   @@map("questions")
 }
 
@@ -189,90 +195,148 @@ model QuestionTag {
 }
 
 // =============================================================================
+// PASSAGE BUNDLES (Question Bank Layer)
+// =============================================================================
+
+/// A PassageBundle is an ATOMIC unit in the question bank.
+///
+/// It represents one reading passage (or science stimulus) paired with a
+/// FIXED set of questions. The bundle is ALWAYS treated as a single unit:
+///   - Admin uploads the passage text + all questions together.
+///   - Exam generation selects whole bundles — questions CANNOT be split.
+///   - READING bundles must have exactly 10 questions.
+///   - SCIENCE bundles must have exactly 5 questions.
+///   (Cardinality rule enforced at application layer, not DB level.)
+///
+/// This model lives in the Question Bank, NOT in any specific Exam.
+model PassageBundle {
+  id          String          @id @default(uuid())
+  sectionType ExamSectionType @map("section_type") // READING or SCIENCE only
+
+  /// Short title displayed in admin UI (e.g., "Đọc hiểu — Khán giá học")
+  title String?
+
+  /// Full passage / stimulus text as RichTextNode[]
+  /// Supports: text, latex, latex_block, image, bold, italic, break
+  contentJson Json @map("content_json") @db.JsonB
+
+  /// Expected total time for the whole bundle in seconds
+  expectedTimeSecs Int @default(600) @map("expected_time_secs")
+
+  status       QuestionStatus @default(DRAFT)
+  authorId     String         @map("author_id")
+  reviewedById String?        @map("reviewed_by_id")
+  reviewNote   String?        @map("review_note")
+  publishedAt  DateTime?      @map("published_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  author     User                    @relation("BundleAuthor", fields: [authorId], references: [id])
+  reviewedBy User?                   @relation("BundleReviewer", fields: [reviewedById], references: [id])
+  questions  PassageBundleQuestion[]
+  examItems  ExamPassageBundle[]
+
+  @@index([sectionType, status])
+  @@index([authorId])
+  @@map("passage_bundles")
+}
+
+/// Ordered mapping: PassageBundle → Question
+///
+/// Each bundle owns exactly N questions (10 for READING, 5 for SCIENCE).
+/// orderInBundle determines the display order in the right column of the 2-column layout.
+/// points is the score for a fully-correct answer to this question.
+model PassageBundleQuestion {
+  bundleId      String @map("bundle_id")
+  questionId    String @unique @map("question_id") // A question belongs to AT MOST 1 bundle
+  orderInBundle Int    @map("order_in_bundle")     // 0-based display order in right column
+  points        Float  @default(1.0)               // Points for this question (all-or-nothing per question type rules)
+
+  bundle   PassageBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  question Question      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, questionId])
+  @@unique([bundleId, orderInBundle])
+  @@index([bundleId])
+  @@map("passage_bundle_questions")
+}
+
+// =============================================================================
 // EXAM MANAGEMENT
 // =============================================================================
 
-/// An exam (collection of questions with time limit)
+/// An exam (collection of questions with time limit).
+///
+/// An exam is assembled from:
+///   1. ExamMathQuestion records  — individual MATH questions
+///   2. ExamPassageBundle records — whole PassageBundles for READING/SCIENCE
 model Exam {
   id           String         @id @default(uuid())
   title        String
   description  String?
   instructions String?        // Displayed before exam starts (Markdown)
-  durationMins Int            @map("duration_mins") // Total exam duration in minutes
-  totalPoints  Int            @default(0) @map("total_points") // Sum of all question points
+  durationMins Int            @map("duration_mins")
+  totalPoints  Float          @default(0) @map("total_points")
   accessType   ExamAccessType @default(LOCKED)
   isPublished  Boolean        @default(false) @map("is_published")
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  questions    ExamQuestion[]
-  passages     Passage[]
-  accessCodes  AccessCode[]
-  accesses     ExamAccess[]
-  sessions     ExamSession[]
+  mathQuestions   ExamMathQuestion[]
+  passageBundles  ExamPassageBundle[]
+  accessCodes     AccessCode[]
+  accesses        ExamAccess[]
+  sessions        ExamSession[]
 
   @@map("exams")
 }
 
-/// A reading passage / stimulus material that anchors a group of questions.
-/// Used in READING and SCIENCE sections for the 2-column layout (passage left, questions right).
-/// Points are still scored per individual question — the passage provides context only.
-model Passage {
-  id          String          @id @default(uuid())
-  examId      String          @map("exam_id")
-  sectionType ExamSectionType @map("section_type") // READING or SCIENCE only
-  title       String?         // Optional passage title (e.g., "Bài đọc 1")
+/// An individual MATH question placed into an exam.
+/// MATH questions are standalone — no passage, no bundle constraint.
+model ExamMathQuestion {
+  id         String @id @default(uuid())
+  examId     String @map("exam_id")
+  questionId String @map("question_id")
 
-  /// Full passage content as RichTextNode[]
-  /// Supports: text, latex, latex_block, image, bold, italic, break, table
-  contentJson Json            @map("content_json") @db.JsonB
+  /// 0-based order within the MATH section of this exam
+  orderInSection Int   @map("order_in_section")
+  points         Float @default(1.0)
 
-  orderIndex  Int             @default(0) @map("order_index") // Order within the section
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
 
-  exam      Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
-  questions ExamQuestion[]
-
-  @@index([examId, sectionType])
-  @@map("passages")
+  @@unique([examId, questionId])
+  @@unique([examId, orderInSection])
+  @@index([examId])
+  @@map("exam_math_questions")
 }
 
-/// Junction table: Exam ↔ Question with ordering, section, optional passage, and per-question points
-model ExamQuestion {
-  id          String          @id @default(uuid())
-  examId      String          @map("exam_id")
-  questionId  String          @map("question_id")
+/// A PassageBundle selected into an exam (READING or SCIENCE section).
+///
+/// Selecting a bundle atomically includes its passage text AND all its questions.
+/// You cannot select individual questions from a bundle.
+///
+/// orderInSection is the display order of this bundle within its section:
+///   e.g., READING bundle 0 → bundle 1 → bundle 2 (each with 10 questions)
+model ExamPassageBundle {
+  id              String          @id @default(uuid())
+  examId          String          @map("exam_id")
+  passageBundleId String          @map("passage_bundle_id")
+  sectionType     ExamSectionType @map("section_type") // READING or SCIENCE
 
-  /// Which of the 3 TSA sections this question belongs to
-  sectionType ExamSectionType @map("section_type")
+  /// 0-based order of this bundle within its section in this exam
+  orderInSection Int @map("order_in_section")
 
-  /// Passage this question belongs to (null for MATH questions; required for READING/SCIENCE)
-  passageId   String?         @map("passage_id")
+  exam          Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  passageBundle PassageBundle @relation(fields: [passageBundleId], references: [id])
 
-  /// Global display order within the entire exam (used for question navigator numbering)
-  /// MATH: 0..N_math-1, then READING continues, then SCIENCE
-  orderIndex  Int             @map("order_index")
-
-  /// Order of this question WITHIN its passage group (0-based)
-  /// Used by frontend to render questions in the right-column of 2-column layout
-  /// Null for MATH questions (passageId is also null)
-  orderInPassage Int?         @map("order_in_passage")
-
-  /// Points for a fully correct answer (all-or-nothing for multi-slot types)
-  points      Float           @default(1.0)
-
-  exam     Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
-  question Question  @relation(fields: [questionId], references: [id])
-  passage  Passage?  @relation(fields: [passageId], references: [id])
-
-  @@unique([examId, orderIndex])
-  @@unique([examId, questionId])
+  @@unique([examId, passageBundleId])                  // Same bundle can't appear twice in an exam
+  @@unique([examId, sectionType, orderInSection])      // Ordering is unique per section
   @@index([examId])
   @@index([examId, sectionType])
-  @@index([passageId])
-  @@map("exam_questions")
+  @@map("exam_passage_bundles")
 }
 
 /// Access codes that unlock exams for users
@@ -287,9 +351,9 @@ model AccessCode {
   createdById String    @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
 
-  exam       Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-  createdBy  User         @relation("AccessCodeCreator", fields: [createdById], references: [id])
-  accesses   ExamAccess[]
+  exam      Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("AccessCodeCreator", fields: [createdById], references: [id])
+  accesses  ExamAccess[]
 
   @@index([examId])
   @@index([code])
@@ -308,7 +372,7 @@ model ExamAccess {
   exam       Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
   accessCode AccessCode? @relation(fields: [accessCodeId], references: [id])
 
-  @@unique([userId, examId]) // A user can only unlock an exam once
+  @@unique([userId, examId])
   @@index([userId])
   @@index([examId])
   @@map("exam_accesses")
@@ -331,10 +395,10 @@ model ExamSession {
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  user            User              @relation(fields: [userId], references: [id])
-  exam            Exam              @relation(fields: [examId], references: [id])
-  answers         SessionAnswer[]
-  result          ExamResult?
+  user             User              @relation(fields: [userId], references: [id])
+  exam             Exam              @relation(fields: [examId], references: [id])
+  answers          SessionAnswer[]
+  result           ExamResult?
   proctoringEvents ProctoringEvent[]
 
   @@index([userId, examId])
@@ -342,24 +406,29 @@ model ExamSession {
   @@map("exam_sessions")
 }
 
-/// Persisted answer for a single question within a session
-/// NOTE: Answers are first buffered in Redis, then flushed here by BullMQ worker
+/// Persisted answer for a single question within a session.
+/// NOTE: Answers are first buffered in Redis, then flushed here by BullMQ worker.
+///
+/// Works uniformly for both MATH and READING/SCIENCE questions —
+/// the question always has a unique ID regardless of whether it came from
+/// a standalone ExamMathQuestion or a PassageBundleQuestion.
 model SessionAnswer {
-  id           String   @id @default(uuid())
-  sessionId    String   @map("session_id")
-  questionId   String   @map("question_id")
+  id         String @id @default(uuid())
+  sessionId  String @map("session_id")
+  questionId String @map("question_id")
 
-  /// Raw answer submitted by user (type-specific JSON)
-  /// SingleChoice: { selectedOptionId: string }
-  /// TrueFalseMatrix: { answers: { statementId: string, value: boolean }[] }
-  /// DragDrop: { slots: { slotId: string, itemId: string }[] }
-  /// FillNumber: { value: number }
-  answerJson   Json?    @map("answer_json") @db.JsonB
+  /// Raw answer submitted by user — type-specific JSON (see QuestionContentSpec.md)
+  /// SINGLE_CHOICE:     { selectedOptionId: string }
+  /// MULTIPLE_CHOICE:   { selectedOptionIds: string[] }
+  /// TRUE_FALSE_MATRIX: { answers: { statementId: string, value: boolean }[] }
+  /// DRAG_DROP:         { slots: { slotId: string, itemId: string }[] }
+  /// FILL_NUMBER:       { blanks: { blankId: string, value: number }[] }
+  answerJson Json? @map("answer_json") @db.JsonB
 
-  isCorrect    Boolean? @map("is_correct")  // null until graded
+  isCorrect    Boolean? @map("is_correct")   // null until graded
   pointsEarned Float?   @map("points_earned")
-  timeSpentMs  Int?     @map("time_spent_ms") // Time spent on this question in ms
-  attemptCount Int      @default(1) @map("attempt_count") // Number of times answer changed
+  timeSpentMs  Int?     @map("time_spent_ms")
+  attemptCount Int      @default(1) @map("attempt_count")
   answeredAt   DateTime @default(now()) @map("answered_at")
 
   session  ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -372,24 +441,25 @@ model SessionAnswer {
 
 /// Final computed result for a session (populated by grading worker)
 model ExamResult {
-  id            String   @id @default(uuid())
-  sessionId     String   @unique @map("session_id")
-  totalScore    Float    @map("total_score")
-  maxScore      Float    @map("max_score")
-  percentScore  Float    @map("percent_score") // totalScore / maxScore * 100
-  correctCount  Int      @map("correct_count")
-  wrongCount    Int      @map("wrong_count")
-  skippedCount  Int      @map("skipped_count")
-  durationSecs  Int      @map("duration_secs") // Actual time taken in seconds
+  id           String @id @default(uuid())
+  sessionId    String @unique @map("session_id")
+  totalScore   Float  @map("total_score")
+  maxScore     Float  @map("max_score")
+  percentScore Float  @map("percent_score") // totalScore / maxScore * 100
+  correctCount Int    @map("correct_count")
+  wrongCount   Int    @map("wrong_count")
+  skippedCount Int    @map("skipped_count")
+  durationSecs Int    @map("duration_secs")
 
-  /// Per-section score breakdown — maps to the 3 TSA sections
-  /// Schema: { section: 'MATH'|'READING'|'SCIENCE', score: number, maxScore: number, correct: number, total: number }[]
-  sectionScores Json     @default("[]") @map("section_scores") @db.JsonB
+  /// Per-section score breakdown
+  /// Schema: { section: 'MATH'|'READING'|'SCIENCE', score, maxScore, correct, total }[]
+  sectionScores Json @default("[]") @map("section_scores") @db.JsonB
 
-  /// Score breakdown by tag: { tagId: string, tagName: string, correct: number, total: number }[]
-  tagBreakdown  Json     @default("[]") @map("tag_breakdown") @db.JsonB
+  /// Score breakdown by tag
+  /// Schema: { tagId, tagName, correct, total }[]
+  tagBreakdown Json @default("[]") @map("tag_breakdown") @db.JsonB
 
-  completedAt   DateTime @default(now()) @map("completed_at")
+  completedAt DateTime @default(now()) @map("completed_at")
 
   session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -400,17 +470,16 @@ model ExamResult {
 // PROCTORING
 // =============================================================================
 
-/// Records of suspicious activity during a session (tab switches, fullscreen exits)
+/// Records of suspicious activity during a session
 model ProctoringEvent {
-  id        String   @id @default(uuid())
-  sessionId String   @map("session_id")
+  id        String @id @default(uuid())
+  sessionId String @map("session_id")
 
-  /// Event type
   /// 'TAB_SWITCH' | 'FULLSCREEN_EXIT' | 'COPY_ATTEMPT' | 'SESSION_BLUR'
-  eventType String   @map("event_type")
+  eventType String @map("event_type")
 
   /// Additional context: { questionIndex?: number, duration?: number }
-  metadata  Json?    @db.JsonB
+  metadata Json? @db.JsonB
 
   occurredAt DateTime @map("occurred_at")
   createdAt  DateTime @default(now()) @map("created_at")
