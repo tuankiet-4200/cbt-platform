@@ -1,0 +1,367 @@
+// =============================================================================
+// CBT PLATFORM — PRISMA SCHEMA
+// Database: PostgreSQL 16
+// ORM: Prisma 6.x
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+/// Lifecycle status of a question in the question bank
+enum QuestionStatus {
+  DRAFT          // Being created, not yet submitted for review
+  PENDING_REVIEW // Submitted by contributor, awaiting Admin review
+  PUBLISHED      // Approved and visible in exams
+  ARCHIVED       // Retired, no longer used in new exams
+}
+
+/// Question format — determines which renderer component to use on FE
+enum QuestionType {
+  SINGLE_CHOICE    // Radio buttons — 1 correct answer from N options
+  TRUE_FALSE_MATRIX // Table with statements — Đúng/Sai per row
+  DRAG_DROP        // Drag items into target slots
+  FILL_NUMBER      // Numeric input with tolerance comparison
+}
+
+/// Cognitive level based on Bloom's Taxonomy (adapted for Vietnamese curriculum)
+enum CognitiveLevel {
+  RECOGNITION       // Nhận biết
+  COMPREHENSION     // Thông hiểu
+  APPLICATION       // Vận dụng
+  HIGH_APPLICATION  // Vận dụng cao
+}
+
+/// Status of an exam session
+enum SessionStatus {
+  IN_PROGRESS // Currently being taken
+  SUBMITTED   // Submitted by user (awaiting grading)
+  GRADED      // Grading complete
+  ABANDONED   // Session expired or abandoned
+}
+
+/// Exam access type
+enum ExamAccessType {
+  PUBLIC   // Auto-granted to all registered users (default exam)
+  LOCKED   // Requires a valid AccessCode to unlock
+}
+
+// =============================================================================
+// CORE ENTITIES
+// =============================================================================
+
+/// Platform users (students and admins)
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  refreshTokens  RefreshToken[]
+  examAccesses   ExamAccess[]
+  sessions       ExamSession[]
+  authoredQuestions Question[] @relation("QuestionAuthor")
+  reviewedQuestions Question[] @relation("QuestionReviewer")
+  createdAccessCodes AccessCode[] @relation("AccessCodeCreator")
+
+  @@map("users")
+}
+
+/// JWT Refresh Tokens (enables rotation and revocation)
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique // Hashed token stored in DB
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  createdAt DateTime @default(now()) @map("created_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// =============================================================================
+// QUESTION BANK
+// =============================================================================
+
+/// Hierarchical content taxonomy (Subject → Chapter → Topic → SubTopic)
+model Tag {
+  id       String  @id @default(uuid())
+  name     String
+  slug     String  @unique // URL-safe identifier
+  parentId String? @map("parent_id")
+  depth    Int     @default(0) // 0=Subject, 1=Chapter, 2=Topic, 3=SubTopic
+  orderIndex Int   @default(0) @map("order_index")
+
+  parent   Tag?  @relation("TagHierarchy", fields: [parentId], references: [id])
+  children Tag[] @relation("TagHierarchy")
+  questions QuestionTag[]
+
+  @@index([parentId])
+  @@map("tags")
+}
+
+/// Questions in the question bank
+/// contentJson stores the full question content as JSONB (see QuestionContentSpec.md)
+/// irtParams stores the 3PL IRT calibration parameters
+model Question {
+  id           String         @id @default(uuid())
+  type         QuestionType
+  status       QuestionStatus @default(DRAFT)
+  level        CognitiveLevel @default(RECOGNITION)
+
+  /// Full question content stored as JSONB
+  /// Schema: { stem: RichTextNode[], payload: SingleChoicePayload | ... , solution: RichTextNode[] }
+  contentJson  Json           @map("content_json") @db.JsonB
+
+  /// IRT 3PL parameters: { a: number, b: number, c: number }
+  /// Defaults: { a: 1.0, b: 0.0, c: 0.25 }
+  irtParams    Json           @default("{\"a\": 1.0, \"b\": 0.0, \"c\": 0.25}") @map("irt_params") @db.JsonB
+
+  /// Expected time in seconds (used for time analysis)
+  expectedTimeSecs Int        @default(90) @map("expected_time_secs")
+
+  authorId     String         @map("author_id")
+  reviewedById String?        @map("reviewed_by_id")
+  reviewNote   String?        @map("review_note")
+  publishedAt  DateTime?      @map("published_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  author       User           @relation("QuestionAuthor", fields: [authorId], references: [id])
+  reviewedBy   User?          @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+  tags         QuestionTag[]
+  examQuestions ExamQuestion[]
+  sessionAnswers SessionAnswer[]
+
+  @@index([status])
+  @@index([type])
+  @@index([level])
+  @@index([authorId])
+  // GIN index on contentJson for JSONB operations (created via raw migration)
+  @@map("questions")
+}
+
+/// Many-to-many: Question ↔ Tag
+model QuestionTag {
+  questionId String @map("question_id")
+  tagId      String @map("tag_id")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+  @@map("question_tags")
+}
+
+// =============================================================================
+// EXAM MANAGEMENT
+// =============================================================================
+
+/// An exam (collection of questions with time limit)
+model Exam {
+  id           String         @id @default(uuid())
+  title        String
+  description  String?
+  instructions String?        // Displayed before exam starts (Markdown)
+  durationMins Int            @map("duration_mins") // Total exam duration in minutes
+  totalPoints  Int            @default(0) @map("total_points") // Sum of all question points
+  accessType   ExamAccessType @default(LOCKED)
+  isPublished  Boolean        @default(false) @map("is_published")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  questions    ExamQuestion[]
+  accessCodes  AccessCode[]
+  accesses     ExamAccess[]
+  sessions     ExamSession[]
+
+  @@map("exams")
+}
+
+/// Junction table: Exam ↔ Question with ordering and per-question points
+model ExamQuestion {
+  id         String @id @default(uuid())
+  examId     String @map("exam_id")
+  questionId String @map("question_id")
+  orderIndex Int    @map("order_index") // 0-based ordering within the exam
+  points     Float  @default(1.0)       // Points awarded for correct answer
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([examId, orderIndex])
+  @@unique([examId, questionId])
+  @@index([examId])
+  @@map("exam_questions")
+}
+
+/// Access codes that unlock exams for users
+model AccessCode {
+  id          String    @id @default(uuid())
+  code        String    @unique // 8-char alphanumeric uppercase
+  examId      String    @map("exam_id")
+  maxUses     Int?      @map("max_uses")    // null = unlimited
+  usedCount   Int       @default(0) @map("used_count")
+  expiresAt   DateTime? @map("expires_at") // null = never expires
+  isActive    Boolean   @default(true) @map("is_active")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  exam       Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdBy  User         @relation("AccessCodeCreator", fields: [createdById], references: [id])
+  accesses   ExamAccess[]
+
+  @@index([examId])
+  @@index([code])
+  @@map("access_codes")
+}
+
+/// Records which exams a user has unlocked (and how)
+model ExamAccess {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  examId       String   @map("exam_id")
+  accessCodeId String?  @map("access_code_id") // null = auto-granted (PUBLIC exam)
+  grantedAt    DateTime @default(now()) @map("granted_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam       Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  accessCode AccessCode? @relation(fields: [accessCodeId], references: [id])
+
+  @@unique([userId, examId]) // A user can only unlock an exam once
+  @@index([userId])
+  @@index([examId])
+  @@map("exam_accesses")
+}
+
+// =============================================================================
+// EXAM SESSION (Test-Taking Engine)
+// =============================================================================
+
+/// An individual exam attempt by a user
+model ExamSession {
+  id          String        @id @default(uuid())
+  userId      String        @map("user_id")
+  examId      String        @map("exam_id")
+  status      SessionStatus @default(IN_PROGRESS)
+  startTime   DateTime      @default(now()) @map("start_time")
+  endTime     DateTime      @map("end_time")     // startTime + exam.durationMins
+  submittedAt DateTime?     @map("submitted_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  user            User              @relation(fields: [userId], references: [id])
+  exam            Exam              @relation(fields: [examId], references: [id])
+  answers         SessionAnswer[]
+  result          ExamResult?
+  proctoringEvents ProctoringEvent[]
+
+  @@index([userId, examId])
+  @@index([status])
+  @@map("exam_sessions")
+}
+
+/// Persisted answer for a single question within a session
+/// NOTE: Answers are first buffered in Redis, then flushed here by BullMQ worker
+model SessionAnswer {
+  id           String   @id @default(uuid())
+  sessionId    String   @map("session_id")
+  questionId   String   @map("question_id")
+
+  /// Raw answer submitted by user (type-specific JSON)
+  /// SingleChoice: { selectedOptionId: string }
+  /// TrueFalseMatrix: { answers: { statementId: string, value: boolean }[] }
+  /// DragDrop: { slots: { slotId: string, itemId: string }[] }
+  /// FillNumber: { value: number }
+  answerJson   Json?    @map("answer_json") @db.JsonB
+
+  isCorrect    Boolean? @map("is_correct")  // null until graded
+  pointsEarned Float?   @map("points_earned")
+  timeSpentMs  Int?     @map("time_spent_ms") // Time spent on this question in ms
+  attemptCount Int      @default(1) @map("attempt_count") // Number of times answer changed
+  answeredAt   DateTime @default(now()) @map("answered_at")
+
+  session  ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id])
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@map("session_answers")
+}
+
+/// Final computed result for a session (populated by grading worker)
+model ExamResult {
+  id            String   @id @default(uuid())
+  sessionId     String   @unique @map("session_id")
+  totalScore    Float    @map("total_score")
+  maxScore      Float    @map("max_score")
+  percentScore  Float    @map("percent_score") // totalScore / maxScore * 100
+  correctCount  Int      @map("correct_count")
+  wrongCount    Int      @map("wrong_count")
+  skippedCount  Int      @map("skipped_count")
+  durationSecs  Int      @map("duration_secs") // Actual time taken in seconds
+
+  /// Score breakdown by tag: { tagId: string, tagName: string, correct: number, total: number }[]
+  tagBreakdown  Json     @default("[]") @map("tag_breakdown") @db.JsonB
+
+  completedAt   DateTime @default(now()) @map("completed_at")
+
+  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("exam_results")
+}
+
+// =============================================================================
+// PROCTORING
+// =============================================================================
+
+/// Records of suspicious activity during a session (tab switches, fullscreen exits)
+model ProctoringEvent {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+
+  /// Event type
+  /// 'TAB_SWITCH' | 'FULLSCREEN_EXIT' | 'COPY_ATTEMPT' | 'SESSION_BLUR'
+  eventType String   @map("event_type")
+
+  /// Additional context: { questionIndex?: number, duration?: number }
+  metadata  Json?    @db.JsonB
+
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([eventType])
+  @@map("proctoring_events")
+}

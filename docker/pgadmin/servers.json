@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "CBT Platform (Local)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "cbt_platform",
+      "Username": "cbt_user",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpassfile"
+    }
+  }
+}
