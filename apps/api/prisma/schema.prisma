@@ -251,8 +251,14 @@ model ExamQuestion {
   /// Passage this question belongs to (null for MATH questions; required for READING/SCIENCE)
   passageId   String?         @map("passage_id")
 
-  /// Global display order within the exam (across all sections)
+  /// Global display order within the entire exam (used for question navigator numbering)
+  /// MATH: 0..N_math-1, then READING continues, then SCIENCE
   orderIndex  Int             @map("order_index")
+
+  /// Order of this question WITHIN its passage group (0-based)
+  /// Used by frontend to render questions in the right-column of 2-column layout
+  /// Null for MATH questions (passageId is also null)
+  orderInPassage Int?         @map("order_in_passage")
 
   /// Points for a fully correct answer (all-or-nothing for multi-slot types)
   points      Float           @default(1.0)
