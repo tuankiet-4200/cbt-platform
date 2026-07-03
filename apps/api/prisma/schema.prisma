@@ -33,10 +33,18 @@ enum QuestionStatus {
 
 /// Question format — determines which renderer component to use on FE
 enum QuestionType {
-  SINGLE_CHOICE    // Radio buttons — 1 correct answer from N options
-  TRUE_FALSE_MATRIX // Table with statements — Đúng/Sai per row
-  DRAG_DROP        // Drag items into target slots
-  FILL_NUMBER      // Numeric input with tolerance comparison
+  SINGLE_CHOICE     // Radio buttons — 1 correct answer from N options
+  MULTIPLE_CHOICE   // Checkboxes — multiple correct answers; ALL must be selected (all-or-nothing)
+  TRUE_FALSE_MATRIX // Table with statements — Đúng/Sai per row (all-or-nothing)
+  DRAG_DROP         // Drag items into target slots (all-or-nothing)
+  FILL_NUMBER       // Numeric input — exact match required (no tolerance)
+}
+
+/// TSA Exam section type — determines layout and score grouping
+enum ExamSectionType {
+  MATH     // Toán học — individual questions, single-column layout
+  READING  // Đọc hiểu — passage-based, 2-column layout (passage left, questions right)
+  SCIENCE  // Khoa học (Lý/Hoá/Sinh) — passage-based, 2-column layout
 }
 
 /// Cognitive level based on Bloom's Taxonomy (adapted for Vietnamese curriculum)
@@ -199,6 +207,7 @@ model Exam {
 
   // ── Relations ─────────────────────────────────────────────────────────────
   questions    ExamQuestion[]
+  passages     Passage[]
   accessCodes  AccessCode[]
   accesses     ExamAccess[]
   sessions     ExamSession[]
@@ -206,20 +215,57 @@ model Exam {
   @@map("exams")
 }
 
-/// Junction table: Exam ↔ Question with ordering and per-question points
-model ExamQuestion {
-  id         String @id @default(uuid())
-  examId     String @map("exam_id")
-  questionId String @map("question_id")
-  orderIndex Int    @map("order_index") // 0-based ordering within the exam
-  points     Float  @default(1.0)       // Points awarded for correct answer
+/// A reading passage / stimulus material that anchors a group of questions.
+/// Used in READING and SCIENCE sections for the 2-column layout (passage left, questions right).
+/// Points are still scored per individual question — the passage provides context only.
+model Passage {
+  id          String          @id @default(uuid())
+  examId      String          @map("exam_id")
+  sectionType ExamSectionType @map("section_type") // READING or SCIENCE only
+  title       String?         // Optional passage title (e.g., "Bài đọc 1")
 
-  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [questionId], references: [id])
+  /// Full passage content as RichTextNode[]
+  /// Supports: text, latex, latex_block, image, bold, italic, break, table
+  contentJson Json            @map("content_json") @db.JsonB
+
+  orderIndex  Int             @default(0) @map("order_index") // Order within the section
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  exam      Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questions ExamQuestion[]
+
+  @@index([examId, sectionType])
+  @@map("passages")
+}
+
+/// Junction table: Exam ↔ Question with ordering, section, optional passage, and per-question points
+model ExamQuestion {
+  id          String          @id @default(uuid())
+  examId      String          @map("exam_id")
+  questionId  String          @map("question_id")
+
+  /// Which of the 3 TSA sections this question belongs to
+  sectionType ExamSectionType @map("section_type")
+
+  /// Passage this question belongs to (null for MATH questions; required for READING/SCIENCE)
+  passageId   String?         @map("passage_id")
+
+  /// Global display order within the exam (across all sections)
+  orderIndex  Int             @map("order_index")
+
+  /// Points for a fully correct answer (all-or-nothing for multi-slot types)
+  points      Float           @default(1.0)
+
+  exam     Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question  @relation(fields: [questionId], references: [id])
+  passage  Passage?  @relation(fields: [passageId], references: [id])
 
   @@unique([examId, orderIndex])
   @@unique([examId, questionId])
   @@index([examId])
+  @@index([examId, sectionType])
+  @@index([passageId])
   @@map("exam_questions")
 }
 
@@ -329,6 +375,10 @@ model ExamResult {
   wrongCount    Int      @map("wrong_count")
   skippedCount  Int      @map("skipped_count")
   durationSecs  Int      @map("duration_secs") // Actual time taken in seconds
+
+  /// Per-section score breakdown — maps to the 3 TSA sections
+  /// Schema: { section: 'MATH'|'READING'|'SCIENCE', score: number, maxScore: number, correct: number, total: number }[]
+  sectionScores Json     @default("[]") @map("section_scores") @db.JsonB
 
   /// Score breakdown by tag: { tagId: string, tagName: string, correct: number, total: number }[]
   tagBreakdown  Json     @default("[]") @map("tag_breakdown") @db.JsonB
