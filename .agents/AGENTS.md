@@ -8,11 +8,69 @@
 
 ## Table of Contents
 
+0. [Project Context — Read First, Update Last](#0-project-context--read-first-update-last)  ← **Start here every session**
 1. [Project Overview](#1-project-overview)
 2. [Tech Stack Quick Reference](#2-tech-stack-quick-reference)
 3. [Monorepo & Workspace Commands](#3-monorepo--workspace-commands)
 4. [Database & Prisma Workflow](#4-database--prisma-workflow)  ← **Most Critical**
 5. [TypeScript Build Rules](#5-typescript-build-rules)
+6. [Frontend Rules (Vite + Tailwind v4)](#6-frontend-rules-vite--tailwind-v4)
+7. [Domain Model Invariants](#7-domain-model-invariants)
+8. [Question Content Spec Rules](#8-question-content-spec-rules)
+9. [API Design Rules](#9-api-design-rules)
+10. [Git & Commit Convention](#10-git--commit-convention)
+11. [Pre-task & Post-task Checklist](#11-pre-task--post-task-checklist)
+
+---
+
+## 0. Project Context — Read First, Update Last
+
+### 0.1 — MANDATORY: Read PROJECT_CONTEXT.md at the start of every new conversation
+
+**The very first action in any new conversation must be:**
+
+```bash
+# Read the live project state document
+cat docs/PROJECT_CONTEXT.md
+```
+
+Or use the `view_file` tool to read `/Users/kietnt/Documents/dev/cbt-platform/docs/PROJECT_CONTEXT.md`.
+
+This file contains:
+- **Current active sprint** and its status
+- **Sprint progress overview** (what's done, what's next)
+- **Completed deliverables** for each sprint
+- **Next immediate tasks** to implement
+- **Immutable architecture decisions** already made
+- **Local dev environment** status
+
+> ⚠️ **Do NOT rely on conversation history alone.** Previous conversations may be truncated. `PROJECT_CONTEXT.md` is always the authoritative source of current project state.
+
+### 0.2 — MANDATORY: Update PROJECT_CONTEXT.md at the end of every task
+
+After completing any meaningful work (new feature, schema change, bug fix, architecture decision), update `docs/PROJECT_CONTEXT.md` by:
+
+1. **Update "Last updated" date** in the Current Status section
+2. **Update Sprint Progress table** — change emoji and completion % for affected sprints
+3. **Check off completed items** in the "Next Up" section
+4. **Update "Active Sprint"** if the sprint has changed
+5. **Add new entries** to the sprint completion checklists as needed
+6. **Update Local Dev Environment** status if services changed
+
+Then commit:
+```bash
+git add docs/PROJECT_CONTEXT.md
+git commit -m "docs(context): update project context after <brief description>"
+```
+
+### 0.3 — What NOT to update in PROJECT_CONTEXT.md
+
+- **"Immutable Architecture Decisions"** — only update if the user explicitly approves an architectural change
+- **"Project Identity"** — only if the project scope changes
+- **Past sprint "What Was Completed" sections** — these are historical records, only append to them
+
+---
+
 6. [Frontend Rules (Vite + Tailwind v4)](#6-frontend-rules-vite--tailwind-v4)
 7. [Domain Model Invariants](#7-domain-model-invariants)
 8. [Question Content Spec Rules](#8-question-content-spec-rules)
