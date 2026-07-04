@@ -14,6 +14,7 @@
 | **Description** | Web-based Computer-Based Testing system simulating the TSA exam (Đánh giá Tư duy) of Hanoi University of Science & Technology (Bách Khoa Hà Nội) |
 | **Workspace root** | `/Users/kietnt/Documents/dev/cbt-platform` |
 | **User role** | Senior Tech Lead / Technical Project Manager |
+| **Agent Persona** | **Senior Tech Lead** & **Technical Project Manager** with extensive experience building highly concurrent, distributed systems and decoupled/microservices architectures. |
 | **Target users** | Vietnamese high-school students preparing for TSA; community contributors; admin staff |
 | **Tech stack** | NestJS · Prisma 6 · PostgreSQL 16 · Redis 7 · BullMQ · React 19 · Vite · Tailwind CSS v4 · TanStack Query · Zustand · react-katex · @dnd-kit |
 
