@@ -23,6 +23,14 @@ enum UserRole {
   USER
 }
 
+/// Lifecycle of a community-contributed PDF/DOCX submission
+enum ContributionStatus {
+  PENDING    // Uploaded by community member, awaiting admin review
+  REVIEWING  // Admin is actively reviewing / entering questions
+  APPROVED   // Admin has entered all questions; contributor credited
+  REJECTED   // Rejected (duplicate, illegible, off-topic, etc.)
+}
+
 /// Lifecycle status of a question / passage bundle in the question bank
 enum QuestionStatus {
   DRAFT          // Being created, not yet submitted for review
@@ -85,14 +93,16 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  refreshTokens      RefreshToken[]
-  examAccesses       ExamAccess[]
-  sessions           ExamSession[]
-  authoredQuestions  Question[]      @relation("QuestionAuthor")
-  reviewedQuestions  Question[]      @relation("QuestionReviewer")
-  authoredBundles    PassageBundle[] @relation("BundleAuthor")
-  reviewedBundles    PassageBundle[] @relation("BundleReviewer")
-  createdAccessCodes AccessCode[]    @relation("AccessCodeCreator")
+  refreshTokens         RefreshToken[]
+  examAccesses          ExamAccess[]
+  sessions              ExamSession[]
+  authoredQuestions     Question[]               @relation("QuestionAuthor")
+  reviewedQuestions     Question[]               @relation("QuestionReviewer")
+  authoredBundles       PassageBundle[]          @relation("BundleAuthor")
+  reviewedBundles       PassageBundle[]          @relation("BundleReviewer")
+  createdAccessCodes    AccessCode[]             @relation("AccessCodeCreator")
+  contributions         ContributionSubmission[] @relation("ContributionSubmitter")
+  reviewedContributions ContributionSubmission[] @relation("ContributionReviewer")
 
   @@map("users")
 }
@@ -113,6 +123,61 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
+}
+
+// =============================================================================
+// COMMUNITY CONTRIBUTIONS
+// =============================================================================
+
+/// A community-submitted exam source file (PDF or DOCX).
+///
+/// Workflow:
+///   1. Registered USER uploads a PDF/DOCX of a past exam they found.
+///   2. Status = PENDING; admin is notified.
+///   3. Admin reviews the file, changes status = REVIEWING.
+///   4. Admin manually enters each question/bundle into the question bank,
+///      setting authorId = submission.submitterId so the contributor gets public credit.
+///   5. Admin marks status = APPROVED; contributor is shown attribution on every question.
+///   6. Admin may optionally reward the contributor by creating an ExamAccess record.
+///
+/// The contributor does NOT need to know LaTeX — they just upload the original source.
+model ContributionSubmission {
+  id          String             @id @default(uuid())
+  submitterId String             @map("submitter_id")
+
+  /// Human-readable title for admin to identify the submission
+  title       String             // e.g., "Đề TSA 2025 - Bách Khoa"
+  description String?            // Optional context from the contributor
+
+  /// Cloud storage URL of the uploaded file (S3 / GCS presigned or permanent URL)
+  fileUrl     String             @map("file_url")
+
+  /// 'PDF' | 'DOCX'
+  fileType    String             @map("file_type")
+
+  status      ContributionStatus @default(PENDING)
+
+  /// Admin's feedback shown to the contributor (reason for rejection, etc.)
+  adminNote   String?            @map("admin_note")
+
+  reviewedById String?   @map("reviewed_by_id")
+  reviewedAt   DateTime? @map("reviewed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  submitter   User           @relation("ContributionSubmitter", fields: [submitterId], references: [id])
+  reviewedBy  User?          @relation("ContributionReviewer", fields: [reviewedById], references: [id])
+
+  /// Questions entered by admin from this submission
+  questions Question[]
+
+  /// Passage bundles entered by admin from this submission
+  bundles   PassageBundle[]
+
+  @@index([submitterId])
+  @@index([status])
+  @@map("contribution_submissions")
 }
 
 // =============================================================================
@@ -143,6 +208,10 @@ model Tag {
 /// always selected as part of their bundle — never in isolation.
 ///
 /// contentJson schema: see docs/QuestionContentSpec.md
+///
+/// authorId semantics: the person who gets PUBLIC CREDIT displayed to students.
+/// For community-contributed questions, admin sets authorId = contributor's userId.
+/// For admin-created questions, authorId = admin's own userId.
 model Question {
   id    String         @id @default(uuid())
   type  QuestionType
@@ -163,14 +232,20 @@ model Question {
   reviewedById String?   @map("reviewed_by_id")
   reviewNote   String?   @map("review_note")
   publishedAt  DateTime? @map("published_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  /// Link to the community submission this question was entered from.
+  /// null = question was created directly by admin (not from a community upload).
+  contributionId String? @map("contribution_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  author         User                    @relation("QuestionAuthor", fields: [authorId], references: [id])
-  reviewedBy     User?                   @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+  author         User                       @relation("QuestionAuthor", fields: [authorId], references: [id])
+  reviewedBy     User?                      @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+  contribution   ContributionSubmission?    @relation(fields: [contributionId], references: [id])
   tags           QuestionTag[]
-  bundleQuestion PassageBundleQuestion?  // null = standalone MATH question
+  bundleQuestion PassageBundleQuestion?     // null = standalone MATH question
   mathExamItems  ExamMathQuestion[]
   sessionAnswers SessionAnswer[]
 
@@ -178,6 +253,7 @@ model Question {
   @@index([type])
   @@index([level])
   @@index([authorId])
+  @@index([contributionId])
   // GIN index on contentJson (applied via raw SQL in migration: docs/manual_indexes.sql)
   @@map("questions")
 }
@@ -209,6 +285,9 @@ model QuestionTag {
 ///   (Cardinality rule enforced at application layer, not DB level.)
 ///
 /// This model lives in the Question Bank, NOT in any specific Exam.
+///
+/// authorId semantics: same as Question — the person credited publicly.
+/// For community contributions, admin sets authorId = contributor's userId.
 model PassageBundle {
   id          String          @id @default(uuid())
   sectionType ExamSectionType @map("section_type") // READING or SCIENCE only
@@ -228,17 +307,24 @@ model PassageBundle {
   reviewedById String?        @map("reviewed_by_id")
   reviewNote   String?        @map("review_note")
   publishedAt  DateTime?      @map("published_at")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  /// Link to the community submission this bundle was entered from.
+  /// null = created directly by admin.
+  contributionId String? @map("contribution_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  author     User                    @relation("BundleAuthor", fields: [authorId], references: [id])
-  reviewedBy User?                   @relation("BundleReviewer", fields: [reviewedById], references: [id])
-  questions  PassageBundleQuestion[]
-  examItems  ExamPassageBundle[]
+  author       User                     @relation("BundleAuthor", fields: [authorId], references: [id])
+  reviewedBy   User?                    @relation("BundleReviewer", fields: [reviewedById], references: [id])
+  contribution ContributionSubmission?  @relation(fields: [contributionId], references: [id])
+  questions    PassageBundleQuestion[]
+  examItems    ExamPassageBundle[]
 
   @@index([sectionType, status])
   @@index([authorId])
+  @@index([contributionId])
   @@map("passage_bundles")
 }
 
