@@ -89,7 +89,7 @@
   - `GET /api/v1/contributions/mine` — User xem submissions của mình + status.
   - `GET /api/v1/admin/contributions` — Admin list tất cả submissions (filter by status).
   - `PATCH /api/v1/admin/contributions/:id/status` — Admin đổi `PENDING → REVIEWING → APPROVED | REJECTED`, kèm `adminNote`.
-- [ ] **File Upload:** `POST /api/v1/admin/upload` → Upload ảnh lên cloud storage (S3/Cloudinary), trả về URL để nhúng vào `contentJson`.
+- [x] **File Upload:** `POST /api/v1/admin/upload` → Upload ảnh lên Supabase Storage bucket `images`, trả về public URL để nhúng vào `contentJson`. Contribution files upload vào private bucket `contributions`, truy cập qua signed URL.
 
 #### Frontend Deliverables
 - [ ] **Auth flows:** Trang Login, Register (React Hook Form + Zod). Zustand `authStore` lưu user info + token. TanStack Query `useAuth` hooks.

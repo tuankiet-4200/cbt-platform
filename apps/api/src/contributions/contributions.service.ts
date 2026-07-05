@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ContributionStatus, Prisma, User } from '@prisma/client';
 import { paginate } from '@/common/dto/pagination.dto';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { StorageService } from '@/common/storage/storage.service';
 import {
   CreateContributionDto,
   ListContributionsDto,
@@ -10,7 +11,10 @@ import {
 
 @Injectable()
 export class ContributionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async createContribution(dto: CreateContributionDto, fileUrl: string, fileType: string, currentUser: User) {
     return this.prisma.contributionSubmission.create({
@@ -62,6 +66,27 @@ export class ContributionsService {
     return paginate(data, total, dto);
   }
 
+  async createContributionFileUrl(id: string, currentUser: User) {
+    const contribution = await this.prisma.contributionSubmission.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        submitterId: true,
+        fileUrl: true,
+      },
+    });
+
+    if (!contribution) {
+      throw new NotFoundException('Contribution not found');
+    }
+
+    if (currentUser.role !== 'ADMIN' && contribution.submitterId !== currentUser.id) {
+      throw new ForbiddenException('You can only access your own contribution file');
+    }
+
+    return this.storageService.createContributionSignedUrl(contribution.fileUrl);
+  }
+
   async updateContributionStatus(id: string, dto: UpdateContributionStatusDto, currentUser: User) {
     if (dto.status === ContributionStatus.PENDING) {
       throw new BadRequestException('Admin cannot move contribution back to PENDING');
@@ -78,4 +103,3 @@ export class ContributionsService {
     });
   }
 }
-

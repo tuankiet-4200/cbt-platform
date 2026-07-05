@@ -12,13 +12,13 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { User, UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
+import { StorageService } from '@/common/storage/storage.service';
 import { ContributionsService } from './contributions.service';
 import {
   CreateContributionDto,
@@ -26,23 +26,19 @@ import {
   UpdateContributionStatusDto,
 } from './dto/contribution.dto';
 
-const storage = diskStorage({
-  destination: 'uploads',
-  filename: (_req, file, cb) => {
-    const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${file.fieldname}-${suffix}${extname(file.originalname).toLowerCase()}`);
-  },
-});
-
 @Controller()
 export class ContributionsController {
-  constructor(private readonly contributionsService: ContributionsService) {}
+  constructor(
+    private readonly contributionsService: ContributionsService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post('contributions')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage,
+      storage: memoryStorage(),
+      limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         const allowed = [
           'application/pdf',
@@ -58,12 +54,13 @@ export class ContributionsController {
     @CurrentUser() user: User,
   ) {
     if (!file) throw new BadRequestException('PDF or DOCX file is required');
-    return this.contributionsService.createContribution(
-      dto,
-      `/uploads/${file.filename}`,
-      file.mimetype === 'application/pdf' ? 'PDF' : 'DOCX',
-      user,
-    );
+    return this.createContributionWithUpload(dto, file, user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('contributions/:id/file-url')
+  createMyContributionFileUrl(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.contributionsService.createContributionFileUrl(id, user);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -81,6 +78,13 @@ export class ContributionsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @Get('admin/contributions/:id/file-url')
+  createAdminContributionFileUrl(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.contributionsService.createContributionFileUrl(id, user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Patch('admin/contributions/:id/status')
   updateContributionStatus(
     @Param('id') id: string,
@@ -89,5 +93,18 @@ export class ContributionsController {
   ) {
     return this.contributionsService.updateContributionStatus(id, dto, user);
   }
-}
 
+  private async createContributionWithUpload(
+    dto: CreateContributionDto,
+    file: Express.Multer.File,
+    user: User,
+  ) {
+    const uploaded = await this.storageService.uploadContributionFile(file, user.id);
+    return this.contributionsService.createContribution(
+      dto,
+      uploaded.url,
+      uploaded.fileType,
+      user,
+    );
+  }
+}

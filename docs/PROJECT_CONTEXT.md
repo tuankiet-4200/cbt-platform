@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-05 (pgAdmin server password import fix)
+> **Last updated:** 2026-07-05 (Supabase Storage adapter for Sprint 1.2)
 
 ### Active Sprint
 **Sprint 1.2 (Tuần 3–4) — Authentication & Question Content Model**  
@@ -33,7 +33,7 @@ Status: 🟡 IN PROGRESS
 | Sprint | Name | Status | Completion |
 |--------|------|--------|-----------|
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
-| **1.2** | **Authentication & Question Content Model** | 🟡 In progress | 85% |
+| **1.2** | **Authentication & Question Content Model** | 🟡 In progress | 95% |
 | 2.1 | Admin Question Bank Management | ⬜ Pending | — |
 | 2.2 | Exam Assembly & Access Code System | ⬜ Pending | — |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
@@ -109,8 +109,9 @@ Status: 🟡 IN PROGRESS
    - [x] `PATCH /api/v1/admin/contributions/:id/status`
 
 5. **File Upload** — `POST /api/v1/admin/upload`
-   - [x] Local storage adapter returns `/uploads/...` URLs for development
-   - [ ] Replace with S3/Cloudinary production adapter
+   - [x] Supabase Storage adapter for `images` bucket
+   - [x] Supabase Storage adapter for private `contributions` bucket
+   - [x] Signed URL endpoint for contribution file access
 
 ### Frontend — Sprint 1.2
 1. [x] Login page (`/login`) — React Hook Form + Zod
@@ -144,6 +145,7 @@ These decisions are FINAL and must not be reversed without explicit user approva
 |----------|------|
 | Tailwind CSS | **v4 only**. CSS-first `@theme {}`. No `tailwind.config.js`. Plugin: `@tailwindcss/vite`. |
 | Rich text format | **`RichTextNode[]` JSON** (NOT Markdown string). See `QuestionContentSpec.md`. |
+| File storage | **Supabase Storage**. Public `images` bucket for question images; private `contributions` bucket with signed URLs for PDF/DOCX. |
 | API versioning | URI versioning — all routes: `/api/v1/...` |
 | Redis role | Answer buffer during sessions. Session state. Leaderboard sorted set. NOT for token blacklist. |
 | Refresh token storage | Hashed in PostgreSQL `refresh_tokens` table. NOT Redis blacklist. |
