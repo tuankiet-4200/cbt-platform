@@ -369,6 +369,13 @@ import { useExamStore } from '../../../store/examStore';  // ❌
 
 The Vite dev server proxies `/api` requests to `http://localhost:3000`. No CORS issues in development. Do NOT hardcode `http://localhost:3000` in frontend code.
 
+### 6.4 UI Mockups & Screenshot Requirement
+
+When building or updating Frontend pages:
+- **Requirement Check:** Before coding any new frontend UI/page, check if the user has specific UI design mockups or screenshots they want to follow. Ask/Notify the user: *"Are there any specific screenshots or mockup designs you want me to replicate for the <Page/Feature name>?"*.
+- **Replication:** If the user provides screenshot(s) or design files, replicate the visual elements, layout, spacing, and styling exactly as shown in the images.
+- **Autonomous Design:** If the user does NOT have mockups and allows autonomous design, you must design it yourself adhering strictly to the **vibrant, high-quality dark/light mode theme** (using the CSS tokens defined in `apps/web/src/index.css`) to make the interface look premium and modern. Do not use generic placeholders.
+
 ---
 
 ## 7. Domain Model Invariants

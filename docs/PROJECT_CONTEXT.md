@@ -145,6 +145,7 @@ These decisions are FINAL and must not be reversed without explicit user approva
 | Refresh token storage | Hashed in PostgreSQL `refresh_tokens` table. NOT Redis blacklist. |
 | Answer sync pattern | Client buffers in Zustand → POST /sync to Redis → BullMQ worker flushes to PostgreSQL every 30s |
 | `prisma db push` | **FORBIDDEN** on this project |
+| **UI Mockup rule** | **Before coding UI**, ask the user for screenshots/mockups to replicate. If not provided, autonomously design using project CSS theme. |
 
 ### Question Types (5 total, defined in QuestionContentSpec.md v2.1)
 ```
