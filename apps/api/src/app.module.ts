@@ -14,6 +14,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { ResultsModule } from './results/results.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AdminModule } from './admin/admin.module';
+import { ContributionsModule } from './contributions/contributions.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AdminModule } from './admin/admin.module';
     ResultsModule,
     AnalyticsModule,
     AdminModule,
+    ContributionsModule,
   ],
 })
 export class AppModule {}

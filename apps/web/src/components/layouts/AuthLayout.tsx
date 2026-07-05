@@ -1,5 +1,4 @@
 import { Outlet, Navigate } from 'react-router-dom';
-import { GraduationCap } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 
 export function AuthLayout() {
@@ -11,68 +10,29 @@ export function AuthLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-accent-700 flex">
-      {/* ── Left: Branding ──────────────────────────────────────────────── */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 text-white">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-            <GraduationCap className="w-6 h-6 text-white" />
+    <div className="auth-screen">
+      <div className="auth-bg-map" />
+      <div className="auth-bg-lines" />
+
+      <main className="relative z-10 flex min-h-screen flex-col items-center px-4 py-10 sm:px-6">
+        <div className="mb-6 flex items-center gap-3 sm:mb-7">
+          <div className="text-[2.15rem] font-extrabold leading-none text-[#d8172a] sm:text-[2.6rem]">
+            TSA
           </div>
-          <div>
-            <p className="font-bold text-lg">CBT Platform</p>
-            <p className="text-primary-300 text-sm">TSA HUST Simulation</p>
+          <div className="leading-tight">
+            <p className="text-[0.72rem] font-semibold uppercase text-[#d8172a] sm:text-xs">
+              Đại học Bách Khoa Hà Nội
+            </p>
+            <p className="text-sm font-extrabold uppercase text-neutral-900 sm:text-lg">
+              Kỳ thi đánh giá tư duy
+            </p>
           </div>
         </div>
 
-        {/* Hero text */}
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight">
-            Luyện thi TSA<br />
-            <span className="text-primary-300">Bách Khoa Hà Nội</span><br />
-            thông minh hơn
-          </h1>
-          <p className="text-primary-200 text-lg leading-relaxed max-w-md">
-            Hệ thống thi thử mô phỏng chính xác kỳ thi Đánh giá tư duy — 
-            với phân tích chi tiết giúp bạn biết chính xác điểm cần cải thiện.
-          </p>
-
-          {/* Features */}
-          <ul className="space-y-3">
-            {[
-              '✓ Đề thi được tuyển chọn và chuẩn hóa',
-              '✓ Phân tích chi tiết từng câu hỏi',
-              '✓ Tự động lưu bài khi mất mạng',
-              '✓ Miễn phí cho cộng đồng',
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-2 text-primary-100">
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="text-primary-400 text-sm">
-          © {new Date().getFullYear()} CBT Platform. Cộng đồng học sinh Bách Khoa.
-        </p>
-      </div>
-
-      {/* ── Right: Auth Form ─────────────────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 bg-white/20 backdrop-blur rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-white" />
-            </div>
-            <p className="font-bold text-white text-lg">CBT Platform</p>
-          </div>
-
-          <div className="card p-8 shadow-2xl animate-slide-up">
+        <section className="auth-panel">
             <Outlet />
-          </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

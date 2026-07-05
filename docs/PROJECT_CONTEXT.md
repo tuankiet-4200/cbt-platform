@@ -22,18 +22,18 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-05 (end of Sprint 1.1)
+> **Last updated:** 2026-07-05 (Sprint 1.2 implementation in progress)
 
 ### Active Sprint
 **Sprint 1.2 (Tuần 3–4) — Authentication & Question Content Model**  
-Status: 🔴 NOT STARTED
+Status: 🟡 IN PROGRESS
 
 ### Sprint Progress Overview
 
 | Sprint | Name | Status | Completion |
 |--------|------|--------|-----------|
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
-| **1.2** | **Authentication & Question Content Model** | 🔴 Not started | 0% |
+| **1.2** | **Authentication & Question Content Model** | 🟡 In progress | 85% |
 | 2.1 | Admin Question Bank Management | ⬜ Pending | — |
 | 2.2 | Exam Assembly & Access Code System | ⬜ Pending | — |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
@@ -86,35 +86,39 @@ Status: 🔴 NOT STARTED
 
 ### Backend — Sprint 1.2
 1. **Auth module** (`apps/api/src/auth/`)
-   - `POST /api/v1/auth/register`
-   - `POST /api/v1/auth/login` → accessToken (15m) + refreshToken HttpOnly cookie (7d)
-   - `POST /api/v1/auth/refresh` → Rotation + Reuse Detection
-   - `POST /api/v1/auth/logout`
-   - `JwtAuthGuard`, `RolesGuard`
+   - [x] `POST /api/v1/auth/register`
+   - [x] `POST /api/v1/auth/login` → accessToken (15m) + refreshToken HttpOnly cookie (7d)
+   - [x] `POST /api/v1/auth/refresh` → Rotation + Reuse Detection
+   - [x] `POST /api/v1/auth/logout`
+   - [x] `JwtAuthGuard`, `RolesGuard`
 
 2. **Question CRUD API** (Admin-only) — `apps/api/src/questions/`
-   - `POST/GET/PATCH/DELETE /api/v1/admin/questions`
-   - `PATCH /api/v1/admin/questions/:id/status`
+   - [x] `POST/GET/PATCH/DELETE /api/v1/admin/questions`
+   - [x] `PATCH /api/v1/admin/questions/:id/status`
+   - [x] `QuestionContentSpec.md` validation for 5 question types
+   - [x] IRT defaults `{ a: 1.0, b: 0.0, c: 0.25 }`
 
 3. **PassageBundle CRUD API** — `apps/api/src/questions/`
-   - `POST/GET/PATCH /api/v1/admin/passage-bundles`
-   - Validate: READING = exactly 10q, SCIENCE = exactly 5q
+   - [x] `POST/GET/PATCH /api/v1/admin/passage-bundles`
+   - [x] Validate: READING = exactly 10q, SCIENCE = exactly 5q
 
 4. **Contribution Submission API** — `apps/api/src/contributions/`
-   - `POST /api/v1/contributions` (multipart PDF/DOCX upload)
-   - `GET /api/v1/contributions/mine`
-   - `GET /api/v1/admin/contributions`
-   - `PATCH /api/v1/admin/contributions/:id/status`
+   - [x] `POST /api/v1/contributions` (multipart PDF/DOCX upload)
+   - [x] `GET /api/v1/contributions/mine`
+   - [x] `GET /api/v1/admin/contributions`
+   - [x] `PATCH /api/v1/admin/contributions/:id/status`
 
-5. **File Upload** — `POST /api/v1/admin/upload` → S3/Cloudinary
+5. **File Upload** — `POST /api/v1/admin/upload`
+   - [x] Local storage adapter returns `/uploads/...` URLs for development
+   - [ ] Replace with S3/Cloudinary production adapter
 
 ### Frontend — Sprint 1.2
-1. Login page (`/login`) — React Hook Form + Zod
-2. Register page (`/register`)
-3. Zustand `authStore` — user info + access token
-4. TanStack Query auth hooks
-5. Protected route wrapper
-6. Axios instance with Bearer token + 401 refresh interceptor
+1. [x] Login page (`/login`) — React Hook Form + Zod
+2. [x] Register page (`/register`)
+3. [x] Zustand `authStore` — user info + access token
+4. [x] TanStack Query auth hooks
+5. [x] Protected route wrapper
+6. [x] Axios instance with Bearer token + 401 refresh interceptor
 
 ---
 
@@ -181,7 +185,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | pgAdmin | `cbt_pgadmin` | 8080 | ✅ Working |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
 | NestJS API | — | 3000 | ⬜ Not started yet |
-| Vite frontend | — | 5173 | ⬜ Not started yet |
+| Vite frontend | — | 5173 | ⬜ Not running (smoke-tested earlier in this task) |
 
 ```bash
 # Start dev environment

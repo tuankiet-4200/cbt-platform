@@ -66,8 +66,9 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const response = await apiClient.post<{ data: { accessToken: string } }>('/auth/refresh');
-        const { accessToken } = response.data.data;
+        const response = await apiClient.post<{ accessToken: string } | { data: { accessToken: string } }>('/auth/refresh');
+        const payload = 'data' in response.data ? response.data.data : response.data;
+        const { accessToken } = payload;
 
         useAuthStore.getState().setAccessToken(accessToken);
         processQueue(null, accessToken);

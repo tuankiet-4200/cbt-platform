@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { AxiosError } from 'axios';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 
@@ -7,9 +8,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,   // 5 minutes
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: Error) => {
         // Don't retry on 401/403/404
-        if ([401, 403, 404].includes(error?.response?.status)) return false;
+        if (error instanceof AxiosError && [401, 403, 404].includes(error.response?.status ?? 0)) {
+          return false;
+        }
         return failureCount < 2;
       },
     },

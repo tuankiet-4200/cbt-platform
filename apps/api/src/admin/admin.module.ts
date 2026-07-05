@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { AdminController } from './admin.controller';
 
-/** TODO: Implement in Sprint 1.2+ */
-@Module({})
+@Module({
+  controllers: [AdminController],
+})
 export class AdminModule {}

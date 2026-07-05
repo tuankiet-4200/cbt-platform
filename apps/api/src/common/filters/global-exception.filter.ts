@@ -36,10 +36,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object') {
-        const resp = exceptionResponse as any;
-        message = resp.message || message;
-        if (Array.isArray(resp.message)) {
-          errors = resp.message;
+        const resp = exceptionResponse as Record<string, unknown>;
+        const responseMessage = resp.message;
+        if (typeof responseMessage === 'string') {
+          message = responseMessage;
+        }
+        if (Array.isArray(responseMessage)) {
+          errors = responseMessage.map(String);
           message = 'Validation failed';
         }
       }

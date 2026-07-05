@@ -165,6 +165,132 @@
 /* ── Component Classes ────────────────────────────────────────────────────── */
 /* In Tailwind v4, @layer components still works exactly as before.           */
 @layer components {
+  .auth-screen {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 78% 42%, rgba(255,255,255,.82), transparent 18rem),
+      linear-gradient(90deg, #fff9f9 0%, #fff1f1 46%, #f9d6d8 100%);
+  }
+
+  .auth-bg-map {
+    position: absolute;
+    inset: 0;
+    opacity: .35;
+    background-image: radial-gradient(circle, rgba(120, 80, 80, .16) 0 2px, transparent 2.5px);
+    background-size: 14px 14px;
+    mask-image:
+      radial-gradient(ellipse at 15% 30%, black 0 20rem, transparent 21rem),
+      radial-gradient(ellipse at 70% 25%, black 0 26rem, transparent 27rem),
+      radial-gradient(ellipse at 55% 72%, black 0 32rem, transparent 33rem);
+  }
+
+  .auth-bg-lines {
+    position: absolute;
+    inset: auto -8rem -16rem auto;
+    width: min(92rem, 105vw);
+    aspect-ratio: 1.8;
+    opacity: .55;
+    background:
+      linear-gradient(18deg, transparent 49.7%, rgba(255,255,255,.9) 50%, transparent 50.3%),
+      linear-gradient(32deg, transparent 49.7%, rgba(255,255,255,.75) 50%, transparent 50.3%),
+      linear-gradient(76deg, transparent 49.7%, rgba(255,255,255,.72) 50%, transparent 50.3%),
+      radial-gradient(circle at 18% 75%, rgba(255,255,255,.96) 0 .38rem, transparent .42rem),
+      radial-gradient(circle at 48% 58%, rgba(255,255,255,.96) 0 .38rem, transparent .42rem),
+      radial-gradient(circle at 82% 36%, rgba(255,255,255,.96) 0 .38rem, transparent .42rem);
+    border-radius: 50%;
+    transform: rotate(-5deg);
+  }
+
+  .auth-panel {
+    width: min(100%, 29rem);
+    border-radius: .5rem;
+    background: white;
+    padding: 2.25rem 2rem;
+    box-shadow: 0 16px 38px rgba(52, 32, 36, .16);
+  }
+
+  .auth-label {
+    display: block;
+    margin-bottom: .5rem;
+    font-size: .95rem;
+    font-weight: 500;
+    color: var(--color-neutral-600);
+  }
+
+  .auth-input-wrap {
+    display: flex;
+    height: 3rem;
+    align-items: center;
+    gap: .45rem;
+    border: 1px solid var(--color-neutral-300);
+    border-radius: .45rem;
+    background: white;
+    padding: 0 .75rem;
+    transition: border-color .15s, box-shadow .15s;
+  }
+
+  .auth-input-wrap:focus-within {
+    border-color: #d8172a;
+    box-shadow: 0 0 0 3px rgba(216, 23, 42, .13);
+  }
+
+  .auth-input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--color-neutral-900);
+    font-size: .875rem;
+    outline: 0;
+  }
+
+  .auth-input::placeholder {
+    color: var(--color-neutral-400);
+  }
+
+  .auth-eye-btn {
+    display: inline-flex;
+    width: 1.7rem;
+    height: 1.7rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: .35rem;
+    color: var(--color-neutral-500);
+  }
+
+  .auth-eye-btn:hover {
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-800);
+  }
+
+  .auth-submit {
+    display: inline-flex;
+    width: 100%;
+    height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    border-radius: .45rem;
+    background: #d8172a;
+    color: white;
+    font-weight: 700;
+    transition: background-color .15s, transform .15s;
+  }
+
+  .auth-submit:hover {
+    background: #bd1324;
+  }
+
+  .auth-submit:active {
+    transform: translateY(1px);
+  }
+
+  .auth-submit:disabled {
+    cursor: not-allowed;
+    opacity: .7;
+  }
 
   /* ── Card ─────────────────────────────────────────────────────────────── */
   .card {
