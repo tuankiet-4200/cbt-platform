@@ -54,6 +54,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cbt_password_dev}
     ports:
       - "5050:80"
     volumes:

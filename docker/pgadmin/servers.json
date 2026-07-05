@@ -8,7 +8,8 @@
       "MaintenanceDB": "cbt_platform",
       "Username": "cbt_user",
       "SSLMode": "prefer",
-      "PassFile": "/tmp/pgpassfile"
+      "PasswordExecCommand": "echo $POSTGRES_PASSWORD",
+      "PasswordExecExpiration": 0
     }
   }
 }
