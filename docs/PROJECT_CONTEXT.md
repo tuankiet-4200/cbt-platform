@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-05 (Sprint 1.2 implementation in progress)
+> **Last updated:** 2026-07-05 (pgAdmin email validation fix)
 
 ### Active Sprint
 **Sprint 1.2 (Tuần 3–4) — Authentication & Question Content Model**  
@@ -182,7 +182,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 |---------|-----------|------|--------------------------|
 | PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — 18 tables migrated |
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
-| pgAdmin | `cbt_pgadmin` | 8080 | ✅ Working |
+| pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — default email uses public domain |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
 | NestJS API | — | 3000 | ⬜ Not started yet |
 | Vite frontend | — | 5173 | ⬜ Not running (smoke-tested earlier in this task) |
