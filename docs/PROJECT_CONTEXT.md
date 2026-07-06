@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (auth logout server revocation + cross-tab sync fix)
+> **Last updated:** 2026-07-07 (role-aware login redirect fix)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -149,6 +149,7 @@ Status: ⬜ PENDING
    - [x] Question status transitions are validated before update
    - [x] Refresh-token multi-tab race no longer revokes all active sessions on concurrent bootstrap
    - [x] Logout calls server revocation, clears refresh cookie, suppresses auto-bootstrap, and syncs logout across browser tabs
+   - [x] Login redirect is role-aware: ADMIN → `/admin`, USER → `/exams`
 
 ### Frontend — Sprint 2.1
 1. [x] Admin dashboard layout with sidebar entries: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics

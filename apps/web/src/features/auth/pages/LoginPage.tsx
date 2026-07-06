@@ -30,8 +30,8 @@ export default function LoginPage() {
   const onSubmit = async (values: LoginForm) => {
     setSubmitError(null);
     try {
-      await loginMutation.mutateAsync(values);
-      navigate('/exams', { replace: true });
+      const session = await loginMutation.mutateAsync(values);
+      navigate(session.user.role === 'ADMIN' ? '/admin' : '/exams', { replace: true });
     } catch {
       setSubmitError('Email hoặc mật khẩu không chính xác');
     }
