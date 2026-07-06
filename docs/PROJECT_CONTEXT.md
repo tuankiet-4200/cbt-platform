@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (Sprint 2.1 admin question bank implementation)
+> **Last updated:** 2026-07-07 (dev seed credentials refresh fix)
 
 ### Active Sprint
 **Sprint 2.1 (Tuần 5–6) — Admin Question Bank Management**  
@@ -230,6 +230,9 @@ npm run dev          # starts api (3000) + web (5173) concurrently
 
 > API config loads `.env.local` / `.env` from both the current workspace and the repo root,
 > so `npm run dev -w apps/api` works on a fresh clone with root-level `.env`.
+>
+> Dev seed credentials are refreshed on every `npm run prisma:seed -w apps/api`:
+> Admin `admin@cbt-platform.com / Admin@123456`; Student `student@example.com / Student@123`.
 
 ---
 
