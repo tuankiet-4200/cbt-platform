@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { BookOpen, BarChart3, User, LogOut, Shield, ChevronRight, GraduationCap, Files, Inbox } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useLogoutMutation } from '@/features/auth/api/useAuth';
 import { cn } from '@/lib/utils';
 
 interface RootLayoutProps {
@@ -25,13 +26,17 @@ const adminNavItems = [
 ];
 
 export function RootLayout({ isAdmin = false }: RootLayoutProps) {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  const logoutMutation = useLogoutMutation();
   const navigate = useNavigate();
   const navItems = isAdmin ? adminNavItems : userNavItems;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+    } finally {
+      navigate('/login');
+    }
   };
 
   return (
@@ -96,6 +101,7 @@ export function RootLayout({ isAdmin = false }: RootLayoutProps) {
           </div>
           <button
             onClick={handleLogout}
+            disabled={logoutMutation.isPending}
             className="flex items-center gap-3 px-3 py-2 w-full text-sm text-neutral-600
                        hover:bg-neutral-100 hover:text-danger-600 rounded-lg transition-all duration-150"
           >

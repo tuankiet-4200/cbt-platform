@@ -15,8 +15,18 @@ interface AuthState {
   // Actions
   setAuth: (user: AuthUser, accessToken: string) => void;
   setAccessToken: (token: string) => void;
+  clearAuth: () => void;
   logout: () => void;
 }
+
+export const AUTH_LOGOUT_EVENT_KEY = 'cbt-auth-logout';
+export const AUTH_LOGOUT_SUPPRESS_KEY = 'cbt-auth-logout-suppress';
+
+const clearSession = {
+  user: null,
+  accessToken: null,
+  isAuthenticated: false,
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -26,13 +36,22 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setAuth: (user, accessToken) =>
-        set({ user, accessToken, isAuthenticated: true }),
+        {
+          window.localStorage.removeItem(AUTH_LOGOUT_SUPPRESS_KEY);
+          set({ user, accessToken, isAuthenticated: true });
+        },
 
       setAccessToken: (accessToken) =>
         set({ accessToken }),
 
-      logout: () =>
-        set({ user: null, accessToken: null, isAuthenticated: false }),
+      clearAuth: () =>
+        set(clearSession),
+
+      logout: () => {
+        set(clearSession);
+        window.localStorage.setItem(AUTH_LOGOUT_SUPPRESS_KEY, '1');
+        window.localStorage.setItem(AUTH_LOGOUT_EVENT_KEY, String(Date.now()));
+      },
     }),
     {
       name: 'cbt-auth',

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { login, logout, refreshSession, register, type LoginPayload, type RegisterPayload } from './auth.api';
-import { useAuthStore } from '../store/auth.store';
+import { AUTH_LOGOUT_EVENT_KEY, AUTH_LOGOUT_SUPPRESS_KEY, useAuthStore } from '../store/auth.store';
 
 export function useLoginMutation() {
   const queryClient = useQueryClient();
@@ -31,23 +31,29 @@ export function useRegisterMutation() {
 
 export function useLogoutMutation() {
   const queryClient = useQueryClient();
-  const clearAuth = useAuthStore((state) => state.logout);
+  const logoutClient = useAuthStore((state) => state.logout);
 
   return useMutation({
     mutationFn: logout,
     onSettled: () => {
-      clearAuth();
+      logoutClient();
       queryClient.clear();
     },
   });
 }
 
 export function useAuthBootstrap(enabled = true) {
-  const { isAuthenticated, setAuth, logout: clearAuth } = useAuthStore();
+  const { isAuthenticated, setAuth, clearAuth } = useAuthStore();
   const [isBootstrapping, setIsBootstrapping] = useState(enabled && !isAuthenticated);
 
   const bootstrap = useCallback(async () => {
     if (!enabled || isAuthenticated) {
+      setIsBootstrapping(false);
+      return;
+    }
+
+    if (window.localStorage.getItem(AUTH_LOGOUT_SUPPRESS_KEY) === '1') {
+      clearAuth();
       setIsBootstrapping(false);
       return;
     }
@@ -68,6 +74,22 @@ export function useAuthBootstrap(enabled = true) {
   }, [bootstrap]);
 
   return { isBootstrapping };
+}
+
+export function useAuthLogoutSync() {
+  const queryClient = useQueryClient();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== AUTH_LOGOUT_EVENT_KEY) return;
+      clearAuth();
+      queryClient.clear();
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [clearAuth, queryClient]);
 }
 
 async function refreshWithConcurrencyRetry() {

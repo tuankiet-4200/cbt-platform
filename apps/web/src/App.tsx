@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AxiosError } from 'axios';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
+import { useAuthLogoutSync } from '@/features/auth/api/useAuth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,8 +26,13 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AppShell />
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
+}
+
+function AppShell() {
+  useAuthLogoutSync();
+  return <RouterProvider router={router} />;
 }
