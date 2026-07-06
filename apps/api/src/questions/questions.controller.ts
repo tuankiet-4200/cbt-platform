@@ -6,6 +6,8 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { QuestionsService } from './questions.service';
 import {
+  BulkCreateQuestionsDto,
+  CreateTagDto,
   CreateQuestionDto,
   ListQuestionsDto,
   UpdateQuestionDto,
@@ -23,9 +25,24 @@ import {
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
+  @Get('tags')
+  listTags() {
+    return this.questionsService.listTags();
+  }
+
+  @Post('tags')
+  createTag(@Body() dto: CreateTagDto) {
+    return this.questionsService.createTag(dto);
+  }
+
   @Post('questions')
   createQuestion(@Body() dto: CreateQuestionDto, @CurrentUser() user: User) {
     return this.questionsService.createQuestion(dto, user);
+  }
+
+  @Post('questions/bulk')
+  bulkCreateQuestions(@Body() dto: BulkCreateQuestionsDto, @CurrentUser() user: User) {
+    return this.questionsService.bulkCreateQuestions(dto, user);
   }
 
   @Get('questions')
@@ -67,4 +84,3 @@ export class QuestionsController {
     return this.questionsService.updatePassageBundle(id, dto);
   }
 }
-

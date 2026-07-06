@@ -22,10 +22,10 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-06 (API root env loading fix)
+> **Last updated:** 2026-07-07 (Sprint 2.1 admin question bank implementation)
 
 ### Active Sprint
-**Sprint 1.2 (Tuần 3–4) — Authentication & Question Content Model**  
+**Sprint 2.1 (Tuần 5–6) — Admin Question Bank Management**  
 Status: 🟡 IN PROGRESS
 
 ### Sprint Progress Overview
@@ -33,8 +33,8 @@ Status: 🟡 IN PROGRESS
 | Sprint | Name | Status | Completion |
 |--------|------|--------|-----------|
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
-| **1.2** | **Authentication & Question Content Model** | 🟡 In progress | 95% |
-| 2.1 | Admin Question Bank Management | ⬜ Pending | — |
+| 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
+| **2.1** | **Admin Question Bank Management** | 🟡 In progress | 65% |
 | 2.2 | Exam Assembly & Access Code System | ⬜ Pending | — |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
@@ -80,7 +80,7 @@ Status: 🟡 IN PROGRESS
 
 ---
 
-## 🎯 Next Up: Sprint 1.2 Tasks
+## ✅ Sprint 1.2 — What Was Completed
 
 **Goal:** By end of Sprint 1.2, a user should be able to register, login, and an admin should be able to create a question.
 
@@ -120,6 +120,39 @@ Status: 🟡 IN PROGRESS
 4. [x] TanStack Query auth hooks
 5. [x] Protected route wrapper
 6. [x] Axios instance with Bearer token + 401 refresh interceptor
+
+---
+
+## 🎯 Next Up: Sprint 2.1 Tasks
+
+**Goal:** Admin can operate the question bank: taxonomy, filtering, review workflow, bulk import, and core content entry UI.
+
+### Backend — Sprint 2.1
+1. **Tag / Taxonomy API**
+   - [x] `GET /api/v1/admin/tags` returns hierarchical Subject → Chapter → Topic → SubTopic tree
+   - [x] `POST /api/v1/admin/tags` creates a tag with `parentId`, computed `depth`, `slug`, `orderIndex`
+   - [x] `GET /api/v1/admin/questions` supports multi-tag filter via `tagId[]`
+
+2. **Question Review Workflow**
+   - [x] `PATCH /api/v1/admin/questions/:id/status` supports status transitions with `reviewNote`
+
+3. **Bulk Import API**
+   - [x] `POST /api/v1/admin/questions/bulk` accepts up to 100 JSON questions, validates content/IRT, and inserts transactionally
+
+4. **Filtering & Pagination**
+   - [x] Question list supports `page`, `limit`, `sortBy`, `sortOrder`, `tagId[]`, `level`, `type`, `status`
+   - [x] Response shape remains `{ data, meta }`
+
+### Frontend — Sprint 2.1
+1. [x] Admin dashboard layout with sidebar entries: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics
+2. [x] Question List Page with filters, pagination, bulk select, Publish/Archive actions
+3. [x] Question Create Form with dynamic payload editors for all 5 question types
+4. [x] RichText/LaTeX preview using `react-katex`
+5. [x] IRT params input with browser tooltips
+6. [x] Tag selector using taxonomy tree
+7. [x] Contribution Review UI with status filter, file preview/signed URL, `adminNote`, Reviewing/Approve/Reject actions
+8. [ ] PassageBundle Create Form with RichText passage editor and exact 10/5 question linking workflow
+9. [ ] Bulk JSON import UI for admin paste/upload flow
 
 ---
 

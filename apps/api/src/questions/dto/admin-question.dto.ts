@@ -1,14 +1,18 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsEnum,
   IsInt,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { CognitiveLevel, QuestionStatus, QuestionType } from '@prisma/client';
 import { PaginationDto } from '@/common/dto/pagination.dto';
 
@@ -109,7 +113,47 @@ export class ListQuestionsDto extends PaginationDto {
   status?: QuestionStatus;
 
   @IsOptional()
+  @Transform(({ value, obj }) => {
+    const raw = value ?? obj['tagId[]'] ?? obj.tagIds;
+    if (raw === undefined) return undefined;
+    return Array.isArray(raw) ? raw : [raw];
+  })
+  @IsArray()
+  @IsString({ each: true })
+  tagId?: string[];
+
+  @IsOptional()
   @IsString()
-  tagId?: string;
+  sortBy?: string;
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 }
 
+export class BulkCreateQuestionsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => CreateQuestionDto)
+  questions!: CreateQuestionDto[];
+}
+
+export class CreateTagDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  slug!: string;
+
+  @IsOptional()
+  @IsString()
+  parentId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  orderIndex?: number;
+}

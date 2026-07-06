@@ -7,6 +7,7 @@ import {
   ExamSectionType,
   Prisma,
   QuestionStatus,
+  Tag,
   User,
 } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
@@ -17,6 +18,8 @@ import {
   validateRichTextArray,
 } from './question-content.validator';
 import {
+  BulkCreateQuestionsDto,
+  CreateTagDto,
   CreateQuestionDto,
   ListQuestionsDto,
   UpdateQuestionDto,
@@ -28,15 +31,78 @@ import {
   UpdatePassageBundleDto,
 } from './dto/passage-bundle.dto';
 
+type QuestionWriteInput = Omit<CreateQuestionDto, 'contentJson' | 'irtParams'> & {
+  contentJson: unknown;
+  irtParams?: unknown;
+};
+
 @Injectable()
 export class QuestionsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listTags() {
+    const tags = await this.prisma.tag.findMany({
+      orderBy: [{ depth: 'asc' }, { orderIndex: 'asc' }, { name: 'asc' }],
+    });
+
+    return this.buildTagTree(tags);
+  }
+
+  async createTag(dto: CreateTagDto) {
+    let depth = 0;
+
+    if (dto.parentId) {
+      const parent = await this.prisma.tag.findUnique({ where: { id: dto.parentId } });
+      if (!parent) throw new NotFoundException('Parent tag not found');
+      if (parent.depth >= 3) {
+        throw new BadRequestException('Tag taxonomy supports depth 0-3 only');
+      }
+      depth = parent.depth + 1;
+    }
+
+    return this.prisma.tag.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        parentId: dto.parentId,
+        depth,
+        orderIndex: dto.orderIndex ?? 0,
+      },
+    });
+  }
+
   async createQuestion(dto: CreateQuestionDto, currentUser: User) {
+    return this.createQuestionRecord(dto, currentUser);
+  }
+
+  async bulkCreateQuestions(dto: BulkCreateQuestionsDto, currentUser: User) {
+    const prepared = dto.questions.map((question) => ({
+      ...question,
+      contentJson: validateQuestionContent(question.contentJson, question.type),
+      irtParams: validateIrtParams(question.irtParams),
+    }));
+
+    const data = await this.prisma.$transaction((tx) =>
+      Promise.all(
+        prepared.map((question) => this.createQuestionRecord(question, currentUser, tx)),
+      ),
+    );
+
+    return {
+      createdCount: data.length,
+      data,
+    };
+  }
+
+  private async createQuestionRecord(
+    dto: QuestionWriteInput,
+    currentUser: User,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
     const contentJson = validateQuestionContent(dto.contentJson, dto.type);
     const irtParams = validateIrtParams(dto.irtParams);
 
-    return this.prisma.question.create({
+    return prisma.question.create({
       data: {
         type: dto.type,
         status: dto.status ?? QuestionStatus.DRAFT,
@@ -62,7 +128,7 @@ export class QuestionsService {
       type: dto.type,
       level: dto.level,
       status: dto.status,
-      tags: dto.tagId ? { some: { tagId: dto.tagId } } : undefined,
+      tags: dto.tagId?.length ? { some: { tagId: { in: dto.tagId } } } : undefined,
     };
 
     const [data, total] = await this.prisma.$transaction([
@@ -70,7 +136,7 @@ export class QuestionsService {
         where,
         skip: dto.skip,
         take: dto.limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: this.getQuestionOrderBy(dto.sortBy, dto.sortOrder),
         include: this.questionInclude(),
       }),
       this.prisma.question.count({ where }),
@@ -244,6 +310,42 @@ export class QuestionsService {
     }
   }
 
+  private buildTagTree(tags: Tag[]) {
+    type TagNode = Tag & { children: TagNode[] };
+    const nodes = new Map<string, TagNode>();
+    const roots: TagNode[] = [];
+
+    tags.forEach((tag) => nodes.set(tag.id, { ...tag, children: [] }));
+    nodes.forEach((node) => {
+      if (node.parentId) {
+        const parent = nodes.get(node.parentId);
+        if (parent) parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    const sortNodes = (items: TagNode[]) => {
+      items.sort((a, b) => a.orderIndex - b.orderIndex || a.name.localeCompare(b.name));
+      items.forEach((item) => sortNodes(item.children));
+    };
+    sortNodes(roots);
+
+    return roots;
+  }
+
+  private getQuestionOrderBy(
+    sortBy?: string,
+    sortOrder: 'asc' | 'desc' = 'desc',
+  ): Prisma.QuestionOrderByWithRelationInput {
+    const allowed = new Set(['createdAt', 'updatedAt', 'expectedTimeSecs', 'level', 'type', 'status']);
+    if (!sortBy || !allowed.has(sortBy)) {
+      return { createdAt: 'desc' };
+    }
+
+    return { [sortBy]: sortOrder };
+  }
+
   private questionInclude() {
     return {
       author: { select: { id: true, email: true, displayName: true } },
@@ -264,4 +366,3 @@ export class QuestionsService {
     };
   }
 }
-

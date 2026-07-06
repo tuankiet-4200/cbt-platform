@@ -110,24 +110,24 @@
 ### Sprint 2.1 (Tuần 5–6) — Admin Question Bank Management
 
 #### Backend Deliverables
-- [ ] **Tag / Taxonomy API:**
+- [x] **Tag / Taxonomy API:**
   - `GET /api/v1/admin/tags` → Trả về cây taxonomy (Subject → Chapter → Topic → SubTopic), depth 0–3.
   - `POST /api/v1/admin/tags` → Tạo tag mới với `parentId`, `slug`, `orderIndex`.
   - `GET /api/v1/admin/questions?tagId[]=...&type=...&level=...&status=...` → Search câu hỏi theo tag, level, type, status.
-- [ ] **Question Review Workflow:** `PATCH /api/v1/admin/questions/:id/status` → Chuyển trạng thái với `reviewNote`.
-- [ ] **Bulk Import API (Phase 1):** `POST /api/v1/admin/questions/bulk` → Nhận mảng JSON questions, validate từng item, insert theo batch. Phục vụ nhập tay hàng loạt.
-- [ ] **Filtering & Pagination:** Tất cả list endpoints hỗ trợ `page`, `limit`, `sortBy`, `tagId[]`, `level`, `type`, `status` — trả về `{ data: T[], meta: { page, limit, total, totalPages } }`.
+- [x] **Question Review Workflow:** `PATCH /api/v1/admin/questions/:id/status` → Chuyển trạng thái với `reviewNote`.
+- [x] **Bulk Import API (Phase 1):** `POST /api/v1/admin/questions/bulk` → Nhận mảng JSON questions, validate từng item, insert theo batch. Phục vụ nhập tay hàng loạt.
+- [x] **Filtering & Pagination:** Tất cả list endpoints hỗ trợ `page`, `limit`, `sortBy`, `tagId[]`, `level`, `type`, `status` — trả về `{ data: T[], meta: { page, limit, total, totalPages } }`.
 
 #### Frontend Deliverables
-- [ ] **Admin Dashboard Layout:** Sidebar navigation: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics.
-- [ ] **Question List Page:** DataTable với filter panel. Pagination. Bulk select + action (Archive, Publish).
-- [ ] **Question Detail / Create Form:**
+- [x] **Admin Dashboard Layout:** Sidebar navigation: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics.
+- [x] **Question List Page:** DataTable với filter panel. Pagination. Bulk select + action (Archive, Publish).
+- [x] **Question Detail / Create Form:**
   - Dynamic form: dropdown chọn `type` → render phần payload tương ứng (choices cho SINGLE/MULTIPLE, statements cho TRUE_FALSE, items+slots cho DRAG_DROP, blanks[] cho FILL_NUMBER).
   - LaTeX preview real-time (dùng `react-katex` + `<MathRenderer/>`).
   - IRT params input với tooltip giải thích ý nghĩa a/b/c.
   - Tag selector (multi-select với tree search).
 - [ ] **PassageBundle Create Form:** Upload passage text (RichTextNode[] editor), link câu hỏi vào bundle, validate đúng số lượng (10 READING / 5 SCIENCE).
-- [ ] **Contribution Review UI (Admin):** List submissions với status filter. Click → xem file preview (PDF/DOCX embed), form nhập `adminNote`, nút Approve/Reject/set Reviewing.
+- [x] **Contribution Review UI (Admin):** List submissions với status filter. Click → xem file preview (PDF/DOCX embed), form nhập `adminNote`, nút Approve/Reject/set Reviewing.
 
 #### ⚠️ Rủi ro Sprint 2.1
 > **R4 — Admin UX Bottleneck:** Nếu form nhập câu hỏi phức tạp và chậm, Admin sẽ từ chối dùng. **Giải pháp:** Ưu tiên tốc độ nhập liệu: keyboard shortcuts, auto-save draft, copy-paste LaTeX từ Word/Google Docs.
