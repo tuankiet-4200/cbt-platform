@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { login, logout, register, type LoginPayload, type RegisterPayload } from './auth.api';
+import { useCallback, useEffect, useState } from 'react';
+import { login, logout, refreshSession, register, type LoginPayload, type RegisterPayload } from './auth.api';
 import { useAuthStore } from '../store/auth.store';
 
 export function useLoginMutation() {
@@ -41,3 +42,43 @@ export function useLogoutMutation() {
   });
 }
 
+export function useAuthBootstrap(enabled = true) {
+  const { isAuthenticated, setAuth, logout: clearAuth } = useAuthStore();
+  const [isBootstrapping, setIsBootstrapping] = useState(enabled && !isAuthenticated);
+
+  const bootstrap = useCallback(async () => {
+    if (!enabled || isAuthenticated) {
+      setIsBootstrapping(false);
+      return;
+    }
+
+    setIsBootstrapping(true);
+    try {
+      const session = await refreshWithConcurrencyRetry();
+      setAuth(session.user, session.accessToken);
+    } catch {
+      clearAuth();
+    } finally {
+      setIsBootstrapping(false);
+    }
+  }, [clearAuth, enabled, isAuthenticated, setAuth]);
+
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
+
+  return { isBootstrapping };
+}
+
+async function refreshWithConcurrencyRetry() {
+  try {
+    return await refreshSession();
+  } catch (error) {
+    await new Promise((resolve) => window.setTimeout(resolve, 250));
+    try {
+      return await refreshSession();
+    } catch {
+      throw error;
+    }
+  }
+}

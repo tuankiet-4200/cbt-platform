@@ -107,12 +107,16 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is invalid');
     }
 
-    if (stored.isRevoked || stored.expiresAt <= new Date()) {
+    if (stored.isRevoked) {
+      throw new UnauthorizedException('Refresh token is invalid');
+    }
+
+    if (stored.expiresAt <= new Date()) {
       await this.prisma.refreshToken.updateMany({
         where: { userId: stored.userId, isRevoked: false },
         data: { isRevoked: true },
       });
-      throw new UnauthorizedException('Refresh token reuse detected');
+      throw new UnauthorizedException('Refresh token is expired');
     }
 
     if (!stored.user.isActive) {
@@ -213,4 +217,3 @@ export interface RequestMeta {
   ipAddress?: string;
   userAgent?: string;
 }
-

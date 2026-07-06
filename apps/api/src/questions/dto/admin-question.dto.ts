@@ -99,6 +99,14 @@ export class UpdateQuestionStatusDto {
   reviewNote?: string;
 }
 
+export class BulkUpdateQuestionStatusDto extends UpdateQuestionStatusDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  ids!: string[];
+}
+
 export class ListQuestionsDto extends PaginationDto {
   @IsOptional()
   @IsEnum(QuestionType)

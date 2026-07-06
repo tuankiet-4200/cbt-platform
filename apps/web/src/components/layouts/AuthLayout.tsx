@@ -1,12 +1,17 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useAuthBootstrap } from '@/features/auth/api/useAuth';
+import { PageLoader } from '@/components/ui/PageLoader';
 
 export function AuthLayout() {
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const { isBootstrapping } = useAuthBootstrap(!isAuthenticated);
+
+  if (isBootstrapping) return <PageLoader />;
 
   // Already authenticated → redirect to app
   if (isAuthenticated) {
-    return <Navigate to="/exams" replace />;
+    return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/exams'} replace />;
   }
 
   return (

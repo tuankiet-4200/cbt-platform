@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (dev seed credentials refresh fix)
+> **Last updated:** 2026-07-07 (Sprint 2.1 completion: admin bank hardening + multi-tab auth fix)
 
 ### Active Sprint
-**Sprint 2.1 (Tuần 5–6) — Admin Question Bank Management**  
-Status: 🟡 IN PROGRESS
+**Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
+Status: ⬜ PENDING
 
 ### Sprint Progress Overview
 
@@ -34,8 +34,8 @@ Status: 🟡 IN PROGRESS
 |--------|------|--------|-----------|
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
-| **2.1** | **Admin Question Bank Management** | 🟡 In progress | 65% |
-| 2.2 | Exam Assembly & Access Code System | ⬜ Pending | — |
+| 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
+| **2.2** | **Exam Assembly & Access Code System** | ⬜ Pending | — |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -123,7 +123,7 @@ Status: 🟡 IN PROGRESS
 
 ---
 
-## 🎯 Next Up: Sprint 2.1 Tasks
+## ✅ Sprint 2.1 — What Was Completed
 
 **Goal:** Admin can operate the question bank: taxonomy, filtering, review workflow, bulk import, and core content entry UI.
 
@@ -138,10 +138,16 @@ Status: 🟡 IN PROGRESS
 
 3. **Bulk Import API**
    - [x] `POST /api/v1/admin/questions/bulk` accepts up to 100 JSON questions, validates content/IRT, and inserts transactionally
+   - [x] `PATCH /api/v1/admin/questions/bulk/status` updates selected questions transactionally
 
 4. **Filtering & Pagination**
    - [x] Question list supports `page`, `limit`, `sortBy`, `sortOrder`, `tagId[]`, `level`, `type`, `status`
    - [x] Response shape remains `{ data, meta }`
+
+5. **Hardening**
+   - [x] Tag slug conflict returns domain-level `409 Conflict`
+   - [x] Question status transitions are validated before update
+   - [x] Refresh-token multi-tab race no longer revokes all active sessions on concurrent bootstrap
 
 ### Frontend — Sprint 2.1
 1. [x] Admin dashboard layout with sidebar entries: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics
@@ -151,8 +157,26 @@ Status: 🟡 IN PROGRESS
 5. [x] IRT params input with browser tooltips
 6. [x] Tag selector using taxonomy tree
 7. [x] Contribution Review UI with status filter, file preview/signed URL, `adminNote`, Reviewing/Approve/Reject actions
-8. [ ] PassageBundle Create Form with RichText passage editor and exact 10/5 question linking workflow
-9. [ ] Bulk JSON import UI for admin paste/upload flow
+8. [x] PassageBundle Create Form with RichText passage editor and exact 10/5 question linking workflow
+9. [x] Bulk JSON import UI for admin paste/upload flow
+10. [x] Admin theme uses TSA red primary palette consistent with login/register pages
+11. [x] New browser tabs bootstrap auth session from HttpOnly refresh cookie before redirecting
+
+---
+
+## 🎯 Next Up: Sprint 2.2 Tasks
+
+**Goal:** Admin can assemble and publish a complete exam; users can unlock locked exams using access codes.
+
+### Backend — Sprint 2.2
+1. [ ] Exam Management API: create exam, add math questions, add passage bundles, preview, publish
+2. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
+3. [ ] User Exam List API: list unlocked/public exams with question counts
+
+### Frontend — Sprint 2.2
+1. [ ] Exam Builder UI with section-based assembly and drag ordering
+2. [ ] Access Code Management UI
+3. [ ] User Exam Library unlock flow
 
 ---
 

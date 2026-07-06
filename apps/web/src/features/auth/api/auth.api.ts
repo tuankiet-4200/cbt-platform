@@ -39,7 +39,11 @@ export async function register(payload: RegisterPayload) {
   return unwrap(response.data);
 }
 
+export async function refreshSession() {
+  const response = await apiClient.post<AuthResponse | Envelope<AuthResponse>>('/auth/refresh');
+  return unwrap(response.data);
+}
+
 export async function logout() {
   await apiClient.post('/auth/logout');
 }
-

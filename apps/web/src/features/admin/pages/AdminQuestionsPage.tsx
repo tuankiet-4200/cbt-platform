@@ -6,18 +6,23 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Database,
   Eye,
   FilePlus2,
   Filter,
   Loader2,
+  Plus,
   Search,
   Send,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import { BlockMath, InlineMath } from 'react-katex';
 import { cn } from '@/lib/utils';
 import {
   bulkUpdateQuestionStatus,
+  bulkCreateQuestions,
   createQuestion,
   listQuestions,
   listTags,
@@ -127,6 +132,9 @@ export default function AdminQuestionsPage() {
     { id: 'B1', correctValue: 0, unit: '' },
   ]);
   const [reviewNote, setReviewNote] = useState('');
+  const [bulkJson, setBulkJson] = useState('');
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const tagsQuery = useQuery({
     queryKey: ['admin', 'tags'],
@@ -156,6 +164,7 @@ export default function AdminQuestionsPage() {
       setStem('');
       setSolution('');
       setReviewNote('');
+      setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] });
     },
   });
@@ -170,6 +179,15 @@ export default function AdminQuestionsPage() {
     },
   });
 
+  const bulkCreateMutation = useMutation({
+    mutationFn: (payload: CreateQuestionPayload[]) => bulkCreateQuestions(payload),
+    onSuccess: () => {
+      setBulkJson('');
+      setBulkError(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] });
+    },
+  });
+
   const previewContent = useMemo(
     () => ({
       stem: parseRichText(stem),
@@ -179,6 +197,7 @@ export default function AdminQuestionsPage() {
   );
 
   const handleSubmit = () => {
+    setFormError(null);
     const contentJson = buildQuestionContent({
       type,
       stem,
@@ -189,6 +208,11 @@ export default function AdminQuestionsPage() {
       dragSlots,
       fillBlanks,
     });
+    const validationError = validateQuestionDraft(contentJson);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
 
     createMutation.mutate({
       type,
@@ -199,6 +223,20 @@ export default function AdminQuestionsPage() {
       tagIds: selectedTagIds,
       contentJson,
     });
+  };
+
+  const handleBulkImport = () => {
+    setBulkError(null);
+    try {
+      const parsed = JSON.parse(bulkJson) as unknown;
+      if (!Array.isArray(parsed)) {
+        setBulkError('Bulk JSON phải là một mảng question payload.');
+        return;
+      }
+      bulkCreateMutation.mutate(parsed as CreateQuestionPayload[]);
+    } catch {
+      setBulkError('JSON không hợp lệ.');
+    }
   };
 
   const questions = questionsQuery.data?.data ?? [];
@@ -334,6 +372,8 @@ export default function AdminQuestionsPage() {
           <div className="mt-5 border-t border-neutral-200 pt-5">
             <PayloadEditor
               type={type}
+              stem={stem}
+              setStem={setStem}
               choices={choices}
               setChoices={setChoices}
               statements={statements}
@@ -351,9 +391,9 @@ export default function AdminQuestionsPage() {
             <TagPicker tags={tagsQuery.data ?? []} selectedIds={selectedTagIds} onChange={setSelectedTagIds} />
           </div>
 
-          {createMutation.error && (
+          {(formError || createMutation.error) && (
             <p className="mt-4 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">
-              {getErrorMessage(createMutation.error)}
+              {formError ?? getErrorMessage(createMutation.error)}
             </p>
           )}
 
@@ -379,6 +419,72 @@ export default function AdminQuestionsPage() {
             <PreviewBlock title="Payload" nodes={payloadPreview(type, { choices, statements, dragItems, dragSlots, fillBlanks })} />
             <PreviewBlock title="Solution" nodes={previewContent.solution} mutedText="Chưa có lời giải." />
           </div>
+        </div>
+      </section>
+
+      <section className="card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
+              <Upload className="h-4 w-4" />
+              Bulk JSON Import
+            </div>
+            <h2 className="mt-1 text-base font-semibold text-neutral-900">Nhập hàng loạt câu hỏi</h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              Dán mảng JSON theo contract `CreateQuestionPayload[]`. Backend validate toàn bộ trong transaction.
+            </p>
+          </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={() => setBulkJson(JSON.stringify([buildQuestionContent({
+              type,
+              stem: stem || 'Câu hỏi mẫu $x^2$',
+              solution,
+              choices,
+              statements,
+              dragItems,
+              dragSlots,
+              fillBlanks,
+            })].map((contentJson) => ({
+              type: contentJson.type,
+              status: 'DRAFT',
+              level,
+              expectedTimeSecs,
+              irtParams,
+              tagIds: selectedTagIds,
+              contentJson,
+            })), null, 2))}
+          >
+            <Copy className="h-4 w-4" />
+            Fill sample
+          </button>
+        </div>
+        <textarea
+          className="input mt-4 min-h-52 resize-y font-mono text-xs"
+          value={bulkJson}
+          onChange={(event) => setBulkJson(event.target.value)}
+          placeholder='[{"type":"SINGLE_CHOICE","contentJson":{...}}]'
+        />
+        {(bulkError || bulkCreateMutation.error) && (
+          <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">
+            {bulkError ?? getErrorMessage(bulkCreateMutation.error)}
+          </p>
+        )}
+        {bulkCreateMutation.data && (
+          <p className="mt-3 rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">
+            Đã tạo {bulkCreateMutation.data.createdCount} câu hỏi.
+          </p>
+        )}
+        <div className="mt-4 flex justify-end">
+          <button
+            className="btn btn-primary btn-md"
+            disabled={bulkCreateMutation.isPending || bulkJson.trim().length === 0}
+            onClick={handleBulkImport}
+          >
+            {bulkCreateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Import JSON
+          </button>
         </div>
       </section>
 
@@ -568,6 +674,8 @@ function Field({ label, title, children }: { label: string; title?: string; chil
 
 interface PayloadEditorProps {
   type: QuestionType;
+  stem: string;
+  setStem: Dispatch<SetStateAction<string>>;
   choices: ChoiceOptionState[];
   setChoices: Dispatch<SetStateAction<ChoiceOptionState[]>>;
   statements: StatementState[];
@@ -584,9 +692,25 @@ function PayloadEditor(props: PayloadEditorProps) {
   if (props.type === 'SINGLE_CHOICE' || props.type === 'MULTIPLE_CHOICE') {
     return (
       <div className="space-y-3">
-        <SectionLabel text="Options" />
+        <div className="flex items-center justify-between gap-3">
+          <SectionLabel text="Options" />
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            disabled={props.choices.length >= 5}
+            onClick={() =>
+              props.setChoices((items) => [
+                ...items,
+                { id: String.fromCharCode(65 + items.length), content: '', isCorrect: false },
+              ])
+            }
+          >
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
         {props.choices.map((option, index) => (
-          <div key={option.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_7rem]">
+          <div key={option.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_7rem_2.25rem]">
             <input className="input" value={option.id} disabled />
             <input
               className="input"
@@ -607,6 +731,15 @@ function PayloadEditor(props: PayloadEditorProps) {
               />
               Correct
             </label>
+            <button
+              className="btn btn-ghost btn-sm"
+              type="button"
+              disabled={props.choices.length <= 2}
+              onClick={() => props.setChoices((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+              aria-label="Remove option"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         ))}
       </div>
@@ -616,9 +749,24 @@ function PayloadEditor(props: PayloadEditorProps) {
   if (props.type === 'TRUE_FALSE_MATRIX') {
     return (
       <div className="space-y-3">
-        <SectionLabel text="Statements" />
+        <div className="flex items-center justify-between gap-3">
+          <SectionLabel text="Statements" />
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={() =>
+              props.setStatements((items) => [
+                ...items,
+                { id: `S${items.length + 1}`, content: '', isTrue: true },
+              ])
+            }
+          >
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
         {props.statements.map((statement, index) => (
-          <div key={statement.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem]">
+          <div key={statement.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_2.25rem]">
             <input className="input" value={statement.id} disabled />
             <input
               className="input"
@@ -643,6 +791,15 @@ function PayloadEditor(props: PayloadEditorProps) {
               <option value="true">Đúng</option>
               <option value="false">Sai</option>
             </select>
+            <button
+              className="btn btn-ghost btn-sm"
+              type="button"
+              disabled={props.statements.length <= 1}
+              onClick={() => props.setStatements((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+              aria-label="Remove statement"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         ))}
       </div>
@@ -653,9 +810,19 @@ function PayloadEditor(props: PayloadEditorProps) {
     return (
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3">
-          <SectionLabel text="Items" />
+          <div className="flex items-center justify-between gap-3">
+            <SectionLabel text="Items" />
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              onClick={() => props.setDragItems((items) => [...items, { id: `I${items.length + 1}`, content: '' }])}
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
           {props.dragItems.map((item, index) => (
-            <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)]">
+            <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_2.25rem]">
               <input className="input" value={item.id} disabled />
               <input
                 className="input"
@@ -666,13 +833,37 @@ function PayloadEditor(props: PayloadEditorProps) {
                   )
                 }
               />
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                disabled={props.dragItems.length <= 1}
+                onClick={() => props.setDragItems((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                aria-label="Remove drag item"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </div>
         <div className="space-y-3">
-          <SectionLabel text="Slots" />
+          <div className="flex items-center justify-between gap-3">
+            <SectionLabel text="Slots" />
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              onClick={() =>
+                props.setDragSlots((items) => [
+                  ...items,
+                  { id: `slot${items.length + 1}`, label: `Slot ${items.length + 1}`, correctItemId: props.dragItems[0]?.id ?? 'I1' },
+                ])
+              }
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
           {props.dragSlots.map((slot, index) => (
-            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem]">
+            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
               <input
                 className="input"
                 value={slot.label}
@@ -699,6 +890,15 @@ function PayloadEditor(props: PayloadEditorProps) {
                   </option>
                 ))}
               </select>
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                disabled={props.dragSlots.length <= 1}
+                onClick={() => props.setDragSlots((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                aria-label="Remove drag slot"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </div>
@@ -708,9 +908,23 @@ function PayloadEditor(props: PayloadEditorProps) {
 
   return (
     <div className="space-y-3">
-      <SectionLabel text="Blanks" />
+      <div className="flex items-center justify-between gap-3">
+        <SectionLabel text="Blanks" />
+        <button
+          className="btn btn-secondary btn-sm"
+          type="button"
+          onClick={() => {
+            const nextId = `B${props.fillBlanks.length + 1}`;
+            props.setFillBlanks((items) => [...items, { id: nextId, correctValue: 0, unit: '' }]);
+            props.setStem((value) => `${value}${value.endsWith(' ') || value.length === 0 ? '' : ' '}{{${nextId}}}`);
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          Add blank
+        </button>
+      </div>
       {props.fillBlanks.map((blank, index) => (
-        <div key={blank.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem]">
+        <div key={blank.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_8rem_2.25rem]">
           <input className="input" value={blank.id} disabled />
           <input
             className="input"
@@ -733,6 +947,22 @@ function PayloadEditor(props: PayloadEditorProps) {
               )
             }
           />
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={() => props.setStem((value) => `${value}${value.endsWith(' ') || value.length === 0 ? '' : ' '}{{${blank.id}}}`)}
+          >
+            Insert
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            type="button"
+            disabled={props.fillBlanks.length <= 1}
+            onClick={() => props.setFillBlanks((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+            aria-label="Remove blank"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ))}
     </div>
@@ -925,6 +1155,28 @@ function buildQuestionContent(input: {
   }
 
   return content;
+}
+
+function validateQuestionDraft(content: CreateQuestionPayload['contentJson']) {
+  if (content.stem.length === 0) return 'Stem không được để trống.';
+
+  if (content.type === 'SINGLE_CHOICE' || content.type === 'MULTIPLE_CHOICE') {
+    const options = (content.payload.options as Array<{ isCorrect: boolean; content: RichTextNode[] }> | undefined) ?? [];
+    const correctCount = options.filter((option) => option.isCorrect).length;
+    if (options.length < 2) return 'Choice question cần ít nhất 2 options.';
+    if (options.some((option) => option.content.length === 0)) return 'Option content không được để trống.';
+    if (content.type === 'SINGLE_CHOICE' && correctCount !== 1) return 'Single choice cần đúng 1 đáp án đúng.';
+    if (content.type === 'MULTIPLE_CHOICE' && correctCount < 1) return 'Multiple choice cần ít nhất 1 đáp án đúng.';
+  }
+
+  if (content.type === 'FILL_NUMBER') {
+    const blankIds = new Set(content.stem.filter((node) => node.type === 'blank').map((node) => node.blankId));
+    const blanks = (content.payload.blanks as Array<{ id: string }> | undefined) ?? [];
+    const missing = blanks.find((blank) => !blankIds.has(blank.id));
+    if (missing) return `Stem cần chứa token {{${missing.id}}} cho blank ${missing.id}.`;
+  }
+
+  return null;
 }
 
 function payloadPreview(

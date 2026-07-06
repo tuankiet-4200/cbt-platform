@@ -7,6 +7,7 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { QuestionsService } from './questions.service';
 import {
   BulkCreateQuestionsDto,
+  BulkUpdateQuestionStatusDto,
   CreateTagDto,
   CreateQuestionDto,
   ListQuestionsDto,
@@ -43,6 +44,11 @@ export class QuestionsController {
   @Post('questions/bulk')
   bulkCreateQuestions(@Body() dto: BulkCreateQuestionsDto, @CurrentUser() user: User) {
     return this.questionsService.bulkCreateQuestions(dto, user);
+  }
+
+  @Patch('questions/bulk/status')
+  bulkUpdateQuestionStatus(@Body() dto: BulkUpdateQuestionStatusDto, @CurrentUser() user: User) {
+    return this.questionsService.bulkUpdateQuestionStatus(dto, user);
   }
 
   @Get('questions')

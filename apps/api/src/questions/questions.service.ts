@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import {
 } from './question-content.validator';
 import {
   BulkCreateQuestionsDto,
+  BulkUpdateQuestionStatusDto,
   CreateTagDto,
   CreateQuestionDto,
   ListQuestionsDto,
@@ -60,15 +62,22 @@ export class QuestionsService {
       depth = parent.depth + 1;
     }
 
-    return this.prisma.tag.create({
-      data: {
-        name: dto.name,
-        slug: dto.slug,
-        parentId: dto.parentId,
-        depth,
-        orderIndex: dto.orderIndex ?? 0,
-      },
-    });
+    try {
+      return await this.prisma.tag.create({
+        data: {
+          name: dto.name,
+          slug: dto.slug,
+          parentId: dto.parentId,
+          depth,
+          orderIndex: dto.orderIndex ?? 0,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Tag slug already exists');
+      }
+      throw error;
+    }
   }
 
   async createQuestion(dto: CreateQuestionDto, currentUser: User) {
@@ -189,18 +198,40 @@ export class QuestionsService {
   }
 
   async updateQuestionStatus(id: string, dto: UpdateQuestionStatusDto, currentUser: User) {
+    const question = await this.prisma.question.findUnique({ where: { id } });
+    if (!question) throw new NotFoundException('Question not found');
+    this.assertQuestionStatusTransition(question.status, dto.status);
+
     return this.prisma.question.update({
       where: { id },
-      data: {
-        status: dto.status,
-        reviewNote: dto.reviewNote,
-        reviewedById: dto.status === QuestionStatus.PUBLISHED || dto.status === QuestionStatus.ARCHIVED
-          ? currentUser.id
-          : undefined,
-        publishedAt: dto.status === QuestionStatus.PUBLISHED ? new Date() : undefined,
-      },
+      data: this.questionStatusUpdateData(dto, currentUser),
       include: this.questionInclude(),
     });
+  }
+
+  async bulkUpdateQuestionStatus(dto: BulkUpdateQuestionStatusDto, currentUser: User) {
+    const questions = await this.prisma.question.findMany({
+      where: { id: { in: dto.ids } },
+      select: { id: true, status: true },
+    });
+
+    if (questions.length !== dto.ids.length) {
+      throw new NotFoundException('One or more questions were not found');
+    }
+
+    questions.forEach((question) => this.assertQuestionStatusTransition(question.status, dto.status));
+
+    const data = await this.prisma.$transaction(
+      dto.ids.map((id) =>
+        this.prisma.question.update({
+          where: { id },
+          data: this.questionStatusUpdateData(dto, currentUser),
+          include: this.questionInclude(),
+        }),
+      ),
+    );
+
+    return { updatedCount: data.length, data };
   }
 
   async createPassageBundle(dto: CreatePassageBundleDto, currentUser: User) {
@@ -344,6 +375,31 @@ export class QuestionsService {
     }
 
     return { [sortBy]: sortOrder };
+  }
+
+  private questionStatusUpdateData(dto: UpdateQuestionStatusDto, currentUser: User): Prisma.QuestionUpdateInput {
+    return {
+      status: dto.status,
+      reviewNote: dto.reviewNote,
+      reviewedBy: dto.status === QuestionStatus.PUBLISHED || dto.status === QuestionStatus.ARCHIVED
+        ? { connect: { id: currentUser.id } }
+        : undefined,
+      publishedAt: dto.status === QuestionStatus.PUBLISHED ? new Date() : null,
+    };
+  }
+
+  private assertQuestionStatusTransition(from: QuestionStatus, to: QuestionStatus) {
+    if (from === to) return;
+    const allowed: Record<QuestionStatus, QuestionStatus[]> = {
+      [QuestionStatus.DRAFT]: [QuestionStatus.PENDING_REVIEW, QuestionStatus.PUBLISHED, QuestionStatus.ARCHIVED],
+      [QuestionStatus.PENDING_REVIEW]: [QuestionStatus.PUBLISHED, QuestionStatus.ARCHIVED, QuestionStatus.DRAFT],
+      [QuestionStatus.PUBLISHED]: [QuestionStatus.ARCHIVED, QuestionStatus.DRAFT],
+      [QuestionStatus.ARCHIVED]: [QuestionStatus.DRAFT],
+    };
+
+    if (!allowed[from].includes(to)) {
+      throw new BadRequestException(`Cannot move question from ${from} to ${to}`);
+    }
   }
 
   private questionInclude() {

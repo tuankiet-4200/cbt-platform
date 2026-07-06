@@ -126,8 +126,10 @@
   - LaTeX preview real-time (dùng `react-katex` + `<MathRenderer/>`).
   - IRT params input với tooltip giải thích ý nghĩa a/b/c.
   - Tag selector (multi-select với tree search).
-- [ ] **PassageBundle Create Form:** Upload passage text (RichTextNode[] editor), link câu hỏi vào bundle, validate đúng số lượng (10 READING / 5 SCIENCE).
+- [x] **PassageBundle Create Form:** Upload passage text (RichTextNode[] editor), link câu hỏi vào bundle, validate đúng số lượng (10 READING / 5 SCIENCE).
 - [x] **Contribution Review UI (Admin):** List submissions với status filter. Click → xem file preview (PDF/DOCX embed), form nhập `adminNote`, nút Approve/Reject/set Reviewing.
+- [x] **Bulk JSON Import UI:** Paste JSON payload, validate shape client-side, submit to bulk import API.
+- [x] **Admin Auth/Theme Hardening:** New-tab session bootstrap via refresh cookie; Admin primary palette aligned to TSA red branding.
 
 #### ⚠️ Rủi ro Sprint 2.1
 > **R4 — Admin UX Bottleneck:** Nếu form nhập câu hỏi phức tạp và chậm, Admin sẽ từ chối dùng. **Giải pháp:** Ưu tiên tốc độ nhập liệu: keyboard shortcuts, auto-save draft, copy-paste LaTeX từ Word/Google Docs.

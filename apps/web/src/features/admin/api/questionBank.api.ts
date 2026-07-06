@@ -53,6 +53,26 @@ export interface AdminQuestion {
   tags: Array<{ tag: TagNode }>;
 }
 
+export type ExamSectionType = 'MATH' | 'READING' | 'SCIENCE';
+
+export interface PassageBundle {
+  id: string;
+  sectionType: Exclude<ExamSectionType, 'MATH'>;
+  title: string;
+  contentJson: RichTextNode[];
+  expectedTimeSecs: number;
+  status: QuestionStatus;
+  createdAt: string;
+  updatedAt: string;
+  questions: Array<{
+    questionId: string;
+    orderInBundle: number;
+    points: number;
+    question: AdminQuestion;
+  }>;
+  author: { id: string; email: string; displayName: string };
+}
+
 export interface PaginationMeta {
   page: number;
   limit: number;
@@ -81,6 +101,15 @@ export interface CreateQuestionPayload {
   irtParams?: { a: number; b: number; c: number };
   expectedTimeSecs?: number;
   tagIds?: string[];
+}
+
+export interface CreatePassageBundlePayload {
+  sectionType: Exclude<ExamSectionType, 'MATH'>;
+  title: string;
+  contentJson: RichTextNode[];
+  expectedTimeSecs?: number;
+  status?: QuestionStatus;
+  questions: Array<{ questionId: string; orderInBundle: number; points?: number }>;
 }
 
 interface ApiEnvelope<T> {
@@ -115,6 +144,13 @@ export async function createQuestion(payload: CreateQuestionPayload) {
   return response.data.data;
 }
 
+export async function bulkCreateQuestions(questions: CreateQuestionPayload[]) {
+  const response = await apiClient.post<ApiEnvelope<{ createdCount: number; data: AdminQuestion[] }>>('/admin/questions/bulk', {
+    questions,
+  });
+  return response.data.data;
+}
+
 export async function updateQuestionStatus(
   id: string,
   payload: { status: QuestionStatus; reviewNote?: string },
@@ -127,5 +163,24 @@ export async function bulkUpdateQuestionStatus(
   ids: string[],
   payload: { status: QuestionStatus; reviewNote?: string },
 ) {
-  return Promise.all(ids.map((id) => updateQuestionStatus(id, payload)));
+  const response = await apiClient.patch<ApiEnvelope<{ updatedCount: number; data: AdminQuestion[] }>>('/admin/questions/bulk/status', {
+    ids,
+    ...payload,
+  });
+  return response.data.data;
+}
+
+export async function listPassageBundles(params: {
+  page?: number;
+  limit?: number;
+  sectionType?: Exclude<ExamSectionType, 'MATH'> | '';
+  status?: QuestionStatus | '';
+}) {
+  const response = await apiClient.get<ApiEnvelope<PassageBundle[]>>('/admin/passage-bundles', { params });
+  return response.data;
+}
+
+export async function createPassageBundle(payload: CreatePassageBundlePayload) {
+  const response = await apiClient.post<ApiEnvelope<PassageBundle>>('/admin/passage-bundles', payload);
+  return response.data.data;
 }
