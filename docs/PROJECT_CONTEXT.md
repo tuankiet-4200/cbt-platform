@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-05 (Supabase Storage adapter for Sprint 1.2)
+> **Last updated:** 2026-07-06 (API root env loading fix)
 
 ### Active Sprint
 **Sprint 1.2 (Tuần 3–4) — Authentication & Question Content Model**  
@@ -194,6 +194,9 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 npm run docker:up    # if containers not running
 npm run dev          # starts api (3000) + web (5173) concurrently
 ```
+
+> API config loads `.env.local` / `.env` from both the current workspace and the repo root,
+> so `npm run dev -w apps/api` works on a fresh clone with root-level `.env`.
 
 ---
 

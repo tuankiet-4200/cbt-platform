@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { join } from 'path';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { HealthModule } from './health/health.module';
@@ -16,12 +17,21 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AdminModule } from './admin/admin.module';
 import { ContributionsModule } from './contributions/contributions.module';
 
+const envFilePath = [
+  join(process.cwd(), '.env.local'),
+  join(process.cwd(), '.env'),
+  join(__dirname, '../../../.env.local'),
+  join(__dirname, '../../../.env'),
+  join(__dirname, '../../.env.local'),
+  join(__dirname, '../../.env'),
+];
+
 @Module({
   imports: [
     // ── Config (must be first) ─────────────────────────────────────────────
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath,
     }),
 
     // ── Rate Limiting ──────────────────────────────────────────────────────
