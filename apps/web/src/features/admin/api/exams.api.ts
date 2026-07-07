@@ -105,20 +105,48 @@ export interface ExamPreview {
       questionCount: number;
       itemCount: number;
       difficulty: Record<CognitiveLevel, number>;
+      items?: ExamPreviewQuestion[];
     };
     READING: {
       bundleCount: number;
       questionCount: number;
       itemCount: number;
       difficulty: Record<CognitiveLevel, number>;
+      bundles?: ExamPreviewBundle[];
     };
     SCIENCE: {
       bundleCount: number;
       questionCount: number;
       itemCount: number;
       difficulty: Record<CognitiveLevel, number>;
+      bundles?: ExamPreviewBundle[];
     };
   };
+}
+
+export interface ExamPreviewTag {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface ExamPreviewQuestion {
+  id: string;
+  order: number;
+  points?: number;
+  type: QuestionType;
+  level: CognitiveLevel;
+  tags?: ExamPreviewTag[];
+  snippet: string;
+}
+
+export interface ExamPreviewBundle {
+  id: string;
+  order: number;
+  title?: string | null;
+  tags: ExamPreviewTag[];
+  snippet: string;
+  questions: ExamPreviewQuestion[];
 }
 
 export interface GenerateResponse {

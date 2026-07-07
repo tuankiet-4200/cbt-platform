@@ -1,70 +1,31 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  CheckCircle2,
-  FileJson,
+  Eye,
+  FilePlus2,
   GraduationCap,
   Loader2,
-  Play,
-  Plus,
-  RefreshCcw,
-  Save,
   Search,
   ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  checkBlueprintAvailability,
-  checkExamAvailability,
-  createExam,
-  generateExamDraft,
   listExams,
   previewExam,
   publishExam,
-  regenerateExamDraft,
-  updateExamBlueprint,
   type AdminExam,
-  type AvailabilityReport,
-  type ExamAccessType,
-  type ExamBlueprint,
   type ExamPreview,
-  type GenerateResponse,
-  type Shortage,
 } from '../api/exams.api';
-import type { CognitiveLevel, ExamSectionType } from '../api/questionBank.api';
-
-const DEFAULT_BLUEPRINT: ExamBlueprint = {
-  version: 1,
-  durationMins: 150,
-  randomization: {
-    seed: 'tsa-admin-draft',
-    maxAttempts: 5,
-  },
-  sections: [
-    { sectionType: 'MATH', targetQuestionCount: 50 },
-    { sectionType: 'READING', targetBundleCount: 2, targetQuestionCount: 20 },
-    { sectionType: 'SCIENCE', targetBundleCount: 3, targetQuestionCount: 15 },
-  ],
-};
-
-const SECTIONS: ExamSectionType[] = ['MATH', 'READING', 'SCIENCE'];
-const LEVELS: CognitiveLevel[] = ['RECOGNITION', 'COMPREHENSION', 'APPLICATION', 'HIGH_APPLICATION'];
+import { ExamPreviewModal } from './ExamPreviewModal';
 
 export default function AdminExamsPage() {
   const queryClient = useQueryClient();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<ExamSectionType>('MATH');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [durationMins, setDurationMins] = useState(150);
-  const [accessType, setAccessType] = useState<ExamAccessType>('LOCKED');
-  const [blueprintText, setBlueprintText] = useState(formatJson(DEFAULT_BLUEPRINT));
-  const [seed, setSeed] = useState('');
-  const [maxAttempts, setMaxAttempts] = useState(5);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [availability, setAvailability] = useState<AvailabilityReport | null>(null);
-  const [generationResult, setGenerationResult] = useState<GenerateResponse | null>(null);
   const [preview, setPreview] = useState<ExamPreview | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const examsQuery = useQuery({
     queryKey: ['admin', 'exams'],
@@ -72,105 +33,35 @@ export default function AdminExamsPage() {
   });
 
   const exams = examsQuery.data ?? [];
-  const selectedExam = useMemo(
-    () => exams.find((exam) => exam.id === selectedId) ?? exams[0] ?? null,
-    [exams, selectedId],
-  );
-
-  const createMutation = useMutation({
-    mutationFn: () => {
-      const blueprint = parseBlueprint(blueprintText);
-      return createExam({
-        title,
-        description,
-        durationMins,
-        accessType,
-        blueprintJson: blueprint,
-      });
-    },
-    onSuccess: (exam) => {
-      setSelectedId(exam.id);
-      setTitle('');
-      setDescription('');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-    },
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không tạo được exam.'),
-  });
-
-  const saveBlueprintMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedExam) throw new Error('Chọn một exam trước.');
-      return updateExamBlueprint(selectedExam.id, parseBlueprint(blueprintText));
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-      setFormError(null);
-    },
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không lưu được blueprint.'),
-  });
-
-  const availabilityMutation = useMutation({
-    mutationFn: () => selectedExam ? checkExamAvailability(selectedExam.id) : checkBlueprintAvailability(parseBlueprint(blueprintText)),
-    onSuccess: setAvailability,
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không kiểm tra được availability.'),
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedExam) throw new Error('Chọn một exam trước.');
-      return generateExamDraft(selectedExam.id, { seed: seed || undefined, maxAttempts });
-    },
-    onSuccess: (result) => {
-      setGenerationResult(result);
-      if (result.preview) setPreview(result.preview);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-    },
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không generate được exam.'),
-  });
-
-  const regenerateMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedExam) throw new Error('Chọn một exam trước.');
-      return regenerateExamDraft(selectedExam.id, { seed: seed || undefined, maxAttempts });
-    },
-    onSuccess: (result) => {
-      setGenerationResult(result);
-      if (result.preview) setPreview(result.preview);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-    },
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không regenerate được exam.'),
-  });
+  const filteredExams = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return exams.filter((exam) => {
+      const matchesStatus =
+        statusFilter === 'ALL' ||
+        (statusFilter === 'PUBLISHED' && exam.isPublished) ||
+        (statusFilter === 'DRAFT' && !exam.isPublished);
+      const matchesSearch = !normalizedSearch || exam.title.toLowerCase().includes(normalizedSearch);
+      return matchesStatus && matchesSearch;
+    });
+  }, [exams, searchTerm, statusFilter]);
 
   const previewMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedExam) throw new Error('Chọn một exam trước.');
-      return previewExam(selectedExam.id);
+    mutationFn: previewExam,
+    onSuccess: (result) => {
+      setPreview(result);
+      setActionError(null);
     },
-    onSuccess: setPreview,
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không preview được exam.'),
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Preview failed.'),
   });
 
   const publishMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedExam) throw new Error('Chọn một exam trước.');
-      return publishExam(selectedExam.id, !selectedExam.isPublished);
+    mutationFn: (exam: AdminExam) => publishExam(exam.id, !exam.isPublished),
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] }),
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Không publish được exam.'),
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Publish state update failed.'),
   });
-
-  const loadExamIntoEditor = (exam: AdminExam) => {
-    setSelectedId(exam.id);
-    setBlueprintText(formatJson(exam.blueprintJson ?? DEFAULT_BLUEPRINT));
-    setSeed(exam.generationSeed ?? '');
-    setAvailability(null);
-    setGenerationResult(null);
-    setPreview(null);
-    setFormError(null);
-  };
-
-  const selectedPreview = preview;
-  const activePreview = selectedPreview?.sections[activeSection];
 
   return (
     <div className="space-y-6">
@@ -180,231 +71,139 @@ export default function AdminExamsPage() {
             <GraduationCap className="h-4 w-4" />
             Exam Management
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-neutral-900">Quản lý đề thi</h1>
-          <p className="mt-1 text-sm text-neutral-500">Tạo blueprint, kiểm tra nguồn câu hỏi, generate draft và publish sau khi preview.</p>
+          <h1 className="mt-2 text-2xl font-bold text-neutral-900">Quan ly de thi</h1>
+          <p className="mt-1 text-sm text-neutral-500">Danh sach de da generate, preview va publish tu mot man hinh gon hon.</p>
         </div>
-        <span className="badge badge-neutral h-9 justify-center px-3">{exams.length} exams</span>
+        <Link to="/admin/exams/create" className="btn btn-primary btn-md">
+          <FilePlus2 className="h-4 w-4" />
+          Create exam
+        </Link>
       </header>
 
-      <section className="grid gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
-        <aside className="card overflow-hidden">
-          <div className="border-b border-neutral-200 p-4">
-            <div className="flex items-center gap-2 text-sm text-neutral-500">
-              <Search className="h-4 w-4" />
-              {examsQuery.isFetching ? 'Đang tải...' : 'Exam list'}
-            </div>
+      <section className="grid gap-4 md:grid-cols-4">
+        <Metric label="Total exams" value={exams.length} />
+        <Metric label="Published" value={exams.filter((exam) => exam.isPublished).length} />
+        <Metric label="Draft" value={exams.filter((exam) => !exam.isPublished).length} />
+        <Metric label="Generated" value={exams.filter((exam) => exam.generatedAt).length} />
+      </section>
+
+      <section className="card overflow-hidden">
+        {actionError && (
+          <div className="border-b border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+            {actionError}
           </div>
-          <div className="max-h-[42rem] overflow-y-auto">
-            {exams.map((exam) => (
+        )}
+        <div className="flex flex-col gap-3 border-b border-neutral-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <label className="relative block lg:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <input
+              className="input pl-9"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search exam"
+            />
+          </label>
+          <div className="grid grid-cols-3 gap-2 rounded-lg border border-neutral-200 bg-white p-1">
+            {(['ALL', 'PUBLISHED', 'DRAFT'] as const).map((status) => (
               <button
-                key={exam.id}
+                key={status}
                 type="button"
-                onClick={() => loadExamIntoEditor(exam)}
+                onClick={() => setStatusFilter(status)}
                 className={cn(
-                  'block w-full border-b border-neutral-100 p-4 text-left transition hover:bg-neutral-50',
-                  selectedExam?.id === exam.id && 'bg-primary-50',
+                  'h-9 rounded-md px-3 text-sm font-semibold transition',
+                  statusFilter === status ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-neutral-900">{exam.title}</p>
-                    <p className="mt-1 text-xs text-neutral-500">{exam.durationMins} phút · {exam.accessType}</p>
-                  </div>
-                  <span className={cn('badge', exam.isPublished ? 'badge-success' : 'badge-warning')}>
-                    {exam.isPublished ? 'Published' : 'Draft'}
-                  </span>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-neutral-500">
-                  <MetricMini label="M" value={exam.counts.mathQuestions} />
-                  <MetricMini label="R" value={exam.counts.readingQuestions} />
-                  <MetricMini label="S" value={exam.counts.scienceQuestions} />
-                </div>
+                {status}
               </button>
             ))}
-            {!examsQuery.isLoading && exams.length === 0 && (
-              <p className="p-8 text-center text-sm text-neutral-500">Chưa có exam.</p>
-            )}
           </div>
-        </aside>
-
-        <div className="space-y-6">
-          <section className="card p-5">
-            <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
-              <Plus className="h-4 w-4" />
-              Create exam metadata
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem_10rem]">
-              <label className="block">
-                <span className="label">Title</span>
-                <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} />
-              </label>
-              <label className="block">
-                <span className="label">Duration</span>
-                <input className="input" type="number" min={1} max={600} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value))} />
-              </label>
-              <label className="block">
-                <span className="label">Access</span>
-                <select className="input" value={accessType} onChange={(event) => setAccessType(event.target.value as ExamAccessType)}>
-                  <option value="LOCKED">LOCKED</option>
-                  <option value="PUBLIC">PUBLIC</option>
-                </select>
-              </label>
-            </div>
-            <label className="mt-4 block">
-              <span className="label">Description</span>
-              <textarea className="input min-h-20 resize-y" value={description} onChange={(event) => setDescription(event.target.value)} />
-            </label>
-            <div className="mt-5 flex justify-end">
-              <button className="btn btn-primary btn-md" type="button" disabled={!title.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
-                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Create exam
-              </button>
-            </div>
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="card p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
-                    <FileJson className="h-4 w-4" />
-                    Blueprint editor
-                  </div>
-                  <p className="mt-1 text-sm text-neutral-500">{selectedExam ? selectedExam.title : 'Chọn hoặc tạo exam để lưu blueprint.'}</p>
-                </div>
-                <button className="btn btn-secondary btn-md" type="button" disabled={!selectedExam || saveBlueprintMutation.isPending} onClick={() => saveBlueprintMutation.mutate()}>
-                  {saveBlueprintMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save blueprint
-                </button>
-              </div>
-              <textarea
-                className="input mt-4 min-h-[28rem] resize-y font-mono text-xs"
-                value={blueprintText}
-                onChange={(event) => setBlueprintText(event.target.value)}
-              />
-              {formError && <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{formError}</p>}
-            </div>
-
-            <aside className="card p-5">
-              <p className="text-sm font-semibold text-neutral-900">Generation controls</p>
-              <label className="mt-4 block">
-                <span className="label">Seed</span>
-                <input className="input" value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="optional" />
-              </label>
-              <label className="mt-4 block">
-                <span className="label">Max attempts</span>
-                <input className="input" type="number" min={1} max={25} value={maxAttempts} onChange={(event) => setMaxAttempts(Number(event.target.value))} />
-              </label>
-              <div className="mt-5 grid gap-2">
-                <ActionButton icon={CheckCircle2} label="Check availability" pending={availabilityMutation.isPending} onClick={() => availabilityMutation.mutate()} />
-                <ActionButton icon={Play} label="Generate draft" pending={generateMutation.isPending} disabled={!selectedExam} onClick={() => generateMutation.mutate()} />
-                <ActionButton icon={RefreshCcw} label="Regenerate" pending={regenerateMutation.isPending} disabled={!selectedExam} onClick={() => regenerateMutation.mutate()} />
-                <ActionButton icon={Search} label="Preview" pending={previewMutation.isPending} disabled={!selectedExam} onClick={() => previewMutation.mutate()} />
-                <ActionButton
-                  icon={ShieldCheck}
-                  label={selectedExam?.isPublished ? 'Unpublish' : 'Publish'}
-                  pending={publishMutation.isPending}
-                  disabled={!selectedExam}
-                  onClick={() => publishMutation.mutate()}
-                  primary
-                />
-              </div>
-            </aside>
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-2">
-            <ReportPanel title="Availability" report={availability} shortages={availability?.shortages ?? []} />
-            <ReportPanel title="Generation" report={generationResult} shortages={generationResult?.shortages ?? []} />
-          </section>
-
-          <section className="card p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="font-semibold text-neutral-900">Generated preview</h2>
-                <p className="mt-1 text-sm text-neutral-500">
-                  {selectedPreview ? `Seed ${selectedPreview.generationSeed ?? '-'} · ${selectedPreview.totalPoints} points` : 'Generate hoặc preview để xem breakdown.'}
-                </p>
-              </div>
-              <div className="grid gap-2 rounded-lg border border-neutral-200 bg-white p-2 sm:grid-cols-3">
-                {SECTIONS.map((section) => (
-                  <button
-                    key={section}
-                    type="button"
-                    onClick={() => setActiveSection(section)}
-                    className={cn(
-                      'h-10 rounded-md px-4 text-sm font-semibold transition',
-                      activeSection === section ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
-                    )}
-                  >
-                    {section}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {activePreview ? (
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <MetricCard label="Items" value={activePreview.itemCount} />
-                <MetricCard label="Questions" value={activePreview.questionCount} />
-                <MetricCard label="Status" value={selectedPreview?.isPublished ? 'Published' : 'Draft'} />
-                <div className="md:col-span-3">
-                  <h3 className="text-sm font-semibold text-neutral-800">Difficulty</h3>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                    {LEVELS.map((level) => <MetricMini key={level} label={level} value={activePreview.difficulty[level] ?? 0} />)}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="mt-5 rounded-lg bg-neutral-50 p-6 text-center text-sm text-neutral-500">Chưa có preview.</p>
-            )}
-          </section>
         </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-neutral-200">
+            <thead className="bg-neutral-50">
+              <tr>
+                <Th>Exam</Th>
+                <Th>Access</Th>
+                <Th>Status</Th>
+                <Th>Structure</Th>
+                <Th>Generated</Th>
+                <Th align="right">Actions</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100 bg-white">
+              {filteredExams.map((exam) => (
+                <tr key={exam.id} className="hover:bg-neutral-50">
+                  <td className="min-w-72 px-4 py-4">
+                    <p className="font-semibold text-neutral-900">{exam.title}</p>
+                    <p className="mt-1 text-sm text-neutral-500">{exam.durationMins} phut · {exam.totalPoints} points</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="badge badge-neutral">{exam.accessType}</span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className={cn('badge', exam.isPublished ? 'badge-success' : 'badge-warning')}>
+                      {exam.isPublished ? 'Published' : 'Draft'}
+                    </span>
+                  </td>
+                  <td className="min-w-64 px-4 py-4">
+                    <div className="grid grid-cols-3 gap-2">
+                      <MetricMini label="M" value={exam.counts.mathQuestions} />
+                      <MetricMini label="R" value={exam.counts.readingQuestions} />
+                      <MetricMini label="S" value={exam.counts.scienceQuestions} />
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4 text-sm text-neutral-500">
+                    {formatDateTime(exam.generatedAt)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => previewMutation.mutate(exam.id)}
+                        disabled={previewMutation.isPending}
+                      >
+                        {previewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('btn btn-sm', exam.isPublished ? 'btn-secondary' : 'btn-primary')}
+                        onClick={() => publishMutation.mutate(exam)}
+                        disabled={publishMutation.isPending}
+                      >
+                        {publishMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                        {exam.isPublished ? 'Unpublish' : 'Publish'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {!examsQuery.isLoading && filteredExams.length === 0 && (
+          <p className="p-8 text-center text-sm text-neutral-500">Khong co exam phu hop.</p>
+        )}
+        {examsQuery.isLoading && (
+          <div className="flex items-center justify-center gap-2 p-8 text-sm text-neutral-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Dang tai exams...
+          </div>
+        )}
       </section>
+
+      {preview && <ExamPreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
 
-function ActionButton({ icon: Icon, label, pending, disabled, primary, onClick }: {
-  icon: typeof CheckCircle2;
-  label: string;
-  pending?: boolean;
-  disabled?: boolean;
-  primary?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button className={cn('btn btn-md', primary ? 'btn-primary' : 'btn-secondary')} type="button" disabled={disabled || pending} onClick={onClick}>
-      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
-      {label}
-    </button>
-  );
-}
-
-function ReportPanel({ title, report, shortages }: { title: string; report: unknown; shortages: Shortage[] }) {
-  const ok = Boolean(report && typeof report === 'object' && 'ok' in report && (report as { ok?: boolean }).ok);
+function Metric({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="card p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold text-neutral-900">{title}</h2>
-        {Boolean(report) && <span className={cn('badge', ok ? 'badge-success' : 'badge-danger')}>{ok ? 'OK' : 'Needs content'}</span>}
-      </div>
-      {shortages.length > 0 ? (
-        <div className="mt-4 space-y-2">
-          {shortages.map((shortage, index) => (
-            <div key={`${shortage.section}-${shortage.constraint}-${index}`} className="rounded-lg bg-danger-50 p-3 text-sm text-danger-700">
-              <strong>{shortage.section}</strong> · {shortage.constraint}: required {shortage.required}, available {shortage.available}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-neutral-500">{report ? 'Không có shortage.' : 'Chưa chạy kiểm tra.'}</p>
-      )}
-    </div>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg border border-neutral-200 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
       <p className="mt-2 text-xl font-bold text-neutral-900">{value}</p>
     </div>
@@ -420,16 +219,20 @@ function MetricMini({ label, value }: { label: string; value: string | number })
   );
 }
 
-function parseBlueprint(value: string): ExamBlueprint {
-  const parsed = JSON.parse(value) as ExamBlueprint;
-  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sections)) {
-    throw new Error('Blueprint JSON cần có version=1 và sections[].');
-  }
-  return parsed;
+function Th({ children, align = 'left' }: { children: ReactNode; align?: 'left' | 'right' }) {
+  return (
+    <th className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500', align === 'right' ? 'text-right' : 'text-left')}>
+      {children}
+    </th>
+  );
 }
 
-function formatJson(value: unknown) {
-  return JSON.stringify(value, null, 2);
+function formatDateTime(value?: string | null) {
+  if (!value) return '-';
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
 }
 
 function getErrorMessage(error: unknown) {

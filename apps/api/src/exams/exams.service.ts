@@ -281,7 +281,14 @@ export class ExamsService {
             passageBundle: {
               include: {
                 tags: { include: { tag: true } },
-                questions: { include: { question: true } },
+                questions: {
+                  orderBy: { orderInBundle: 'asc' },
+                  include: {
+                    question: {
+                      include: { tags: { include: { tag: true } } },
+                    },
+                  },
+                },
               },
             },
           },
@@ -308,6 +315,19 @@ export class ExamsService {
           questionCount: exam.mathQuestions.length,
           itemCount: exam.mathQuestions.length,
           difficulty: countByLevel(exam.mathQuestions.map((item) => item.question.level)),
+          items: exam.mathQuestions.map((item) => ({
+            id: item.questionId,
+            order: item.orderInSection,
+            points: item.points,
+            type: item.question.type,
+            level: item.question.level,
+            tags: item.question.tags.map((tag) => ({
+              id: tag.tag.id,
+              name: tag.tag.name,
+              slug: tag.tag.slug,
+            })),
+            snippet: contentSnippet(item.question.contentJson),
+          })),
         },
         READING: this.bundlePreview(readingBundles),
         SCIENCE: this.bundlePreview(scienceBundles),
@@ -716,8 +736,20 @@ export class ExamsService {
   }
 
   private bundlePreview(items: Array<{
+    orderInSection: number;
     passageBundle: {
-      questions: Array<{ question: { level: CognitiveLevel } }>;
+      id: string;
+      title: string | null;
+      contentJson: Prisma.JsonValue;
+      tags: Array<{ tag: { id: string; name: string; slug: string } }>;
+      questions: Array<{
+        question: {
+          id: string;
+          type: QuestionType;
+          level: CognitiveLevel;
+          contentJson: Prisma.JsonValue;
+        };
+      }>;
     };
   }>) {
     const levels = items.flatMap((item) => item.passageBundle.questions.map((question) => question.question.level));
@@ -726,6 +758,24 @@ export class ExamsService {
       questionCount: levels.length,
       itemCount: items.length,
       difficulty: countByLevel(levels),
+      bundles: items.map((item) => ({
+        id: item.passageBundle.id,
+        order: item.orderInSection,
+        title: item.passageBundle.title,
+        tags: item.passageBundle.tags.map((tag) => ({
+          id: tag.tag.id,
+          name: tag.tag.name,
+          slug: tag.tag.slug,
+        })),
+        snippet: contentSnippet(item.passageBundle.contentJson),
+        questions: item.passageBundle.questions.map((bundleQuestion, questionIndex) => ({
+          id: bundleQuestion.question.id,
+          order: questionIndex,
+          type: bundleQuestion.question.type,
+          level: bundleQuestion.question.level,
+          snippet: contentSnippet(bundleQuestion.question.contentJson),
+        })),
+      })),
     };
   }
 
@@ -884,6 +934,29 @@ function countByLevel(levels: CognitiveLevel[]) {
     [CognitiveLevel.APPLICATION]: levels.filter((level) => level === CognitiveLevel.APPLICATION).length,
     [CognitiveLevel.HIGH_APPLICATION]: levels.filter((level) => level === CognitiveLevel.HIGH_APPLICATION).length,
   };
+}
+
+function contentSnippet(value: Prisma.JsonValue, maxLength = 140) {
+  const pieces: string[] = [];
+
+  const visit = (node: Prisma.JsonValue) => {
+    if (pieces.join(' ').length >= maxLength) return;
+    if (typeof node === 'string') {
+      pieces.push(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (node && typeof node === 'object') {
+      Object.values(node).forEach((child) => visit(child as Prisma.JsonValue));
+    }
+  };
+
+  visit(value);
+  const normalized = pieces.join(' ').replace(/\s+/g, ' ').trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized;
 }
 
 function shuffle<T>(items: T[], rng: () => number) {
