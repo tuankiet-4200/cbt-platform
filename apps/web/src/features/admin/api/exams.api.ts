@@ -177,6 +177,15 @@ export async function createExam(payload: {
   return response.data.data;
 }
 
+export async function updateExamSettings(id: string, payload: {
+  title?: string;
+  description?: string;
+  accessType?: ExamAccessType;
+}) {
+  const response = await apiClient.patch<ApiEnvelope<AdminExam>>(`/admin/exams/${id}`, payload);
+  return response.data.data;
+}
+
 export async function updateExamBlueprint(id: string, blueprintJson: ExamBlueprint) {
   const response = await apiClient.patch<ApiEnvelope<AdminExam>>(`/admin/exams/${id}/blueprint`, { blueprintJson });
   return response.data.data;

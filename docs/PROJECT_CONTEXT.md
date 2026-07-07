@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (admin exams UI phase 1 split)
+> **Last updated:** 2026-07-07 (admin exam settings modal)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -35,7 +35,7 @@ Status: 🟡 IN PROGRESS
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 62% |
+| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 63% |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -179,6 +179,7 @@ Status: 🟡 IN PROGRESS
 
 ### Backend — Sprint 2.2
 1. [x] Exam blueprint generation API: create/update blueprint, availability check, seeded draft generation/regeneration, preview, publish validation
+   - Added focused exam settings update endpoint for admin metadata/access policy changes (`title`, `description`, `accessType`) without altering generated content.
 2. [x] Seed mock TSA generation bank: 50 standalone MATH questions, 3 READING bundles x10 questions, 10 SCIENCE bundles x5 questions
 3. [ ] Manual Exam Management API: add/reorder math questions, add/reorder passage bundles
 4. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
@@ -188,6 +189,7 @@ Status: 🟡 IN PROGRESS
 1. [x] Admin Exam Management UI: list exams, create metadata, edit blueprint JSON, check availability, generate/regenerate draft, preview section breakdown, publish/unpublish
    - Phase 1 UX split completed: `/admin/exams` is now a focused exam list with preview/publish actions; `/admin/exams/create` owns metadata, blueprint selection/editing, availability check, draft generation, preview, and publish.
    - Admin preview now opens as a modal with generated MATH questions and READING/SCIENCE bundle/question snippets from the preview API.
+   - Exam list now includes a Settings modal for editing title, description, and access type (`LOCKED`/`PUBLIC`).
 2. [ ] Manual Exam Builder UI with drag ordering and item replacement
 3. [ ] Access Code Management UI
 4. [ ] User Exam Library unlock flow

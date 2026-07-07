@@ -9,6 +9,7 @@ import {
   GenerateExamDto,
   PublishExamDto,
   UpdateExamBlueprintDto,
+  UpdateExamSettingsDto,
 } from './dto/exam-generation.dto';
 import { ExamsService } from './exams.service';
 
@@ -26,6 +27,11 @@ export class ExamsController {
   @Post()
   createExam(@Body() dto: CreateExamDto): Promise<unknown> {
     return this.examsService.createExam(dto);
+  }
+
+  @Patch(':id')
+  updateSettings(@Param('id') id: string, @Body() dto: UpdateExamSettingsDto): Promise<unknown> {
+    return this.examsService.updateSettings(id, dto);
   }
 
   @Patch(':id/blueprint')

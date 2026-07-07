@@ -8,7 +8,7 @@ import {
   QuestionType,
 } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { CreateExamDto, GenerateExamDto } from './dto/exam-generation.dto';
+import { CreateExamDto, GenerateExamDto, UpdateExamSettingsDto } from './dto/exam-generation.dto';
 
 type SectionType = 'MATH' | 'READING' | 'SCIENCE';
 type UnitType = 'question' | 'bundle';
@@ -192,6 +192,32 @@ export class ExamsService {
         accessType: dto.accessType ?? ExamAccessType.LOCKED,
         blueprintJson: blueprint as unknown as Prisma.InputJsonValue,
       },
+    });
+  }
+
+  async updateSettings(examId: string, dto: UpdateExamSettingsDto) {
+    await this.assertExamExists(examId);
+
+    const data: Prisma.ExamUpdateInput = {};
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      if (!title) throw new BadRequestException('Exam title cannot be empty');
+      data.title = title;
+    }
+    if (dto.description !== undefined) {
+      data.description = dto.description.trim() || null;
+    }
+    if (dto.accessType !== undefined) {
+      data.accessType = dto.accessType;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No exam settings provided');
+    }
+
+    return this.prisma.exam.update({
+      where: { id: examId },
+      data,
     });
   }
 

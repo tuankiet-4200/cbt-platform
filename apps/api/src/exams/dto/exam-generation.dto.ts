@@ -44,6 +44,20 @@ export class UpdateExamBlueprintDto {
   blueprintJson!: Record<string, unknown>;
 }
 
+export class UpdateExamSettingsDto {
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(ExamAccessType)
+  accessType?: ExamAccessType;
+}
+
 export class CheckBlueprintAvailabilityDto {
   @IsObject()
   blueprintJson!: Record<string, unknown>;

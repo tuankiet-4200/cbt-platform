@@ -8,14 +8,18 @@ import {
   GraduationCap,
   Loader2,
   Search,
+  Settings,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   listExams,
   previewExam,
   publishExam,
+  updateExamSettings,
   type AdminExam,
+  type ExamAccessType,
   type ExamPreview,
 } from '../api/exams.api';
 import { ExamPreviewModal } from './ExamPreviewModal';
@@ -26,6 +30,10 @@ export default function AdminExamsPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [settingsExam, setSettingsExam] = useState<AdminExam | null>(null);
+  const [settingsTitle, setSettingsTitle] = useState('');
+  const [settingsDescription, setSettingsDescription] = useState('');
+  const [settingsAccessType, setSettingsAccessType] = useState<ExamAccessType>('LOCKED');
 
   const examsQuery = useQuery({
     queryKey: ['admin', 'exams'],
@@ -62,6 +70,31 @@ export default function AdminExamsPage() {
     },
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Publish state update failed.'),
   });
+
+  const settingsMutation = useMutation({
+    mutationFn: () => {
+      if (!settingsExam) throw new Error('Select an exam first.');
+      return updateExamSettings(settingsExam.id, {
+        title: settingsTitle,
+        description: settingsDescription,
+        accessType: settingsAccessType,
+      });
+    },
+    onSuccess: () => {
+      setSettingsExam(null);
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
+    },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Update settings failed.'),
+  });
+
+  const openSettings = (exam: AdminExam) => {
+    setSettingsExam(exam);
+    setSettingsTitle(exam.title);
+    setSettingsDescription(exam.description ?? '');
+    setSettingsAccessType(exam.accessType);
+    setActionError(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -162,6 +195,14 @@ export default function AdminExamsPage() {
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
+                        onClick={() => openSettings(exam)}
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
                         onClick={() => previewMutation.mutate(exam.id)}
                         disabled={previewMutation.isPending}
                       >
@@ -197,6 +238,93 @@ export default function AdminExamsPage() {
       </section>
 
       {preview && <ExamPreviewModal preview={preview} onClose={() => setPreview(null)} />}
+      {settingsExam && (
+        <ExamSettingsModal
+          title={settingsTitle}
+          description={settingsDescription}
+          accessType={settingsAccessType}
+          pending={settingsMutation.isPending}
+          onTitleChange={setSettingsTitle}
+          onDescriptionChange={setSettingsDescription}
+          onAccessTypeChange={setSettingsAccessType}
+          onClose={() => setSettingsExam(null)}
+          onSubmit={() => settingsMutation.mutate()}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExamSettingsModal({
+  title,
+  description,
+  accessType,
+  pending,
+  onTitleChange,
+  onDescriptionChange,
+  onAccessTypeChange,
+  onClose,
+  onSubmit,
+}: {
+  title: string;
+  description: string;
+  accessType: ExamAccessType;
+  pending?: boolean;
+  onTitleChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onAccessTypeChange: (value: ExamAccessType) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-neutral-950/40 px-4 py-6 backdrop-blur-sm">
+      <div className="mx-auto max-w-2xl rounded-lg bg-white shadow-xl">
+        <header className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
+              <Settings className="h-4 w-4" />
+              Exam settings
+            </div>
+            <h2 className="mt-1 text-xl font-bold text-neutral-900">Edit metadata and access</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-neutral-200 text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+            aria-label="Close settings"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="space-y-4 p-5">
+          <label className="block">
+            <span className="label">Title</span>
+            <input className="input" value={title} onChange={(event) => onTitleChange(event.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">Description</span>
+            <textarea className="input min-h-24 resize-y" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">Access type</span>
+            <select className="input" value={accessType} onChange={(event) => onAccessTypeChange(event.target.value as ExamAccessType)}>
+              <option value="LOCKED">LOCKED</option>
+              <option value="PUBLIC">PUBLIC</option>
+            </select>
+          </label>
+        </div>
+
+        <footer className="flex justify-end gap-2 border-t border-neutral-200 px-5 py-4">
+          <button type="button" className="btn btn-secondary btn-md" onClick={onClose} disabled={pending}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-primary btn-md" onClick={onSubmit} disabled={pending || !title.trim()}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
+            Save settings
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
