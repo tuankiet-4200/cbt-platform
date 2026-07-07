@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (admin exam generation frontend)
+> **Last updated:** 2026-07-07 (TSA mock generation seed bank)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -35,7 +35,7 @@ Status: 🟡 IN PROGRESS
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 55% |
+| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 58% |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -178,9 +178,10 @@ Status: 🟡 IN PROGRESS
 
 ### Backend — Sprint 2.2
 1. [x] Exam blueprint generation API: create/update blueprint, availability check, seeded draft generation/regeneration, preview, publish validation
-2. [ ] Manual Exam Management API: add/reorder math questions, add/reorder passage bundles
-3. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
-4. [ ] User Exam List API: list unlocked/public exams with question counts
+2. [x] Seed mock TSA generation bank: 50 standalone MATH questions, 3 READING bundles x10 questions, 10 SCIENCE bundles x5 questions
+3. [ ] Manual Exam Management API: add/reorder math questions, add/reorder passage bundles
+4. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
+5. [ ] User Exam List API: list unlocked/public exams with question counts
 
 ### Frontend — Sprint 2.2
 1. [x] Admin Exam Management UI: list exams, create metadata, edit blueprint JSON, check availability, generate/regenerate draft, preview section breakdown, publish/unpublish

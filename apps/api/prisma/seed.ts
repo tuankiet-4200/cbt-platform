@@ -1,7 +1,294 @@
-import { PrismaClient, UserRole, ExamAccessType, ExamSectionType, QuestionType, QuestionStatus, CognitiveLevel } from '@prisma/client';
+import { Prisma, PrismaClient, UserRole, ExamAccessType, ExamSectionType, QuestionType, QuestionStatus, CognitiveLevel } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
+
+type RichTextNode = { type: 'text'; content: string };
+
+const LEVELS = [
+  CognitiveLevel.RECOGNITION,
+  CognitiveLevel.COMPREHENSION,
+  CognitiveLevel.APPLICATION,
+  CognitiveLevel.HIGH_APPLICATION,
+];
+
+function text(content: string): RichTextNode[] {
+  return [{ type: 'text', content }];
+}
+
+function singleChoiceContent(
+  stem: RichTextNode[],
+  correctAnswer: string,
+  distractors: string[],
+  solution: string,
+): Prisma.InputJsonValue {
+  return {
+    stem,
+    type: 'SINGLE_CHOICE',
+    payload: {
+      options: [
+        { id: 'A', content: text(distractors[0]), isCorrect: false },
+        { id: 'B', content: text(correctAnswer), isCorrect: true },
+        { id: 'C', content: text(distractors[1]), isCorrect: false },
+        { id: 'D', content: text(distractors[2]), isCorrect: false },
+      ],
+    },
+    solution: text(solution),
+    _version: 2,
+  };
+}
+
+async function upsertPublishedQuestion(params: {
+  id: string;
+  authorId: string;
+  tagIds?: string[];
+  type?: QuestionType;
+  level: CognitiveLevel;
+  expectedTimeSecs: number;
+  contentJson: Prisma.InputJsonValue;
+  irtParams?: Prisma.InputJsonValue;
+}) {
+  return prisma.question.upsert({
+    where: { id: params.id },
+    update: {
+      type: params.type ?? QuestionType.SINGLE_CHOICE,
+      status: QuestionStatus.PUBLISHED,
+      level: params.level,
+      expectedTimeSecs: params.expectedTimeSecs,
+      authorId: params.authorId,
+      reviewedById: params.authorId,
+      publishedAt: new Date(),
+      contentJson: params.contentJson,
+      irtParams: params.irtParams ?? { a: 1.0, b: 0.0, c: 0.25 },
+      tags: {
+        deleteMany: {},
+        create: params.tagIds?.map((tagId) => ({ tagId })) ?? [],
+      },
+    },
+    create: {
+      id: params.id,
+      type: params.type ?? QuestionType.SINGLE_CHOICE,
+      status: QuestionStatus.PUBLISHED,
+      level: params.level,
+      expectedTimeSecs: params.expectedTimeSecs,
+      authorId: params.authorId,
+      reviewedById: params.authorId,
+      publishedAt: new Date(),
+      contentJson: params.contentJson,
+      irtParams: params.irtParams ?? { a: 1.0, b: 0.0, c: 0.25 },
+      tags: params.tagIds?.length
+        ? { create: params.tagIds.map((tagId) => ({ tagId })) }
+        : undefined,
+    },
+  });
+}
+
+async function seedMockMathQuestions(authorId: string, mathRootTagIds: string[]) {
+  const templates = [
+    (index: number) => {
+      const a = 12 + index;
+      const b = 7 + (index % 9);
+      const answer = a + b;
+      return singleChoiceContent(
+        text(`Mock MATH ${String(index).padStart(3, '0')}: Tính ${a} + ${b}.`),
+        String(answer),
+        [String(answer - 1), String(answer + 2), String(answer + 5)],
+        `Cộng hai số ta được ${answer}.`,
+      );
+    },
+    (index: number) => {
+      const x = 3 + (index % 11);
+      const n = 5 + (index % 7);
+      const total = x + n;
+      return singleChoiceContent(
+        text(`Mock MATH ${String(index).padStart(3, '0')}: Giải phương trình x + ${n} = ${total}.`),
+        String(x),
+        [String(x - 1), String(x + 1), String(x + 3)],
+        `Chuyển vế: x = ${total} - ${n} = ${x}.`,
+      );
+    },
+    (index: number) => {
+      const k = 2 + (index % 6);
+      const n = index % 10;
+      const answer = 2 * k + n;
+      return singleChoiceContent(
+        text(`Mock MATH ${String(index).padStart(3, '0')}: Cho f(x) = 2x + ${n}. Tính f(${k}).`),
+        String(answer),
+        [String(answer - 2), String(answer + 1), String(answer + 4)],
+        `Thay x = ${k}: f(${k}) = 2.${k} + ${n} = ${answer}.`,
+      );
+    },
+    (index: number) => {
+      const length = 4 + (index % 8);
+      const width = 3 + (index % 5);
+      const answer = 2 * (length + width);
+      return singleChoiceContent(
+        text(`Mock MATH ${String(index).padStart(3, '0')}: Hình chữ nhật có chiều dài ${length} và chiều rộng ${width}. Tính chu vi.`),
+        String(answer),
+        [String(length * width), String(answer - 2), String(answer + 4)],
+        `Chu vi hình chữ nhật là 2(${length} + ${width}) = ${answer}.`,
+      );
+    },
+    (index: number) => {
+      const base = 5 + (index % 6);
+      const values = [base, base + 2, base + 4];
+      const answer = base + 2;
+      return singleChoiceContent(
+        text(`Mock MATH ${String(index).padStart(3, '0')}: Tính trung bình cộng của ${values.join(', ')}.`),
+        String(answer),
+        [String(answer - 1), String(answer + 1), String(answer + 3)],
+        `Tổng là ${values.reduce((sum, value) => sum + value, 0)}, chia cho 3 được ${answer}.`,
+      );
+    },
+  ];
+
+  const tagPlan = [
+    ...Array(8).fill(0),
+    ...Array(12).fill(1),
+    ...Array(10).fill(2),
+    ...Array(10).fill(3),
+    ...Array(10).fill(4),
+  ] as number[];
+
+  for (let index = 1; index <= tagPlan.length; index += 1) {
+    const tagIndex = tagPlan[index - 1];
+    await upsertPublishedQuestion({
+      id: `seed-math-mock-${String(index).padStart(3, '0')}`,
+      authorId,
+      tagIds: [mathRootTagIds[tagIndex]],
+      level: LEVELS[(index - 1) % LEVELS.length],
+      expectedTimeSecs: 90,
+      contentJson: templates[tagIndex](index),
+    });
+  }
+}
+
+async function seedMockBundle(params: {
+  id: string;
+  sectionType: 'READING' | 'SCIENCE';
+  title: string;
+  passage: string;
+  authorId: string;
+  tagIds: string[];
+  questionCount: number;
+  expectedTimeSecs: number;
+}) {
+  const bundle = await prisma.passageBundle.upsert({
+    where: { id: params.id },
+    update: {
+      sectionType: params.sectionType,
+      title: params.title,
+      contentJson: text(params.passage),
+      expectedTimeSecs: params.expectedTimeSecs,
+      status: QuestionStatus.PUBLISHED,
+      authorId: params.authorId,
+      reviewedById: params.authorId,
+      publishedAt: new Date(),
+      tags: {
+        deleteMany: {},
+        create: params.tagIds.map((tagId) => ({ tagId })),
+      },
+    },
+    create: {
+      id: params.id,
+      sectionType: params.sectionType,
+      title: params.title,
+      contentJson: text(params.passage),
+      expectedTimeSecs: params.expectedTimeSecs,
+      status: QuestionStatus.PUBLISHED,
+      authorId: params.authorId,
+      reviewedById: params.authorId,
+      publishedAt: new Date(),
+      tags: { create: params.tagIds.map((tagId) => ({ tagId })) },
+    },
+  });
+
+  for (let index = 1; index <= params.questionCount; index += 1) {
+    const questionId = `${params.id}-q${String(index).padStart(2, '0')}`;
+    await upsertPublishedQuestion({
+      id: questionId,
+      authorId: params.authorId,
+      level: LEVELS[(index - 1) % LEVELS.length],
+      expectedTimeSecs: params.sectionType === 'READING' ? 75 : 90,
+      contentJson: singleChoiceContent(
+        text(`${params.title} - Câu ${index}: Theo dữ kiện trong đoạn, lựa chọn nào phù hợp nhất?`),
+        `Ý đúng ${index}`,
+        [`Nhiễu ${index}.1`, `Nhiễu ${index}.2`, `Nhiễu ${index}.3`],
+        `Câu trả lời đúng được suy ra trực tiếp từ mock passage của bundle "${params.title}".`,
+      ),
+    });
+
+    await prisma.passageBundleQuestion.upsert({
+      where: {
+        bundleId_questionId: {
+          bundleId: bundle.id,
+          questionId,
+        },
+      },
+      update: {
+        orderInBundle: index - 1,
+        points: 1,
+      },
+      create: {
+        bundleId: bundle.id,
+        questionId,
+        orderInBundle: index - 1,
+        points: 1,
+      },
+    });
+  }
+}
+
+async function seedMockPassageBundles(authorId: string, tagIds: Record<string, string>) {
+  const readingBundles = [
+    {
+      id: 'seed-reading-bundle-001',
+      title: 'Mock READING - Khoa học vật liệu xanh',
+      passage: 'Một nhóm nghiên cứu phát triển vật liệu xanh từ phụ phẩm nông nghiệp. Đoạn đọc mô tả mục tiêu, phương pháp thử nghiệm và tác động môi trường của vật liệu mới.',
+      tagSlug: 'doc-khoa-hoc',
+    },
+    {
+      id: 'seed-reading-bundle-002',
+      title: 'Mock READING - Công nghệ dữ liệu đô thị',
+      passage: 'Bài đọc trình bày cách dữ liệu cảm biến hỗ trợ điều phối giao thông, tiết kiệm năng lượng và cải thiện dịch vụ công trong đô thị thông minh.',
+      tagSlug: 'doc-cong-nghe',
+    },
+    {
+      id: 'seed-reading-bundle-003',
+      title: 'Mock READING - Kinh tế chuỗi cung ứng',
+      passage: 'Đoạn đọc phân tích biến động chi phí logistics, vai trò của dự báo nhu cầu và tác động của quản trị tồn kho đến doanh nghiệp sản xuất.',
+      tagSlug: 'doc-kinh-te',
+    },
+  ];
+
+  for (const bundle of readingBundles) {
+    await seedMockBundle({
+      id: bundle.id,
+      sectionType: ExamSectionType.READING,
+      title: bundle.title,
+      passage: bundle.passage,
+      authorId,
+      tagIds: [tagIds[bundle.tagSlug]],
+      questionCount: 10,
+      expectedTimeSecs: 1200,
+    });
+  }
+
+  const scienceRoots = ['vat-ly', 'hoa-hoc', 'sinh-hoc'];
+  for (let index = 1; index <= 10; index += 1) {
+    const rootSlug = scienceRoots[(index - 1) % scienceRoots.length];
+    await seedMockBundle({
+      id: `seed-science-bundle-${String(index).padStart(3, '0')}`,
+      sectionType: ExamSectionType.SCIENCE,
+      title: `Mock SCIENCE ${String(index).padStart(2, '0')} - ${rootSlug}`,
+      passage: `Stimulus khoa học mock số ${index} mô tả một thí nghiệm, bảng quan sát và kết luận sơ bộ thuộc nhóm ${rootSlug}.`,
+      authorId,
+      tagIds: [tagIds[rootSlug]],
+      questionCount: 5,
+      expectedTimeSecs: 900,
+    });
+  }
+}
 
 async function main() {
   console.log('🌱 Starting database seed...\n');
@@ -146,6 +433,22 @@ async function main() {
 
   console.log('✅ Tag taxonomy created');
 
+  const mockTagRows = await prisma.tag.findMany({
+    where: {
+      slug: {
+        in: [
+          'doc-khoa-hoc',
+          'doc-cong-nghe',
+          'doc-kinh-te',
+          'vat-ly',
+          'hoa-hoc',
+          'sinh-hoc',
+        ],
+      },
+    },
+  });
+  const mockTagIds = Object.fromEntries(mockTagRows.map((tag) => [tag.slug, tag.id]));
+
   // ── 4. Create Default Exam ────────────────────────────────────────────────
   console.log('\n📝 Creating default exam...');
   const defaultExam = await prisma.exam.upsert({
@@ -196,64 +499,65 @@ Chúc bạn làm bài tốt! 🎯`,
 
   // ── 6. Create Sample Question ─────────────────────────────────────────────
   console.log('\n❓ Creating sample question...');
-  const sampleQuestion = await prisma.question.create({
-    data: {
-      type: QuestionType.SINGLE_CHOICE,
-      status: QuestionStatus.PUBLISHED,
-      level: CognitiveLevel.APPLICATION,
-      expectedTimeSecs: 90,
-      authorId: admin.id,
-      reviewedById: admin.id,
-      publishedAt: new Date(),
-      contentJson: {
-        stem: [
-          {
-            type: 'text',
-            content: 'Tìm giá trị lớn nhất của hàm số ',
-          },
-          {
-            type: 'latex',
-            content: 'f(x) = -x^3 + 3x^2 + 9x - 1',
-          },
-          {
-            type: 'text',
-            content: ' trên đoạn ',
-          },
-          {
-            type: 'latex',
-            content: '[-2, 4]',
-          },
-        ],
-        type: 'SINGLE_CHOICE',
-        payload: {
-          options: [
-            { id: 'A', content: [{ type: 'latex', content: '22' }], isCorrect: false },
-            { id: 'B', content: [{ type: 'latex', content: '26' }], isCorrect: true },
-            { id: 'C', content: [{ type: 'latex', content: '-22' }], isCorrect: false },
-            { id: 'D', content: [{ type: 'latex', content: '28' }], isCorrect: false },
-          ],
+  const sampleQuestion = await upsertPublishedQuestion({
+    id: 'seed-sample-math-extrema',
+    authorId: admin.id,
+    level: CognitiveLevel.APPLICATION,
+    expectedTimeSecs: 90,
+    tagIds: [extremaTag.id, functionTag.id, algebraTag.id],
+    irtParams: {
+      a: 1.2,
+      b: 0.5,
+      c: 0.25,
+    },
+    contentJson: {
+      stem: [
+        {
+          type: 'text',
+          content: 'Tìm giá trị lớn nhất của hàm số ',
         },
-        solution: [
-          { type: 'text', content: 'Ta có: ' },
-          { type: 'latex', content: "f'(x) = -3x^2 + 6x + 9 = -3(x^2 - 2x - 3) = -3(x-3)(x+1)" },
-          { type: 'text', content: '. Trên [-2, 4], các điểm tới hạn: x = -1, x = 3. Tính: f(-2) = -3, f(-1) = -6, f(3) = 26, f(4) = 19. Vậy max = 26.' },
+        {
+          type: 'latex',
+          content: 'f(x) = -x^3 + 3x^2 + 9x - 1',
+        },
+        {
+          type: 'text',
+          content: ' trên đoạn ',
+        },
+        {
+          type: 'latex',
+          content: '[-2, 4]',
+        },
+      ],
+      type: 'SINGLE_CHOICE',
+      payload: {
+        options: [
+          { id: 'A', content: [{ type: 'latex', content: '22' }], isCorrect: false },
+          { id: 'B', content: [{ type: 'latex', content: '26' }], isCorrect: true },
+          { id: 'C', content: [{ type: 'latex', content: '-22' }], isCorrect: false },
+          { id: 'D', content: [{ type: 'latex', content: '28' }], isCorrect: false },
         ],
       },
-      irtParams: {
-        a: 1.2,
-        b: 0.5,
-        c: 0.25,
-      },
-      tags: {
-        create: [
-          { tagId: extremaTag.id },
-          { tagId: functionTag.id },
-          { tagId: algebraTag.id },
-        ],
-      },
+      solution: [
+        { type: 'text', content: 'Ta có: ' },
+        { type: 'latex', content: "f'(x) = -3x^2 + 6x + 9 = -3(x^2 - 2x - 3) = -3(x-3)(x+1)" },
+        { type: 'text', content: '. Trên [-2, 4], các điểm tới hạn: x = -1, x = 3. Tính: f(-2) = -3, f(-1) = -6, f(3) = 26, f(4) = 19. Vậy max = 26.' },
+      ],
+      _version: 2,
     },
   });
   console.log(`✅ Sample question created: ${sampleQuestion.id}`);
+
+  console.log('\n🧪 Creating mock TSA generation bank...');
+  await seedMockMathQuestions(admin.id, [
+    arithmeticTag.id,
+    algebraTag.id,
+    functionTag.id,
+    geometryTag.id,
+    statisticsProbabilityTag.id,
+  ]);
+  await seedMockPassageBundles(admin.id, mockTagIds);
+  console.log('✅ Mock bank created: 50 MATH questions, 3 READING bundles, 10 SCIENCE bundles');
 
   console.log('\n🎉 Seed completed successfully!');
   console.log('\nLogin credentials:');
