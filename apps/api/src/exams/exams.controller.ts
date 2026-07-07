@@ -18,6 +18,11 @@ import { ExamsService } from './exams.service';
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}
 
+  @Get()
+  listExams(): Promise<unknown> {
+    return this.examsService.listExams();
+  }
+
   @Post()
   createExam(@Body() dto: CreateExamDto): Promise<unknown> {
     return this.examsService.createExam(dto);

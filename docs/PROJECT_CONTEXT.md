@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (backend TSA exam blueprint generation)
+> **Last updated:** 2026-07-07 (admin exam generation frontend)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -35,7 +35,7 @@ Status: 🟡 IN PROGRESS
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 35% |
+| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 55% |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -183,9 +183,10 @@ Status: 🟡 IN PROGRESS
 4. [ ] User Exam List API: list unlocked/public exams with question counts
 
 ### Frontend — Sprint 2.2
-1. [ ] Exam Builder UI with section-based assembly and drag ordering
-2. [ ] Access Code Management UI
-3. [ ] User Exam Library unlock flow
+1. [x] Admin Exam Management UI: list exams, create metadata, edit blueprint JSON, check availability, generate/regenerate draft, preview section breakdown, publish/unpublish
+2. [ ] Manual Exam Builder UI with drag ordering and item replacement
+3. [ ] Access Code Management UI
+4. [ ] User Exam Library unlock flow
 
 ---
 

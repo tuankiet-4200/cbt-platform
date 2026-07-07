@@ -124,6 +124,60 @@ const DEFAULT_BLUEPRINT: ExamBlueprint = {
 export class ExamsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listExams() {
+    const exams = await this.prisma.exam.findMany({
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            mathQuestions: true,
+            passageBundles: true,
+            sessions: true,
+            accessCodes: true,
+          },
+        },
+        passageBundles: {
+          select: {
+            sectionType: true,
+            passageBundle: {
+              select: {
+                questions: { select: { questionId: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return exams.map((exam) => ({
+      id: exam.id,
+      title: exam.title,
+      description: exam.description,
+      durationMins: exam.durationMins,
+      totalPoints: exam.totalPoints,
+      accessType: exam.accessType,
+      isPublished: exam.isPublished,
+      blueprintJson: exam.blueprintJson,
+      generationSeed: exam.generationSeed,
+      generatedAt: exam.generatedAt,
+      createdAt: exam.createdAt,
+      updatedAt: exam.updatedAt,
+      counts: {
+        mathQuestions: exam._count.mathQuestions,
+        readingBundles: exam.passageBundles.filter((item) => item.sectionType === ExamSectionType.READING).length,
+        readingQuestions: exam.passageBundles
+          .filter((item) => item.sectionType === ExamSectionType.READING)
+          .reduce((sum, item) => sum + item.passageBundle.questions.length, 0),
+        scienceBundles: exam.passageBundles.filter((item) => item.sectionType === ExamSectionType.SCIENCE).length,
+        scienceQuestions: exam.passageBundles
+          .filter((item) => item.sectionType === ExamSectionType.SCIENCE)
+          .reduce((sum, item) => sum + item.passageBundle.questions.length, 0),
+        sessions: exam._count.sessions,
+        accessCodes: exam._count.accessCodes,
+      },
+    }));
+  }
+
   async createExam(dto: CreateExamDto) {
     const blueprint = dto.blueprintJson
       ? this.normalizeBlueprint(dto.blueprintJson)
