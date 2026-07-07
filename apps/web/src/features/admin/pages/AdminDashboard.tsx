@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, BookOpen, Files, GraduationCap, Inbox, Shield, Users } from 'lucide-react';
+import { BarChart3, BookOpen, Files, GraduationCap, Inbox, Shield, Tags, Users } from 'lucide-react';
 
 const adminAreas = [
   { to: '/admin/questions', label: 'Questions', description: 'Question bank, filters, review workflow', icon: BookOpen },
+  { to: '/admin/tags', label: 'Tags', description: 'Section taxonomy management', icon: Tags },
   { to: '/admin/passage-bundles', label: 'PassageBundles', description: 'Atomic reading/science bundles', icon: Files },
   { to: '/admin/contributions', label: 'Contributions', description: 'Review community PDF/DOCX uploads', icon: Inbox },
   { to: '/admin/exams', label: 'Exams', description: 'Exam assembly and publishing', icon: GraduationCap },

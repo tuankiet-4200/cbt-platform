@@ -21,6 +21,8 @@ const ProfilePage       = lazy(() => import('@/features/profile/pages/ProfilePag
 const AdminDashboard    = lazy(() => import('@/features/admin/pages/AdminDashboard'));
 const AdminQuestionsPage = lazy(() => import('@/features/admin/pages/AdminQuestionsPage'));
 const AdminQuestionEditorPage = lazy(() => import('@/features/admin/pages/AdminQuestionEditorPage'));
+const AdminTagsPage = lazy(() => import('@/features/admin/pages/AdminTagsPage'));
+const AdminTagEditorPage = lazy(() => import('@/features/admin/pages/AdminTagEditorPage'));
 const AdminContributionsPage = lazy(() => import('@/features/admin/pages/AdminContributionsPage'));
 const AdminExamsPage    = lazy(() => import('@/features/admin/pages/AdminExamsPage'));
 const AdminUsersPage    = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
@@ -79,6 +81,9 @@ export const router = createBrowserRouter([
               { path: '/admin/questions/create', element: withSuspense(AdminQuestionEditorPage) },
               { path: '/admin/questions/:questionId/edit', element: withSuspense(AdminQuestionEditorPage) },
               { path: '/admin/questions/bundles/:bundleId/edit', element: withSuspense(AdminQuestionEditorPage) },
+              { path: '/admin/tags',           element: withSuspense(AdminTagsPage) },
+              { path: '/admin/tags/create',    element: withSuspense(AdminTagEditorPage) },
+              { path: '/admin/tags/:tagId/edit', element: withSuspense(AdminTagEditorPage) },
               { path: '/admin/passage-bundles', element: <Navigate to="/admin/questions" replace /> },
               { path: '/admin/contributions',  element: withSuspense(AdminContributionsPage) },
               { path: '/admin/exams',          element: withSuspense(AdminExamsPage) },

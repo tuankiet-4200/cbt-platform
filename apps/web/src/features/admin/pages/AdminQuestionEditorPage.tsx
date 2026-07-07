@@ -150,8 +150,8 @@ export default function AdminQuestionEditorPage() {
   const [hydratedRecordId, setHydratedRecordId] = useState<string | null>(null);
 
   const tagsQuery = useQuery({
-    queryKey: ['admin', 'tags'],
-    queryFn: listTags,
+    queryKey: ['admin', 'tags', section],
+    queryFn: () => listTags({ sectionType: section }),
   });
 
   const mathQuestionsQuery = useQuery({

@@ -23,7 +23,9 @@ import {
   BulkUpdateQuestionStatusDto,
   CreateTagDto,
   CreateQuestionDto,
+  ListTagsDto,
   ListQuestionsDto,
+  UpdateTagDto,
   UpdateQuestionDto,
   UpdateQuestionStatusDto,
 } from './dto/admin-question.dto';
@@ -43,8 +45,9 @@ type QuestionWriteInput = Omit<CreateQuestionDto, 'contentJson' | 'irtParams'> &
 export class QuestionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listTags() {
+  async listTags(dto: ListTagsDto = {}) {
     const tags = await this.prisma.tag.findMany({
+      where: { sectionType: dto.sectionType },
       orderBy: [{ depth: 'asc' }, { orderIndex: 'asc' }, { name: 'asc' }],
     });
 
@@ -52,11 +55,15 @@ export class QuestionsService {
   }
 
   async createTag(dto: CreateTagDto) {
+    const parentId = dto.parentId?.trim() || null;
     let depth = 0;
 
-    if (dto.parentId) {
-      const parent = await this.prisma.tag.findUnique({ where: { id: dto.parentId } });
+    if (parentId) {
+      const parent = await this.prisma.tag.findUnique({ where: { id: parentId } });
       if (!parent) throw new NotFoundException('Parent tag not found');
+      if (parent.sectionType !== dto.sectionType) {
+        throw new BadRequestException('Parent tag must belong to the same section');
+      }
       if (parent.depth >= 3) {
         throw new BadRequestException('Tag taxonomy supports depth 0-3 only');
       }
@@ -68,9 +75,85 @@ export class QuestionsService {
         data: {
           name: dto.name,
           slug: dto.slug,
-          parentId: dto.parentId,
+          sectionType: dto.sectionType,
+          parentId,
           depth,
           orderIndex: dto.orderIndex ?? 0,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Tag slug already exists');
+      }
+      throw error;
+    }
+  }
+
+  async getTag(id: string) {
+    const tag = await this.prisma.tag.findUnique({
+      where: { id },
+      include: {
+        parent: true,
+        children: { orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }] },
+      },
+    });
+    if (!tag) throw new NotFoundException('Tag not found');
+    return tag;
+  }
+
+  async updateTag(id: string, dto: UpdateTagDto) {
+    const existing = await this.prisma.tag.findUnique({
+      where: { id },
+      include: { children: { select: { id: true } } },
+    });
+    if (!existing) throw new NotFoundException('Tag not found');
+
+    const nextSectionType = dto.sectionType ?? existing.sectionType;
+    const parentIdChanged = dto.parentId !== undefined;
+    const nextParentId = parentIdChanged ? dto.parentId?.trim() || null : existing.parentId;
+    let depth = existing.depth;
+
+    if (dto.sectionType && dto.sectionType !== existing.sectionType) {
+      if (existing.children.length > 0) {
+        throw new BadRequestException('Cannot change section for a tag that has children');
+      }
+      if (existing.parentId && !parentIdChanged) {
+        throw new BadRequestException('Cannot change section without moving the tag to a parent in that section');
+      }
+    }
+
+    if (nextParentId) {
+      if (nextParentId === id) {
+        throw new BadRequestException('Tag cannot be its own parent');
+      }
+      const parent = await this.prisma.tag.findUnique({ where: { id: nextParentId } });
+      if (!parent) throw new NotFoundException('Parent tag not found');
+      await this.assertTagIsNotDescendant(id, parent.id);
+      if (parent.sectionType !== nextSectionType) {
+        throw new BadRequestException('Parent tag must belong to the same section');
+      }
+      if (parent.depth >= 3) {
+        throw new BadRequestException('Tag taxonomy supports depth 0-3 only');
+      }
+      depth = parent.depth + 1;
+    } else if (parentIdChanged || dto.sectionType) {
+      depth = 0;
+    }
+
+    try {
+      return await this.prisma.tag.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          slug: dto.slug,
+          sectionType: dto.sectionType,
+          parentId: parentIdChanged ? nextParentId : undefined,
+          depth,
+          orderIndex: dto.orderIndex,
+        },
+        include: {
+          parent: true,
+          children: { orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }] },
         },
       });
     } catch (error) {
@@ -455,6 +538,23 @@ export class QuestionsService {
     sortNodes(roots);
 
     return roots;
+  }
+
+  private async assertTagIsNotDescendant(tagId: string, possibleDescendantId: string) {
+    let current = await this.prisma.tag.findUnique({
+      where: { id: possibleDescendantId },
+      select: { id: true, parentId: true },
+    });
+
+    while (current?.parentId) {
+      if (current.parentId === tagId) {
+        throw new BadRequestException('Tag cannot use one of its descendants as parent');
+      }
+      current = await this.prisma.tag.findUnique({
+        where: { id: current.parentId },
+        select: { id: true, parentId: true },
+      });
+    }
   }
 
   private getQuestionOrderBy(

@@ -10,7 +10,9 @@ import {
   BulkUpdateQuestionStatusDto,
   CreateTagDto,
   CreateQuestionDto,
+  ListTagsDto,
   ListQuestionsDto,
+  UpdateTagDto,
   UpdateQuestionDto,
   UpdateQuestionStatusDto,
 } from './dto/admin-question.dto';
@@ -28,13 +30,23 @@ export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
   @Get('tags')
-  listTags() {
-    return this.questionsService.listTags();
+  listTags(@Query() dto: ListTagsDto) {
+    return this.questionsService.listTags(dto);
   }
 
   @Post('tags')
   createTag(@Body() dto: CreateTagDto) {
     return this.questionsService.createTag(dto);
+  }
+
+  @Get('tags/:id')
+  getTag(@Param('id') id: string) {
+    return this.questionsService.getTag(id);
+  }
+
+  @Patch('tags/:id')
+  updateTag(@Param('id') id: string, @Body() dto: UpdateTagDto) {
+    return this.questionsService.updateTag(id, dto);
   }
 
   @Post('questions')

@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (create question section tab state fix)
+> **Last updated:** 2026-07-07 (section-aware tag management module)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -133,6 +133,7 @@ Status: ⬜ PENDING
    - [x] `POST /api/v1/admin/tags` creates a tag with `parentId`, computed `depth`, `slug`, `orderIndex`
    - [x] `GET /api/v1/admin/questions` supports multi-tag filter via `tagId[]`
    - [x] `PassageBundle` supports direct taxonomy tags via `passage_bundle_tags`
+   - [x] Tags are section-aware via `sectionType` and support admin list/create/edit flows under `/admin/tags`
 
 2. **Question Review Workflow**
    - [x] `PATCH /api/v1/admin/questions/:id/status` supports status transitions with `reviewNote`
@@ -167,6 +168,7 @@ Status: ⬜ PENDING
 12. [x] `/admin/questions` is now a unified Section Content Bank: MATH standalone questions; READING/SCIENCE passage bundle + 10/5 related questions in one flow
 13. [x] Question management routes split list and editing flows: `/admin/questions` lists by section, while `/admin/questions/create` and edit routes reuse the shared content editor
 14. [x] Create Question section query param only initializes the active section; tab switches update create state, URL, and submitted section payload
+15. [x] Tag Management module added: `/admin/tags` list with MATH/READING/SCIENCE tabs plus shared create/edit tag form pages
 
 ---
 

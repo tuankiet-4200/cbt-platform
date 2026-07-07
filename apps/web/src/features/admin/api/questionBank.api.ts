@@ -31,6 +31,7 @@ export interface TagNode {
   id: string;
   name: string;
   slug: string;
+  sectionType: ExamSectionType;
   parentId: string | null;
   depth: number;
   orderIndex: number;
@@ -148,8 +149,31 @@ export async function listQuestions(params: ListQuestionsParams) {
   return response.data;
 }
 
-export async function listTags() {
-  const response = await apiClient.get<ApiEnvelope<TagNode[]>>('/admin/tags');
+export interface UpsertTagPayload {
+  name: string;
+  slug: string;
+  sectionType: ExamSectionType;
+  parentId?: string;
+  orderIndex?: number;
+}
+
+export async function listTags(params: { sectionType?: ExamSectionType } = {}) {
+  const response = await apiClient.get<ApiEnvelope<TagNode[]>>('/admin/tags', { params });
+  return response.data.data;
+}
+
+export async function createTag(payload: UpsertTagPayload) {
+  const response = await apiClient.post<ApiEnvelope<TagNode>>('/admin/tags', payload);
+  return response.data.data;
+}
+
+export async function getTag(id: string) {
+  const response = await apiClient.get<ApiEnvelope<TagNode>>(`/admin/tags/${id}`);
+  return response.data.data;
+}
+
+export async function updateTag(id: string, payload: UpsertTagPayload) {
+  const response = await apiClient.patch<ApiEnvelope<TagNode>>(`/admin/tags/${id}`, payload);
   return response.data.data;
 }
 

@@ -186,18 +186,20 @@ model ContributionSubmission {
 
 /// Hierarchical content taxonomy (Subject → Chapter → Topic → SubTopic)
 model Tag {
-  id         String  @id @default(uuid())
-  name       String
-  slug       String  @unique // URL-safe identifier
-  parentId   String? @map("parent_id")
-  depth      Int     @default(0) // 0=Subject, 1=Chapter, 2=Topic, 3=SubTopic
-  orderIndex Int     @default(0) @map("order_index")
+  id          String          @id @default(uuid())
+  name        String
+  slug        String          @unique // URL-safe identifier
+  sectionType ExamSectionType @default(MATH) @map("section_type")
+  parentId    String?         @map("parent_id")
+  depth       Int             @default(0) // 0=Subject, 1=Chapter, 2=Topic, 3=SubTopic
+  orderIndex  Int             @default(0) @map("order_index")
 
   parent    Tag?          @relation("TagHierarchy", fields: [parentId], references: [id])
   children  Tag[]         @relation("TagHierarchy")
   questions QuestionTag[]
   bundles   PassageBundleTag[]
 
+  @@index([sectionType])
   @@index([parentId])
   @@map("tags")
 }

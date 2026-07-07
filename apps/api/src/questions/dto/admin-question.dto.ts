@@ -14,7 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { CognitiveLevel, QuestionStatus, QuestionType } from '@prisma/client';
+import { CognitiveLevel, ExamSectionType, QuestionStatus, QuestionType } from '@prisma/client';
 import { PaginationDto } from '@/common/dto/pagination.dto';
 
 export class CreateQuestionDto {
@@ -161,6 +161,9 @@ export class CreateTagDto {
   @IsString()
   slug!: string;
 
+  @IsEnum(ExamSectionType)
+  sectionType!: ExamSectionType;
+
   @IsOptional()
   @IsString()
   parentId?: string;
@@ -170,4 +173,34 @@ export class CreateTagDto {
   @IsInt()
   @Min(0)
   orderIndex?: number;
+}
+
+export class UpdateTagDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
+
+  @IsOptional()
+  @IsEnum(ExamSectionType)
+  sectionType?: ExamSectionType;
+
+  @IsOptional()
+  @IsString()
+  parentId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  orderIndex?: number;
+}
+
+export class ListTagsDto {
+  @IsOptional()
+  @IsEnum(ExamSectionType)
+  sectionType?: ExamSectionType;
 }
