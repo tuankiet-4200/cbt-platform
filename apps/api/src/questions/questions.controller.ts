@@ -16,6 +16,7 @@ import {
 } from './dto/admin-question.dto';
 import {
   CreatePassageBundleDto,
+  CreatePassageBundleWithQuestionsDto,
   ListPassageBundlesDto,
   UpdatePassageBundleDto,
 } from './dto/passage-bundle.dto';
@@ -78,6 +79,14 @@ export class QuestionsController {
   @Post('passage-bundles')
   createPassageBundle(@Body() dto: CreatePassageBundleDto, @CurrentUser() user: User) {
     return this.questionsService.createPassageBundle(dto, user);
+  }
+
+  @Post('passage-bundles/with-questions')
+  createPassageBundleWithQuestions(
+    @Body() dto: CreatePassageBundleWithQuestionsDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.questionsService.createPassageBundleWithQuestions(dto, user);
   }
 
   @Get('passage-bundles')

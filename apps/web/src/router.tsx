@@ -20,7 +20,6 @@ const ProfilePage       = lazy(() => import('@/features/profile/pages/ProfilePag
 // Admin
 const AdminDashboard    = lazy(() => import('@/features/admin/pages/AdminDashboard'));
 const AdminQuestionsPage = lazy(() => import('@/features/admin/pages/AdminQuestionsPage'));
-const AdminPassageBundlesPage = lazy(() => import('@/features/admin/pages/AdminPassageBundlesPage'));
 const AdminContributionsPage = lazy(() => import('@/features/admin/pages/AdminContributionsPage'));
 const AdminExamsPage    = lazy(() => import('@/features/admin/pages/AdminExamsPage'));
 const AdminUsersPage    = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
@@ -76,7 +75,7 @@ export const router = createBrowserRouter([
             children: [
               { path: '/admin',                element: withSuspense(AdminDashboard) },
               { path: '/admin/questions',      element: withSuspense(AdminQuestionsPage) },
-              { path: '/admin/passage-bundles', element: withSuspense(AdminPassageBundlesPage) },
+              { path: '/admin/passage-bundles', element: <Navigate to="/admin/questions" replace /> },
               { path: '/admin/contributions',  element: withSuspense(AdminContributionsPage) },
               { path: '/admin/exams',          element: withSuspense(AdminExamsPage) },
               { path: '/admin/users',          element: withSuspense(AdminUsersPage) },

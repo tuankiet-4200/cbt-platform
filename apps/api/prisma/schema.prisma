@@ -196,6 +196,7 @@ model Tag {
   parent    Tag?          @relation("TagHierarchy", fields: [parentId], references: [id])
   children  Tag[]         @relation("TagHierarchy")
   questions QuestionTag[]
+  bundles   PassageBundleTag[]
 
   @@index([parentId])
   @@map("tags")
@@ -270,6 +271,18 @@ model QuestionTag {
   @@map("question_tags")
 }
 
+/// Many-to-many: PassageBundle ↔ Tag
+model PassageBundleTag {
+  bundleId String @map("bundle_id")
+  tagId    String @map("tag_id")
+
+  bundle PassageBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  tag    Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, tagId])
+  @@map("passage_bundle_tags")
+}
+
 // =============================================================================
 // PASSAGE BUNDLES (Question Bank Layer)
 // =============================================================================
@@ -319,6 +332,7 @@ model PassageBundle {
   author       User                     @relation("BundleAuthor", fields: [authorId], references: [id])
   reviewedBy   User?                    @relation("BundleReviewer", fields: [reviewedById], references: [id])
   contribution ContributionSubmission?  @relation(fields: [contributionId], references: [id])
+  tags         PassageBundleTag[]
   questions    PassageBundleQuestion[]
   examItems    ExamPassageBundle[]
 

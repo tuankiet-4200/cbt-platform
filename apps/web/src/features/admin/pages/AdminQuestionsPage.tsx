@@ -1,61 +1,40 @@
 import { useMemo, useState } from 'react';
-import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import type { Dispatch, ElementType, ReactNode, SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Archive,
+  BookOpen,
   Check,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
   Database,
   Eye,
-  FilePlus2,
-  Filter,
+  FileText,
+  FlaskConical,
   Loader2,
   Plus,
-  Search,
-  Send,
+  Sigma,
   Trash2,
   Upload,
 } from 'lucide-react';
 import { BlockMath, InlineMath } from 'react-katex';
 import { cn } from '@/lib/utils';
 import {
-  bulkUpdateQuestionStatus,
   bulkCreateQuestions,
+  createPassageBundleWithQuestions,
   createQuestion,
+  listPassageBundles,
   listQuestions,
   listTags,
   type AdminQuestion,
   type CognitiveLevel,
+  type CreatePassageBundleWithQuestionsPayload,
   type CreateQuestionPayload,
+  type PassageBundle,
   type QuestionStatus,
   type QuestionType,
   type RichTextNode,
   type TagNode,
 } from '../api/questionBank.api';
 
-const QUESTION_TYPES: Array<{ value: QuestionType; label: string }> = [
-  { value: 'SINGLE_CHOICE', label: 'Single choice' },
-  { value: 'MULTIPLE_CHOICE', label: 'Multiple choice' },
-  { value: 'TRUE_FALSE_MATRIX', label: 'True/False matrix' },
-  { value: 'DRAG_DROP', label: 'Drag drop' },
-  { value: 'FILL_NUMBER', label: 'Fill number' },
-];
-
-const LEVELS: Array<{ value: CognitiveLevel; label: string }> = [
-  { value: 'RECOGNITION', label: 'Nhận biết' },
-  { value: 'COMPREHENSION', label: 'Thông hiểu' },
-  { value: 'APPLICATION', label: 'Vận dụng' },
-  { value: 'HIGH_APPLICATION', label: 'Vận dụng cao' },
-];
-
-const STATUSES: Array<{ value: QuestionStatus; label: string }> = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'PENDING_REVIEW', label: 'Pending review' },
-  { value: 'PUBLISHED', label: 'Published' },
-  { value: 'ARCHIVED', label: 'Archived' },
-];
+type SectionMode = 'MATH' | 'READING' | 'SCIENCE';
 
 interface ChoiceOptionState {
   id: string;
@@ -86,101 +65,115 @@ interface FillBlankState {
   unit: string;
 }
 
-const defaultChoices: ChoiceOptionState[] = [
-  { id: 'A', content: '', isCorrect: true },
-  { id: 'B', content: '', isCorrect: false },
-  { id: 'C', content: '', isCorrect: false },
-  { id: 'D', content: '', isCorrect: false },
+interface IrtState {
+  a: number;
+  b: number;
+  c: number;
+}
+
+interface QuestionDraft {
+  type: QuestionType;
+  level: CognitiveLevel;
+  expectedTimeSecs: number;
+  stem: string;
+  solution: string;
+  irtParams: IrtState;
+  choices: ChoiceOptionState[];
+  statements: StatementState[];
+  dragItems: DragItemState[];
+  dragSlots: DragSlotState[];
+  fillBlanks: FillBlankState[];
+}
+
+const SECTIONS: Array<{ value: SectionMode; label: string; icon: ElementType; description: string }> = [
+  { value: 'MATH', label: 'MATH', icon: Sigma, description: 'Nhập câu hỏi độc lập và gắn tag cho từng câu.' },
+  { value: 'READING', label: 'READING', icon: BookOpen, description: 'Nhập passage và đúng 10 câu hỏi thuộc passage.' },
+  { value: 'SCIENCE', label: 'SCIENCE', icon: FlaskConical, description: 'Nhập stimulus khoa học và đúng 5 câu hỏi thuộc stimulus.' },
 ];
+
+const QUESTION_TYPES: Array<{ value: QuestionType; label: string }> = [
+  { value: 'SINGLE_CHOICE', label: 'Single choice' },
+  { value: 'MULTIPLE_CHOICE', label: 'Multiple choice' },
+  { value: 'TRUE_FALSE_MATRIX', label: 'True/False matrix' },
+  { value: 'DRAG_DROP', label: 'Drag drop' },
+  { value: 'FILL_NUMBER', label: 'Fill number' },
+];
+
+const LEVELS: Array<{ value: CognitiveLevel; label: string }> = [
+  { value: 'RECOGNITION', label: 'Nhận biết' },
+  { value: 'COMPREHENSION', label: 'Thông hiểu' },
+  { value: 'APPLICATION', label: 'Vận dụng' },
+  { value: 'HIGH_APPLICATION', label: 'Vận dụng cao' },
+];
+
+const STATUSES: Array<{ value: QuestionStatus; label: string }> = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'PENDING_REVIEW', label: 'Pending review' },
+  { value: 'PUBLISHED', label: 'Published' },
+  { value: 'ARCHIVED', label: 'Archived' },
+];
+
+const BUNDLE_COUNTS: Record<Exclude<SectionMode, 'MATH'>, number> = {
+  READING: 10,
+  SCIENCE: 5,
+};
 
 export default function AdminQuestionsPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState<{
-    type: '' | QuestionType;
-    level: '' | CognitiveLevel;
-    status: '' | QuestionStatus;
-    tagId: string[];
-  }>({ type: '', level: '', status: '', tagId: [] });
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const [type, setType] = useState<QuestionType>('SINGLE_CHOICE');
-  const [level, setLevel] = useState<CognitiveLevel>('APPLICATION');
+  const [section, setSection] = useState<SectionMode>('MATH');
   const [status, setStatus] = useState<QuestionStatus>('DRAFT');
-  const [expectedTimeSecs, setExpectedTimeSecs] = useState(90);
-  const [stem, setStem] = useState('');
-  const [solution, setSolution] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [irtParams, setIrtParams] = useState({ a: 1, b: 0, c: 0.25 });
-  const [choices, setChoices] = useState<ChoiceOptionState[]>(defaultChoices);
-  const [statements, setStatements] = useState<StatementState[]>([
-    { id: 'S1', content: '', isTrue: true },
-    { id: 'S2', content: '', isTrue: false },
-    { id: 'S3', content: '', isTrue: true },
-  ]);
-  const [dragItems, setDragItems] = useState<DragItemState[]>([
-    { id: 'I1', content: '' },
-    { id: 'I2', content: '' },
-    { id: 'I3', content: '' },
-  ]);
-  const [dragSlots, setDragSlots] = useState<DragSlotState[]>([
-    { id: 'slot1', label: 'Bước 1', correctItemId: 'I1' },
-    { id: 'slot2', label: 'Bước 2', correctItemId: 'I2' },
-    { id: 'slot3', label: 'Bước 3', correctItemId: 'I3' },
-  ]);
-  const [fillBlanks, setFillBlanks] = useState<FillBlankState[]>([
-    { id: 'B1', correctValue: 0, unit: '' },
-  ]);
-  const [reviewNote, setReviewNote] = useState('');
+  const [mathDraft, setMathDraft] = useState<QuestionDraft>(() => createQuestionDraft());
+  const [mathTagIds, setMathTagIds] = useState<string[]>([]);
+  const [bundleTagIds, setBundleTagIds] = useState<string[]>([]);
+  const [bundleTitle, setBundleTitle] = useState('');
+  const [bundlePassage, setBundlePassage] = useState('');
+  const [bundleExpectedTimeSecs, setBundleExpectedTimeSecs] = useState(900);
+  const [bundleDrafts, setBundleDrafts] = useState<QuestionDraft[]>(() => createBundleDrafts('READING'));
+  const [activeBundleIndex, setActiveBundleIndex] = useState(0);
+  const [formError, setFormError] = useState<string | null>(null);
   const [bulkJson, setBulkJson] = useState('');
   const [bulkError, setBulkError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
 
   const tagsQuery = useQuery({
     queryKey: ['admin', 'tags'],
     queryFn: listTags,
   });
 
-  const questionsQuery = useQuery({
-    queryKey: ['admin', 'questions', page, filters],
-    queryFn: () =>
-      listQuestions({
-        page,
-        limit: 10,
-        type: filters.type || undefined,
-        level: filters.level || undefined,
-        status: filters.status || undefined,
-        tagId: filters.tagId,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      }),
+  const mathQuestionsQuery = useQuery({
+    queryKey: ['admin', 'questions', 'math-bank'],
+    queryFn: () => listQuestions({ page: 1, limit: 12, standaloneOnly: true, sortBy: 'createdAt', sortOrder: 'desc' }),
   });
 
-  const flatTags = useMemo(() => flattenTags(tagsQuery.data ?? []), [tagsQuery.data]);
+  const bundlesQuery = useQuery({
+    queryKey: ['admin', 'passage-bundles', section],
+    queryFn: () =>
+      section === 'MATH'
+        ? Promise.resolve({ data: [] as PassageBundle[] })
+        : listPassageBundles({ page: 1, limit: 12, sectionType: section }),
+  });
 
-  const createMutation = useMutation({
+  const createMathMutation = useMutation({
     mutationFn: (payload: CreateQuestionPayload) => createQuestion(payload),
     onSuccess: () => {
-      setStem('');
-      setSolution('');
-      setReviewNote('');
+      setMathDraft(createQuestionDraft());
+      setMathTagIds([]);
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] });
     },
   });
 
-  const bulkStatusMutation = useMutation({
-    mutationFn: (nextStatus: QuestionStatus) =>
-      bulkUpdateQuestionStatus(selectedIds, { status: nextStatus, reviewNote }),
+  const createBundleMutation = useMutation({
+    mutationFn: (payload: CreatePassageBundleWithQuestionsPayload) => createPassageBundleWithQuestions(payload),
     onSuccess: () => {
-      setSelectedIds([]);
-      setReviewNote('');
+      resetBundleForm(section);
+      setFormError(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'passage-bundles'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] });
     },
   });
 
   const bulkCreateMutation = useMutation({
-    mutationFn: (payload: CreateQuestionPayload[]) => bulkCreateQuestions(payload),
+    mutationFn: (questions: CreateQuestionPayload[]) => bulkCreateQuestions(questions),
     onSuccess: () => {
       setBulkJson('');
       setBulkError(null);
@@ -188,479 +181,504 @@ export default function AdminQuestionsPage() {
     },
   });
 
-  const previewContent = useMemo(
-    () => ({
-      stem: parseRichText(stem),
-      solution: solution.trim() ? parseRichText(solution) : [],
-    }),
-    [stem, solution],
-  );
+  const activeBundleDraft = bundleDrafts[activeBundleIndex] ?? bundleDrafts[0];
+  const sectionMeta = SECTIONS.find((item) => item.value === section) ?? SECTIONS[0];
+  const bundleCount = section === 'MATH' ? 0 : BUNDLE_COUNTS[section];
+  const flatTags = useMemo(() => flattenTags(tagsQuery.data ?? []), [tagsQuery.data]);
 
-  const handleSubmit = () => {
+  const handleSectionChange = (nextSection: SectionMode) => {
+    setSection(nextSection);
     setFormError(null);
-    const contentJson = buildQuestionContent({
-      type,
-      stem,
-      solution,
-      choices,
-      statements,
-      dragItems,
-      dragSlots,
-      fillBlanks,
-    });
-    const validationError = validateQuestionDraft(contentJson);
-    if (validationError) {
-      setFormError(validationError);
+    if (nextSection !== 'MATH') resetBundleForm(nextSection);
+  };
+
+  const createMathQuestion = () => {
+    setFormError(null);
+    const contentJson = buildQuestionContent(mathDraft);
+    const validation = validateQuestionDraft(contentJson);
+    if (validation) {
+      setFormError(validation);
       return;
     }
 
-    createMutation.mutate({
-      type,
+    createMathMutation.mutate({
+      type: mathDraft.type,
       status,
-      level,
-      expectedTimeSecs,
-      irtParams,
-      tagIds: selectedTagIds,
+      level: mathDraft.level,
+      expectedTimeSecs: mathDraft.expectedTimeSecs,
+      irtParams: mathDraft.irtParams,
+      tagIds: mathTagIds,
       contentJson,
     });
   };
 
-  const handleBulkImport = () => {
+  const createBundle = () => {
+    if (section === 'MATH') return;
+    setFormError(null);
+
+    const passageContent = parseRichText(bundlePassage);
+    if (!bundleTitle.trim()) {
+      setFormError('Bundle title không được để trống.');
+      return;
+    }
+    if (passageContent.length === 0) {
+      setFormError('Passage/stimulus không được để trống.');
+      return;
+    }
+    if (bundleDrafts.length !== bundleCount) {
+      setFormError(`${section} cần đúng ${bundleCount} câu hỏi.`);
+      return;
+    }
+
+    const questionPayloads = bundleDrafts.map((draft, index) => {
+      const contentJson = buildQuestionContent(draft);
+      const validation = validateQuestionDraft(contentJson);
+      if (validation) throw new Error(`Câu ${index + 1}: ${validation}`);
+
+      return {
+        type: draft.type,
+        status,
+        level: draft.level,
+        expectedTimeSecs: draft.expectedTimeSecs,
+        irtParams: draft.irtParams,
+        contentJson,
+        points: 1,
+      };
+    });
+
+    try {
+      createBundleMutation.mutate({
+        sectionType: section,
+        title: bundleTitle,
+        status,
+        expectedTimeSecs: bundleExpectedTimeSecs,
+        contentJson: passageContent,
+        tagIds: bundleTagIds,
+        questions: questionPayloads,
+      });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Bundle payload không hợp lệ.');
+    }
+  };
+
+  const submitBulkImport = () => {
     setBulkError(null);
     try {
       const parsed = JSON.parse(bulkJson) as unknown;
-      if (!Array.isArray(parsed)) {
-        setBulkError('Bulk JSON phải là một mảng question payload.');
+      const questions = Array.isArray(parsed)
+        ? parsed
+        : isQuestionEnvelope(parsed)
+          ? parsed.questions
+          : null;
+
+      if (!questions || questions.length === 0) {
+        setBulkError('JSON cần là mảng questions hoặc object { "questions": [...] }.');
         return;
       }
-      bulkCreateMutation.mutate(parsed as CreateQuestionPayload[]);
+      if (questions.length > 100) {
+        setBulkError('Bulk import tối đa 100 câu hỏi mỗi lần.');
+        return;
+      }
+
+      bulkCreateMutation.mutate(questions as CreateQuestionPayload[]);
     } catch {
       setBulkError('JSON không hợp lệ.');
     }
   };
 
-  const questions = questionsQuery.data?.data ?? [];
-  const meta = questionsQuery.data?.meta;
+  function resetBundleForm(nextSection: SectionMode) {
+    if (nextSection === 'MATH') return;
+    setBundleTitle('');
+    setBundlePassage('');
+    setBundleExpectedTimeSecs(nextSection === 'READING' ? 1200 : 900);
+    setBundleTagIds([]);
+    setBundleDrafts(createBundleDrafts(nextSection));
+    setActiveBundleIndex(0);
+  }
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
             <Database className="h-4 w-4" />
-            Admin Question Bank
+            Section Content Bank
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-neutral-900">Quản lý câu hỏi</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Nhập nhanh câu hỏi, gắn taxonomy, review và xuất bản vào question bank.
-          </p>
+          <h1 className="mt-2 text-2xl font-bold text-neutral-900">Quản lý nội dung câu hỏi</h1>
+          <p className="mt-1 text-sm text-neutral-500">{sectionMeta.description}</p>
         </div>
-        <div className="grid grid-cols-3 gap-2 rounded-lg border border-neutral-200 bg-white p-2">
-          <Metric label="Total" value={meta?.total ?? 0} />
-          <Metric label="Selected" value={selectedIds.length} />
-          <Metric label="Page" value={meta ? `${meta.page}/${Math.max(meta.totalPages, 1)}` : '1/1'} />
+        <div className="grid gap-2 rounded-lg border border-neutral-200 bg-white p-2 sm:grid-cols-3">
+          {SECTIONS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => handleSectionChange(value)}
+              className={cn(
+                'flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition',
+                section === value ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
         </div>
       </header>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(26rem,.95fr)]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_34rem]">
         <div className="card p-5">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-neutral-900">Tạo câu hỏi</h2>
-              <p className="mt-1 text-sm text-neutral-500">Payload động theo từng loại câu hỏi.</p>
-            </div>
-            <FilePlus2 className="h-5 w-5 text-primary-600" />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Type">
-              <select className="input" value={type} onChange={(event) => setType(event.target.value as QuestionType)}>
-                {QUESTION_TYPES.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <div className="grid gap-4 md:grid-cols-3">
             <Field label="Status">
-              <select
-                className="input"
-                value={status}
-                onChange={(event) => setStatus(event.target.value as QuestionStatus)}
-              >
+              <select className="input" value={status} onChange={(event) => setStatus(event.target.value as QuestionStatus)}>
                 {STATUSES.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
+                  <option key={item.value} value={item.value}>{item.label}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Level">
-              <select
-                className="input"
-                value={level}
-                onChange={(event) => setLevel(event.target.value as CognitiveLevel)}
-              >
-                {LEVELS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Expected time">
-              <input
-                className="input"
-                type="number"
-                min={10}
-                max={3600}
-                value={expectedTimeSecs}
-                onChange={(event) => setExpectedTimeSecs(Number(event.target.value))}
-              />
-            </Field>
+            {section !== 'MATH' && (
+              <>
+                <Field label="Bundle title">
+                  <input className="input" value={bundleTitle} onChange={(event) => setBundleTitle(event.target.value)} />
+                </Field>
+                <Field label="Bundle time">
+                  <input
+                    className="input"
+                    type="number"
+                    min={60}
+                    max={7200}
+                    value={bundleExpectedTimeSecs}
+                    onChange={(event) => setBundleExpectedTimeSecs(Number(event.target.value))}
+                  />
+                </Field>
+              </>
+            )}
           </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <Field label="IRT a" title="Discrimination">
-              <input
-                className="input"
-                type="number"
-                min={0}
-                max={3}
-                step={0.1}
-                value={irtParams.a}
-                onChange={(event) => setIrtParams((value) => ({ ...value, a: Number(event.target.value) }))}
+          {section === 'MATH' ? (
+            <>
+              <QuestionEditor draft={mathDraft} setDraft={setMathDraft} title="MATH question" />
+              <div className="mt-5 border-t border-neutral-200 pt-5">
+                <TagPicker title="Question tags" tags={flatTags} selectedIds={mathTagIds} onChange={setMathTagIds} />
+              </div>
+              <SubmitBar
+                error={formError ?? getErrorMessage(createMathMutation.error)}
+                isPending={createMathMutation.isPending}
+                onSubmit={createMathQuestion}
+                submitLabel="Lưu câu hỏi MATH"
               />
-            </Field>
-            <Field label="IRT b" title="Difficulty">
-              <input
-                className="input"
-                type="number"
-                min={-3}
-                max={3}
-                step={0.1}
-                value={irtParams.b}
-                onChange={(event) => setIrtParams((value) => ({ ...value, b: Number(event.target.value) }))}
+            </>
+          ) : (
+            <>
+              <div className="mt-5 grid gap-4">
+                <Field label={section === 'READING' ? 'Reading passage' : 'Science stimulus'}>
+                  <textarea
+                    className="input min-h-44 resize-y"
+                    value={bundlePassage}
+                    onChange={(event) => setBundlePassage(event.target.value)}
+                    placeholder="Hỗ trợ LaTeX inline bằng $...$ và block bằng $$...$$"
+                  />
+                </Field>
+                <TagPicker title="PassageBundle tags" tags={flatTags} selectedIds={bundleTagIds} onChange={setBundleTagIds} />
+              </div>
+
+              <div className="mt-5 border-t border-neutral-200 pt-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-semibold text-neutral-900">{section} questions</h2>
+                  <span className="badge badge-warning">{bundleCount} required</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {bundleDrafts.map((draft, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setActiveBundleIndex(index)}
+                      className={cn(
+                        'h-9 min-w-10 rounded-md border px-3 text-sm font-semibold',
+                        activeBundleIndex === index
+                          ? 'border-primary-600 bg-primary-600 text-white'
+                          : validateQuestionDraft(buildQuestionContent(draft))
+                            ? 'border-warning-300 bg-warning-50 text-warning-700'
+                            : 'border-success-300 bg-success-50 text-success-700',
+                      )}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+                {activeBundleDraft && (
+                  <QuestionEditor
+                    draft={activeBundleDraft}
+                    setDraft={(updater) =>
+                      setBundleDrafts((items) =>
+                        items.map((item, index) =>
+                          index === activeBundleIndex
+                            ? typeof updater === 'function'
+                              ? (updater as (value: QuestionDraft) => QuestionDraft)(item)
+                              : updater
+                            : item,
+                        ),
+                      )
+                    }
+                    title={`Question ${activeBundleIndex + 1}`}
+                  />
+                )}
+              </div>
+
+              <SubmitBar
+                error={formError ?? getErrorMessage(createBundleMutation.error)}
+                isPending={createBundleMutation.isPending}
+                onSubmit={createBundle}
+                submitLabel={`Tạo ${section} bundle`}
               />
-            </Field>
-            <Field label="IRT c" title="Guessing">
-              <input
-                className="input"
-                type="number"
-                min={0}
-                max={0.35}
-                step={0.01}
-                value={irtParams.c}
-                onChange={(event) => setIrtParams((value) => ({ ...value, c: Number(event.target.value) }))}
-              />
-            </Field>
-          </div>
-
-          <div className="mt-4 grid gap-4">
-            <Field label="Stem">
-              <textarea className="input min-h-28 resize-y" value={stem} onChange={(event) => setStem(event.target.value)} />
-            </Field>
-            <Field label="Solution">
-              <textarea
-                className="input min-h-20 resize-y"
-                value={solution}
-                onChange={(event) => setSolution(event.target.value)}
-              />
-            </Field>
-          </div>
-
-          <div className="mt-5 border-t border-neutral-200 pt-5">
-            <PayloadEditor
-              type={type}
-              stem={stem}
-              setStem={setStem}
-              choices={choices}
-              setChoices={setChoices}
-              statements={statements}
-              setStatements={setStatements}
-              dragItems={dragItems}
-              setDragItems={setDragItems}
-              dragSlots={dragSlots}
-              setDragSlots={setDragSlots}
-              fillBlanks={fillBlanks}
-              setFillBlanks={setFillBlanks}
-            />
-          </div>
-
-          <div className="mt-5 border-t border-neutral-200 pt-5">
-            <TagPicker tags={tagsQuery.data ?? []} selectedIds={selectedTagIds} onChange={setSelectedTagIds} />
-          </div>
-
-          {(formError || createMutation.error) && (
-            <p className="mt-4 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">
-              {formError ?? getErrorMessage(createMutation.error)}
-            </p>
+            </>
           )}
-
-          <div className="mt-5 flex justify-end">
-            <button
-              className="btn btn-primary btn-md"
-              onClick={handleSubmit}
-              disabled={createMutation.isPending || stem.trim().length === 0}
-            >
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Lưu câu hỏi
-            </button>
-          </div>
         </div>
 
-        <div className="card p-5">
+        <aside className="card p-5">
           <div className="mb-5 flex items-center gap-2">
             <Eye className="h-5 w-5 text-primary-600" />
-            <h2 className="text-base font-semibold text-neutral-900">Preview</h2>
+            <h2 className="font-semibold text-neutral-900">Preview</h2>
           </div>
-          <div className="space-y-5">
-            <PreviewBlock title="Stem" nodes={previewContent.stem} />
-            <PreviewBlock title="Payload" nodes={payloadPreview(type, { choices, statements, dragItems, dragSlots, fillBlanks })} />
-            <PreviewBlock title="Solution" nodes={previewContent.solution} mutedText="Chưa có lời giải." />
-          </div>
+          {section === 'MATH' ? (
+            <QuestionPreview draft={mathDraft} />
+          ) : (
+            <div className="space-y-4">
+              <PreviewBlock title={section === 'READING' ? 'Passage' : 'Stimulus'} nodes={parseRichText(bundlePassage)} />
+              {activeBundleDraft && <QuestionPreview draft={activeBundleDraft} title={`Question ${activeBundleIndex + 1}`} />}
+            </div>
+          )}
+        </aside>
+      </section>
+
+      <section className="card overflow-hidden">
+        <div className="border-b border-neutral-200 p-5">
+          <h2 className="font-semibold text-neutral-900">
+            {section === 'MATH' ? 'Recent standalone MATH questions' : `Recent ${section} bundles`}
+          </h2>
         </div>
+        {section === 'MATH' ? (
+          <QuestionList questions={mathQuestionsQuery.data?.data ?? []} />
+        ) : (
+          <BundleList bundles={bundlesQuery.data?.data ?? []} />
+        )}
       </section>
 
       <section className="card p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
               <Upload className="h-4 w-4" />
-              Bulk JSON Import
+              Bulk JSON import
             </div>
-            <h2 className="mt-1 text-base font-semibold text-neutral-900">Nhập hàng loạt câu hỏi</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Dán mảng JSON theo contract `CreateQuestionPayload[]`. Backend validate toàn bộ trong transaction.
-            </p>
+            <p className="mt-1 text-sm text-neutral-500">Nhập nhanh tối đa 100 câu hỏi độc lập theo schema QuestionContent v2.</p>
           </div>
-          <button
-            className="btn btn-secondary btn-sm"
-            type="button"
-            onClick={() => setBulkJson(JSON.stringify([buildQuestionContent({
-              type,
-              stem: stem || 'Câu hỏi mẫu $x^2$',
-              solution,
-              choices,
-              statements,
-              dragItems,
-              dragSlots,
-              fillBlanks,
-            })].map((contentJson) => ({
-              type: contentJson.type,
-              status: 'DRAFT',
-              level,
-              expectedTimeSecs,
-              irtParams,
-              tagIds: selectedTagIds,
-              contentJson,
-            })), null, 2))}
-          >
-            <Copy className="h-4 w-4" />
-            Fill sample
+          <button className="btn btn-primary btn-md" type="button" disabled={bulkCreateMutation.isPending} onClick={submitBulkImport}>
+            {bulkCreateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Import
           </button>
         </div>
         <textarea
-          className="input mt-4 min-h-52 resize-y font-mono text-xs"
+          className="input mt-4 min-h-40 resize-y font-mono text-xs"
           value={bulkJson}
           onChange={(event) => setBulkJson(event.target.value)}
-          placeholder='[{"type":"SINGLE_CHOICE","contentJson":{...}}]'
+          placeholder='[{"type":"SINGLE_CHOICE","status":"DRAFT","contentJson":{"stem":[{"type":"text","content":"..."}],"type":"SINGLE_CHOICE","payload":{"options":[]},"_version":2}}]'
         />
-        {(bulkError || bulkCreateMutation.error) && (
+        {(bulkError || getErrorMessage(bulkCreateMutation.error)) && (
           <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">
             {bulkError ?? getErrorMessage(bulkCreateMutation.error)}
           </p>
         )}
-        {bulkCreateMutation.data && (
-          <p className="mt-3 rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">
-            Đã tạo {bulkCreateMutation.data.createdCount} câu hỏi.
-          </p>
-        )}
-        <div className="mt-4 flex justify-end">
-          <button
-            className="btn btn-primary btn-md"
-            disabled={bulkCreateMutation.isPending || bulkJson.trim().length === 0}
-            onClick={handleBulkImport}
-          >
-            {bulkCreateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Import JSON
-          </button>
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="border-b border-neutral-200 p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
-                <Filter className="h-4 w-4" />
-                Filters
-              </div>
-              <h2 className="mt-1 text-base font-semibold text-neutral-900">Danh sách câu hỏi</h2>
-            </div>
-            <div className="grid gap-3 md:grid-cols-4 xl:w-[44rem]">
-              <select className="input" value={filters.type} onChange={(event) => updateFilter('type', event.target.value)}>
-                <option value="">All types</option>
-                {QUESTION_TYPES.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <select className="input" value={filters.level} onChange={(event) => updateFilter('level', event.target.value)}>
-                <option value="">All levels</option>
-                {LEVELS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <select className="input" value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
-                <option value="">All status</option>
-                {STATUSES.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="input"
-                value={filters.tagId[0] ?? ''}
-                onChange={(event) => {
-                  setPage(1);
-                  setFilters((value) => ({ ...value, tagId: event.target.value ? [event.target.value] : [] }));
-                }}
-              >
-                <option value="">All tags</option>
-                {flatTags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {'- '.repeat(tag.depth)}
-                    {tag.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-2 text-sm text-neutral-500">
-              <Search className="h-4 w-4" />
-              {questionsQuery.isFetching ? 'Đang tải dữ liệu...' : `${meta?.total ?? 0} câu hỏi`}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                className="input w-72"
-                value={reviewNote}
-                onChange={(event) => setReviewNote(event.target.value)}
-                placeholder="Review note"
-              />
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={selectedIds.length === 0 || bulkStatusMutation.isPending}
-                onClick={() => bulkStatusMutation.mutate('PUBLISHED')}
-              >
-                <Check className="h-4 w-4" />
-                Publish
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={selectedIds.length === 0 || bulkStatusMutation.isPending}
-                onClick={() => bulkStatusMutation.mutate('ARCHIVED')}
-              >
-                <Archive className="h-4 w-4" />
-                Archive
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-neutral-200 text-sm">
-            <thead className="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              <tr>
-                <th className="w-12 px-5 py-3">
-                  <input
-                    type="checkbox"
-                    checked={questions.length > 0 && questions.every((question) => selectedIds.includes(question.id))}
-                    onChange={(event) => {
-                      if (event.target.checked) {
-                        setSelectedIds((value) => Array.from(new Set([...value, ...questions.map((question) => question.id)])));
-                      } else {
-                        setSelectedIds((value) => value.filter((id) => !questions.some((question) => question.id === id)));
-                      }
-                    }}
-                  />
-                </th>
-                <th className="px-5 py-3">Question</th>
-                <th className="px-5 py-3">Type</th>
-                <th className="px-5 py-3">Level</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Tags</th>
-                <th className="px-5 py-3">Author</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100 bg-white">
-              {questions.map((question) => (
-                <QuestionRow
-                  key={question.id}
-                  question={question}
-                  selected={selectedIds.includes(question.id)}
-                  onToggle={(checked) =>
-                    setSelectedIds((value) =>
-                      checked ? [...value, question.id] : value.filter((id) => id !== question.id),
-                    )
-                  }
-                />
-              ))}
-              {!questionsQuery.isLoading && questions.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-sm text-neutral-500">
-                    Chưa có câu hỏi phù hợp với bộ lọc.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-neutral-200 px-5 py-4">
-          <button
-            className="btn btn-secondary btn-sm"
-            disabled={!meta?.hasPrevPage}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Prev
-          </button>
-          <span className="text-sm text-neutral-500">
-            Page {meta?.page ?? page} of {Math.max(meta?.totalPages ?? 1, 1)}
-          </span>
-          <button
-            className="btn btn-secondary btn-sm"
-            disabled={!meta?.hasNextPage}
-            onClick={() => setPage((value) => value + 1)}
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
       </section>
     </div>
   );
-
-  function updateFilter(key: 'type' | 'level' | 'status', value: string) {
-    setPage(1);
-    setFilters((current) => ({ ...current, [key]: value }));
-  }
 }
 
-function Metric({ label, value }: { label: string; value: number | string }) {
+function QuestionEditor({
+  draft,
+  setDraft,
+  title,
+}: {
+  draft: QuestionDraft;
+  setDraft: Dispatch<SetStateAction<QuestionDraft>>;
+  title: string;
+}) {
+  const patch = (value: Partial<QuestionDraft>) => setDraft((current) => ({ ...current, ...value }));
+
   return (
-    <div className="min-w-24 rounded-md bg-neutral-50 px-3 py-2">
-      <p className="text-xs font-medium text-neutral-500">{label}</p>
-      <p className="mt-1 text-lg font-bold text-neutral-900">{value}</p>
+    <div className="mt-5 space-y-5">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-primary-600" />
+        <h3 className="font-semibold text-neutral-900">{title}</h3>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label="Type">
+          <select className="input" value={draft.type} onChange={(event) => patch({ type: event.target.value as QuestionType })}>
+            {QUESTION_TYPES.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Level">
+          <select className="input" value={draft.level} onChange={(event) => patch({ level: event.target.value as CognitiveLevel })}>
+            {LEVELS.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Field label="Time">
+          <input className="input" type="number" min={10} max={3600} value={draft.expectedTimeSecs} onChange={(event) => patch({ expectedTimeSecs: Number(event.target.value) })} />
+        </Field>
+        <Field label="IRT a" title="Discrimination">
+          <input className="input" type="number" min={0} max={3} step={0.1} value={draft.irtParams.a} onChange={(event) => patch({ irtParams: { ...draft.irtParams, a: Number(event.target.value) } })} />
+        </Field>
+        <Field label="IRT b" title="Difficulty">
+          <input className="input" type="number" min={-3} max={3} step={0.1} value={draft.irtParams.b} onChange={(event) => patch({ irtParams: { ...draft.irtParams, b: Number(event.target.value) } })} />
+        </Field>
+        <Field label="IRT c" title="Guessing">
+          <input className="input" type="number" min={0} max={0.35} step={0.01} value={draft.irtParams.c} onChange={(event) => patch({ irtParams: { ...draft.irtParams, c: Number(event.target.value) } })} />
+        </Field>
+      </div>
+
+      <Field label="Stem">
+        <textarea className="input min-h-28 resize-y" value={draft.stem} onChange={(event) => patch({ stem: event.target.value })} />
+      </Field>
+      <Field label="Solution">
+        <textarea className="input min-h-20 resize-y" value={draft.solution} onChange={(event) => patch({ solution: event.target.value })} />
+      </Field>
+
+      <PayloadEditor draft={draft} setDraft={setDraft} />
     </div>
   );
+}
+
+function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Dispatch<SetStateAction<QuestionDraft>> }) {
+  const patch = (value: Partial<QuestionDraft>) => setDraft((current) => ({ ...current, ...value }));
+
+  if (draft.type === 'SINGLE_CHOICE' || draft.type === 'MULTIPLE_CHOICE') {
+    return (
+      <div className="space-y-3 border-t border-neutral-200 pt-5">
+        <SectionHeader
+          title="Options"
+          onAdd={() => patch({ choices: [...draft.choices, { id: String.fromCharCode(65 + draft.choices.length), content: '', isCorrect: false }] })}
+          disabled={draft.choices.length >= 5}
+        />
+        {draft.choices.map((option, index) => (
+          <div key={option.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_7rem_2.25rem]">
+            <input className="input" value={option.id} disabled />
+            <input className="input" value={option.content} onChange={(event) => updateChoice(index, { content: event.target.value })} />
+            <label className="flex items-center justify-center gap-2 rounded-lg border border-neutral-200 text-sm text-neutral-700">
+              <input
+                type={draft.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox'}
+                checked={option.isCorrect}
+                onChange={(event) => {
+                  if (draft.type === 'SINGLE_CHOICE') {
+                    patch({ choices: draft.choices.map((item, itemIndex) => ({ ...item, isCorrect: itemIndex === index })) });
+                  } else {
+                    updateChoice(index, { isCorrect: event.target.checked });
+                  }
+                }}
+              />
+              Correct
+            </label>
+            <IconButton disabled={draft.choices.length <= 2} label="Remove option" onClick={() => patch({ choices: draft.choices.filter((_, itemIndex) => itemIndex !== index) })} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (draft.type === 'TRUE_FALSE_MATRIX') {
+    return (
+      <div className="space-y-3 border-t border-neutral-200 pt-5">
+        <SectionHeader title="Statements" onAdd={() => patch({ statements: [...draft.statements, { id: `S${draft.statements.length + 1}`, content: '', isTrue: true }] })} />
+        {draft.statements.map((statement, index) => (
+          <div key={statement.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_2.25rem]">
+            <input className="input" value={statement.id} disabled />
+            <input className="input" value={statement.content} onChange={(event) => updateStatement(index, { content: event.target.value })} />
+            <select className="input" value={String(statement.isTrue)} onChange={(event) => updateStatement(index, { isTrue: event.target.value === 'true' })}>
+              <option value="true">Đúng</option>
+              <option value="false">Sai</option>
+            </select>
+            <IconButton disabled={draft.statements.length <= 1} label="Remove statement" onClick={() => patch({ statements: draft.statements.filter((_, itemIndex) => itemIndex !== index) })} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (draft.type === 'DRAG_DROP') {
+    return (
+      <div className="grid gap-4 border-t border-neutral-200 pt-5 lg:grid-cols-2">
+        <div className="space-y-3">
+          <SectionHeader title="Items" onAdd={() => patch({ dragItems: [...draft.dragItems, { id: `I${draft.dragItems.length + 1}`, content: '' }] })} />
+          {draft.dragItems.map((item, index) => (
+            <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_2.25rem]">
+              <input className="input" value={item.id} disabled />
+              <input className="input" value={item.content} onChange={(event) => updateDragItem(index, { content: event.target.value })} />
+              <IconButton disabled={draft.dragItems.length <= 1} label="Remove item" onClick={() => patch({ dragItems: draft.dragItems.filter((_, itemIndex) => itemIndex !== index) })} />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-3">
+          <SectionHeader title="Slots" onAdd={() => patch({ dragSlots: [...draft.dragSlots, { id: `slot${draft.dragSlots.length + 1}`, label: `Slot ${draft.dragSlots.length + 1}`, correctItemId: draft.dragItems[0]?.id ?? 'I1' }] })} />
+          {draft.dragSlots.map((slot, index) => (
+            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
+              <input className="input" value={slot.label} onChange={(event) => updateDragSlot(index, { label: event.target.value })} />
+              <select className="input" value={slot.correctItemId} onChange={(event) => updateDragSlot(index, { correctItemId: event.target.value })}>
+                {draft.dragItems.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
+              </select>
+              <IconButton disabled={draft.dragSlots.length <= 1} label="Remove slot" onClick={() => patch({ dragSlots: draft.dragSlots.filter((_, itemIndex) => itemIndex !== index) })} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 border-t border-neutral-200 pt-5">
+      <SectionHeader
+        title="Blanks"
+        addLabel="Add blank"
+        onAdd={() => {
+          const nextId = `B${draft.fillBlanks.length + 1}`;
+          patch({
+            fillBlanks: [...draft.fillBlanks, { id: nextId, correctValue: 0, unit: '' }],
+            stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${nextId}}}`,
+          });
+        }}
+      />
+      {draft.fillBlanks.map((blank, index) => (
+        <div key={blank.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_8rem_2.25rem]">
+          <input className="input" value={blank.id} disabled />
+          <input className="input" type="number" value={blank.correctValue} onChange={(event) => updateBlank(index, { correctValue: Number(event.target.value) })} />
+          <input className="input" value={blank.unit} onChange={(event) => updateBlank(index, { unit: event.target.value })} />
+          <button className="btn btn-secondary btn-sm" type="button" onClick={() => patch({ stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${blank.id}}}` })}>Insert</button>
+          <IconButton disabled={draft.fillBlanks.length <= 1} label="Remove blank" onClick={() => patch({ fillBlanks: draft.fillBlanks.filter((_, itemIndex) => itemIndex !== index) })} />
+        </div>
+      ))}
+    </div>
+  );
+
+  function updateChoice(index: number, value: Partial<ChoiceOptionState>) {
+    patch({ choices: draft.choices.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
+  }
+  function updateStatement(index: number, value: Partial<StatementState>) {
+    patch({ statements: draft.statements.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
+  }
+  function updateDragItem(index: number, value: Partial<DragItemState>) {
+    patch({ dragItems: draft.dragItems.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
+  }
+  function updateDragSlot(index: number, value: Partial<DragSlotState>) {
+    patch({ dragSlots: draft.dragSlots.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
+  }
+  function updateBlank(index: number, value: Partial<FillBlankState>) {
+    patch({ fillBlanks: draft.fillBlanks.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
+  }
 }
 
 function Field({ label, title, children }: { label: string; title?: string; children: ReactNode }) {
@@ -672,327 +690,32 @@ function Field({ label, title, children }: { label: string; title?: string; chil
   );
 }
 
-interface PayloadEditorProps {
-  type: QuestionType;
-  stem: string;
-  setStem: Dispatch<SetStateAction<string>>;
-  choices: ChoiceOptionState[];
-  setChoices: Dispatch<SetStateAction<ChoiceOptionState[]>>;
-  statements: StatementState[];
-  setStatements: Dispatch<SetStateAction<StatementState[]>>;
-  dragItems: DragItemState[];
-  setDragItems: Dispatch<SetStateAction<DragItemState[]>>;
-  dragSlots: DragSlotState[];
-  setDragSlots: Dispatch<SetStateAction<DragSlotState[]>>;
-  fillBlanks: FillBlankState[];
-  setFillBlanks: Dispatch<SetStateAction<FillBlankState[]>>;
-}
-
-function PayloadEditor(props: PayloadEditorProps) {
-  if (props.type === 'SINGLE_CHOICE' || props.type === 'MULTIPLE_CHOICE') {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <SectionLabel text="Options" />
-          <button
-            className="btn btn-secondary btn-sm"
-            type="button"
-            disabled={props.choices.length >= 5}
-            onClick={() =>
-              props.setChoices((items) => [
-                ...items,
-                { id: String.fromCharCode(65 + items.length), content: '', isCorrect: false },
-              ])
-            }
-          >
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-        </div>
-        {props.choices.map((option, index) => (
-          <div key={option.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_7rem_2.25rem]">
-            <input className="input" value={option.id} disabled />
-            <input
-              className="input"
-              value={option.content}
-              onChange={(event) => updateChoice(index, { content: event.target.value })}
-            />
-            <label className="flex items-center justify-center gap-2 rounded-lg border border-neutral-200 text-sm text-neutral-700">
-              <input
-                type={props.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox'}
-                checked={option.isCorrect}
-                onChange={(event) => {
-                  if (props.type === 'SINGLE_CHOICE') {
-                    props.setChoices((items) => items.map((item, itemIndex) => ({ ...item, isCorrect: itemIndex === index })));
-                  } else {
-                    updateChoice(index, { isCorrect: event.target.checked });
-                  }
-                }}
-              />
-              Correct
-            </label>
-            <button
-              className="btn btn-ghost btn-sm"
-              type="button"
-              disabled={props.choices.length <= 2}
-              onClick={() => props.setChoices((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-              aria-label="Remove option"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (props.type === 'TRUE_FALSE_MATRIX') {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <SectionLabel text="Statements" />
-          <button
-            className="btn btn-secondary btn-sm"
-            type="button"
-            onClick={() =>
-              props.setStatements((items) => [
-                ...items,
-                { id: `S${items.length + 1}`, content: '', isTrue: true },
-              ])
-            }
-          >
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-        </div>
-        {props.statements.map((statement, index) => (
-          <div key={statement.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_2.25rem]">
-            <input className="input" value={statement.id} disabled />
-            <input
-              className="input"
-              value={statement.content}
-              onChange={(event) =>
-                props.setStatements((items) =>
-                  items.map((item, itemIndex) => (itemIndex === index ? { ...item, content: event.target.value } : item)),
-                )
-              }
-            />
-            <select
-              className="input"
-              value={String(statement.isTrue)}
-              onChange={(event) =>
-                props.setStatements((items) =>
-                  items.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, isTrue: event.target.value === 'true' } : item,
-                  ),
-                )
-              }
-            >
-              <option value="true">Đúng</option>
-              <option value="false">Sai</option>
-            </select>
-            <button
-              className="btn btn-ghost btn-sm"
-              type="button"
-              disabled={props.statements.length <= 1}
-              onClick={() => props.setStatements((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-              aria-label="Remove statement"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (props.type === 'DRAG_DROP') {
-    return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <SectionLabel text="Items" />
-            <button
-              className="btn btn-secondary btn-sm"
-              type="button"
-              onClick={() => props.setDragItems((items) => [...items, { id: `I${items.length + 1}`, content: '' }])}
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-          </div>
-          {props.dragItems.map((item, index) => (
-            <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_2.25rem]">
-              <input className="input" value={item.id} disabled />
-              <input
-                className="input"
-                value={item.content}
-                onChange={(event) =>
-                  props.setDragItems((items) =>
-                    items.map((entry, itemIndex) => (itemIndex === index ? { ...entry, content: event.target.value } : entry)),
-                  )
-                }
-              />
-              <button
-                className="btn btn-ghost btn-sm"
-                type="button"
-                disabled={props.dragItems.length <= 1}
-                onClick={() => props.setDragItems((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-                aria-label="Remove drag item"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <SectionLabel text="Slots" />
-            <button
-              className="btn btn-secondary btn-sm"
-              type="button"
-              onClick={() =>
-                props.setDragSlots((items) => [
-                  ...items,
-                  { id: `slot${items.length + 1}`, label: `Slot ${items.length + 1}`, correctItemId: props.dragItems[0]?.id ?? 'I1' },
-                ])
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-          </div>
-          {props.dragSlots.map((slot, index) => (
-            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
-              <input
-                className="input"
-                value={slot.label}
-                onChange={(event) =>
-                  props.setDragSlots((items) =>
-                    items.map((entry, itemIndex) => (itemIndex === index ? { ...entry, label: event.target.value } : entry)),
-                  )
-                }
-              />
-              <select
-                className="input"
-                value={slot.correctItemId}
-                onChange={(event) =>
-                  props.setDragSlots((items) =>
-                    items.map((entry, itemIndex) =>
-                      itemIndex === index ? { ...entry, correctItemId: event.target.value } : entry,
-                    ),
-                  )
-                }
-              >
-                {props.dragItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.id}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn btn-ghost btn-sm"
-                type="button"
-                disabled={props.dragSlots.length <= 1}
-                onClick={() => props.setDragSlots((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-                aria-label="Remove drag slot"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+function SectionHeader({ title, onAdd, addLabel = 'Add', disabled }: { title: string; onAdd: () => void; addLabel?: string; disabled?: boolean }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <SectionLabel text="Blanks" />
-        <button
-          className="btn btn-secondary btn-sm"
-          type="button"
-          onClick={() => {
-            const nextId = `B${props.fillBlanks.length + 1}`;
-            props.setFillBlanks((items) => [...items, { id: nextId, correctValue: 0, unit: '' }]);
-            props.setStem((value) => `${value}${value.endsWith(' ') || value.length === 0 ? '' : ' '}{{${nextId}}}`);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Add blank
-        </button>
-      </div>
-      {props.fillBlanks.map((blank, index) => (
-        <div key={blank.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_8rem_2.25rem]">
-          <input className="input" value={blank.id} disabled />
-          <input
-            className="input"
-            type="number"
-            value={blank.correctValue}
-            onChange={(event) =>
-              props.setFillBlanks((items) =>
-                items.map((item, itemIndex) =>
-                  itemIndex === index ? { ...item, correctValue: Number(event.target.value) } : item,
-                ),
-              )
-            }
-          />
-          <input
-            className="input"
-            value={blank.unit}
-            onChange={(event) =>
-              props.setFillBlanks((items) =>
-                items.map((item, itemIndex) => (itemIndex === index ? { ...item, unit: event.target.value } : item)),
-              )
-            }
-          />
-          <button
-            className="btn btn-secondary btn-sm"
-            type="button"
-            onClick={() => props.setStem((value) => `${value}${value.endsWith(' ') || value.length === 0 ? '' : ' '}{{${blank.id}}}`)}
-          >
-            Insert
-          </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            type="button"
-            disabled={props.fillBlanks.length <= 1}
-            onClick={() => props.setFillBlanks((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-            aria-label="Remove blank"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ))}
+    <div className="flex items-center justify-between gap-3">
+      <h3 className="text-sm font-semibold text-neutral-800">{title}</h3>
+      <button className="btn btn-secondary btn-sm" type="button" disabled={disabled} onClick={onAdd}>
+        <Plus className="h-4 w-4" />
+        {addLabel}
+      </button>
     </div>
   );
-
-  function updateChoice(index: number, patch: Partial<ChoiceOptionState>) {
-    props.setChoices((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
-  }
 }
 
-function SectionLabel({ text }: { text: string }) {
-  return <h3 className="text-sm font-semibold text-neutral-800">{text}</h3>;
+function IconButton({ disabled, label, onClick }: { disabled?: boolean; label: string; onClick: () => void }) {
+  return (
+    <button className="btn btn-ghost btn-sm" type="button" disabled={disabled} onClick={onClick} aria-label={label}>
+      <Trash2 className="h-4 w-4" />
+    </button>
+  );
 }
 
-function TagPicker({
-  tags,
-  selectedIds,
-  onChange,
-}: {
-  tags: TagNode[];
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-}) {
-  const flatTags = useMemo(() => flattenTags(tags), [tags]);
-
+function TagPicker({ title, tags, selectedIds, onChange }: { title: string; tags: TagNode[]; selectedIds: string[]; onChange: (ids: string[]) => void }) {
   return (
     <div>
-      <SectionLabel text="Tags" />
+      <h3 className="text-sm font-semibold text-neutral-800">{title}</h3>
       <div className="mt-3 grid max-h-52 gap-2 overflow-y-auto rounded-lg border border-neutral-200 p-3 md:grid-cols-2">
-        {flatTags.map((tag) => (
+        {tags.map((tag) => (
           <label key={tag.id} className="flex items-center gap-2 text-sm text-neutral-700">
             <input
               type="checkbox"
@@ -1005,8 +728,33 @@ function TagPicker({
             <span style={{ paddingLeft: `${tag.depth * 0.75}rem` }}>{tag.name}</span>
           </label>
         ))}
-        {flatTags.length === 0 && <p className="text-sm text-neutral-500">Chưa có taxonomy.</p>}
+        {tags.length === 0 && <p className="text-sm text-neutral-500">Chưa có taxonomy.</p>}
       </div>
+    </div>
+  );
+}
+
+function SubmitBar({ error, isPending, onSubmit, submitLabel }: { error: string | null; isPending: boolean; onSubmit: () => void; submitLabel: string }) {
+  return (
+    <div className="mt-5 border-t border-neutral-200 pt-5">
+      {error && <p className="mb-4 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>}
+      <div className="flex justify-end">
+        <button className="btn btn-primary btn-md" type="button" disabled={isPending} onClick={onSubmit}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function QuestionPreview({ draft, title = 'Question' }: { draft: QuestionDraft; title?: string }) {
+  const content = buildQuestionContent(draft);
+  return (
+    <div className="space-y-4">
+      <PreviewBlock title={`${title} stem`} nodes={content.stem} />
+      <PreviewBlock title="Payload" nodes={payloadPreview(draft)} />
+      <PreviewBlock title="Solution" nodes={content.solution ?? []} mutedText="Chưa có lời giải." />
     </div>
   );
 }
@@ -1016,9 +764,7 @@ function PreviewBlock({ title, nodes, mutedText }: { title: string; nodes: RichT
     <div className="rounded-lg border border-neutral-200 p-4">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</p>
       {nodes.length > 0 ? (
-        <div className="text-sm leading-7 text-neutral-800">
-          <RichTextPreview nodes={nodes} />
-        </div>
+        <div className="text-sm leading-7 text-neutral-800"><RichTextPreview nodes={nodes} /></div>
       ) : (
         <p className="text-sm text-neutral-400">{mutedText ?? 'Chưa có nội dung.'}</p>
       )}
@@ -1036,13 +782,7 @@ function RichTextPreview({ nodes }: { nodes: RichTextNode[] }) {
         if (node.type === 'bold') return <strong key={key}>{node.content}</strong>;
         if (node.type === 'italic') return <em key={key}>{node.content}</em>;
         if (node.type === 'break') return <br key={key} />;
-        if (node.type === 'blank') {
-          return (
-            <span key={key} className="mx-1 inline-flex min-w-14 rounded border border-primary-300 bg-primary-50 px-2 py-0.5 text-primary-700">
-              {node.blankId}
-            </span>
-          );
-        }
+        if (node.type === 'blank') return <span key={key} className="mx-1 inline-flex min-w-14 rounded border border-primary-300 bg-primary-50 px-2 py-0.5 text-primary-700">{node.blankId}</span>;
         if (node.type === 'image') return <img key={key} src={node.url} alt={node.alt ?? ''} className="my-2 max-h-52 rounded" />;
         return <span key={key}>{node.content}</span>;
       })}
@@ -1050,103 +790,112 @@ function RichTextPreview({ nodes }: { nodes: RichTextNode[] }) {
   );
 }
 
-function QuestionRow({
-  question,
-  selected,
-  onToggle,
-}: {
-  question: AdminQuestion;
-  selected: boolean;
-  onToggle: (checked: boolean) => void;
-}) {
-  const stemText = summarizeRichText(question.contentJson.stem);
-
+function QuestionList({ questions }: { questions: AdminQuestion[] }) {
   return (
-    <tr className="hover:bg-neutral-50">
-      <td className="px-5 py-4 align-top">
-        <input type="checkbox" checked={selected} onChange={(event) => onToggle(event.target.checked)} />
-      </td>
-      <td className="max-w-xl px-5 py-4 align-top">
-        <p className="line-clamp-2 font-medium text-neutral-900">{stemText}</p>
-        <p className="mt-1 font-mono text-xs text-neutral-400">{question.id.slice(0, 8)}</p>
-      </td>
-      <td className="px-5 py-4 align-top">
-        <span className="badge badge-neutral">{question.type}</span>
-      </td>
-      <td className="px-5 py-4 align-top text-neutral-600">{question.level}</td>
-      <td className="px-5 py-4 align-top">
-        <span className={cn('badge', statusBadgeClass(question.status))}>{question.status}</span>
-      </td>
-      <td className="px-5 py-4 align-top">
-        <div className="flex max-w-64 flex-wrap gap-1">
-          {question.tags.map(({ tag }) => (
-            <span key={tag.id} className="badge badge-primary">
-              {tag.name}
-            </span>
-          ))}
+    <div className="divide-y divide-neutral-100">
+      {questions.map((question) => (
+        <div key={question.id} className="p-4">
+          <p className="font-medium text-neutral-900">{summarizeRichText(question.contentJson.stem)}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className="badge badge-neutral">{question.type}</span>
+            <span className="badge badge-primary">{question.level}</span>
+            {question.tags.map(({ tag }) => <span key={tag.id} className="badge badge-neutral">{tag.name}</span>)}
+          </div>
         </div>
-      </td>
-      <td className="px-5 py-4 align-top text-neutral-600">{question.author.displayName}</td>
-    </tr>
+      ))}
+      {questions.length === 0 && <p className="p-8 text-center text-sm text-neutral-500">Chưa có câu hỏi.</p>}
+    </div>
   );
 }
 
-function buildQuestionContent(input: {
-  type: QuestionType;
-  stem: string;
-  solution: string;
-  choices: ChoiceOptionState[];
-  statements: StatementState[];
-  dragItems: DragItemState[];
-  dragSlots: DragSlotState[];
-  fillBlanks: FillBlankState[];
-}) {
+function BundleList({ bundles }: { bundles: PassageBundle[] }) {
+  return (
+    <div className="divide-y divide-neutral-100">
+      {bundles.map((bundle) => (
+        <div key={bundle.id} className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-medium text-neutral-900">{bundle.title}</p>
+            <span className="badge badge-primary">{bundle.sectionType}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className="badge badge-neutral">{bundle.questions.length} questions</span>
+            <span className="badge badge-neutral">{bundle.status}</span>
+            {bundle.tags?.map(({ tag }) => <span key={tag.id} className="badge badge-neutral">{tag.name}</span>)}
+          </div>
+        </div>
+      ))}
+      {bundles.length === 0 && <p className="p-8 text-center text-sm text-neutral-500">Chưa có bundle.</p>}
+    </div>
+  );
+}
+
+function createQuestionDraft(): QuestionDraft {
+  return {
+    type: 'SINGLE_CHOICE',
+    level: 'APPLICATION',
+    expectedTimeSecs: 90,
+    stem: '',
+    solution: '',
+    irtParams: { a: 1, b: 0, c: 0.25 },
+    choices: [
+      { id: 'A', content: '', isCorrect: true },
+      { id: 'B', content: '', isCorrect: false },
+      { id: 'C', content: '', isCorrect: false },
+      { id: 'D', content: '', isCorrect: false },
+    ],
+    statements: [
+      { id: 'S1', content: '', isTrue: true },
+      { id: 'S2', content: '', isTrue: false },
+    ],
+    dragItems: [
+      { id: 'I1', content: '' },
+      { id: 'I2', content: '' },
+    ],
+    dragSlots: [
+      { id: 'slot1', label: 'Slot 1', correctItemId: 'I1' },
+      { id: 'slot2', label: 'Slot 2', correctItemId: 'I2' },
+    ],
+    fillBlanks: [{ id: 'B1', correctValue: 0, unit: '' }],
+  };
+}
+
+function createBundleDrafts(section: Exclude<SectionMode, 'MATH'>) {
+  return Array.from({ length: BUNDLE_COUNTS[section] }, () => createQuestionDraft());
+}
+
+function buildQuestionContent(draft: QuestionDraft): CreateQuestionPayload['contentJson'] {
   const content: CreateQuestionPayload['contentJson'] = {
-    stem: parseRichText(input.stem, input.type === 'FILL_NUMBER'),
-    type: input.type,
+    stem: parseRichText(draft.stem, draft.type === 'FILL_NUMBER'),
+    type: draft.type,
     payload: {},
     _version: 2,
   };
+  if (draft.solution.trim()) content.solution = parseRichText(draft.solution);
 
-  if (input.solution.trim()) content.solution = parseRichText(input.solution);
-
-  if (input.type === 'SINGLE_CHOICE' || input.type === 'MULTIPLE_CHOICE') {
+  if (draft.type === 'SINGLE_CHOICE' || draft.type === 'MULTIPLE_CHOICE') {
     content.payload = {
-      options: input.choices.map((option) => ({
+      options: draft.choices.map((option) => ({
         id: option.id,
         content: parseRichText(option.content || option.id),
         isCorrect: option.isCorrect,
       })),
     };
-  }
-
-  if (input.type === 'TRUE_FALSE_MATRIX') {
+  } else if (draft.type === 'TRUE_FALSE_MATRIX') {
     content.payload = {
-      statements: input.statements.map((statement) => ({
+      statements: draft.statements.map((statement) => ({
         id: statement.id,
         content: parseRichText(statement.content || statement.id),
         isTrue: statement.isTrue,
       })),
     };
-  }
-
-  if (input.type === 'DRAG_DROP') {
+  } else if (draft.type === 'DRAG_DROP') {
     content.payload = {
-      items: input.dragItems.map((item) => ({
-        id: item.id,
-        content: parseRichText(item.content || item.id),
-      })),
-      slots: input.dragSlots.map((slot) => ({
-        id: slot.id,
-        label: parseRichText(slot.label || slot.id),
-        correctItemId: slot.correctItemId,
-      })),
+      items: draft.dragItems.map((item) => ({ id: item.id, content: parseRichText(item.content || item.id) })),
+      slots: draft.dragSlots.map((slot) => ({ id: slot.id, label: parseRichText(slot.label || slot.id), correctItemId: slot.correctItemId })),
     };
-  }
-
-  if (input.type === 'FILL_NUMBER') {
+  } else {
     content.payload = {
-      blanks: input.fillBlanks.map((blank) => ({
+      blanks: draft.fillBlanks.map((blank) => ({
         id: blank.id,
         correctValue: blank.correctValue,
         ...(blank.unit ? { unit: blank.unit } : {}),
@@ -1159,7 +908,6 @@ function buildQuestionContent(input: {
 
 function validateQuestionDraft(content: CreateQuestionPayload['contentJson']) {
   if (content.stem.length === 0) return 'Stem không được để trống.';
-
   if (content.type === 'SINGLE_CHOICE' || content.type === 'MULTIPLE_CHOICE') {
     const options = (content.payload.options as Array<{ isCorrect: boolean; content: RichTextNode[] }> | undefined) ?? [];
     const correctCount = options.filter((option) => option.isCorrect).length;
@@ -1168,54 +916,40 @@ function validateQuestionDraft(content: CreateQuestionPayload['contentJson']) {
     if (content.type === 'SINGLE_CHOICE' && correctCount !== 1) return 'Single choice cần đúng 1 đáp án đúng.';
     if (content.type === 'MULTIPLE_CHOICE' && correctCount < 1) return 'Multiple choice cần ít nhất 1 đáp án đúng.';
   }
-
   if (content.type === 'FILL_NUMBER') {
     const blankIds = new Set(content.stem.filter((node) => node.type === 'blank').map((node) => node.blankId));
     const blanks = (content.payload.blanks as Array<{ id: string }> | undefined) ?? [];
     const missing = blanks.find((blank) => !blankIds.has(blank.id));
     if (missing) return `Stem cần chứa token {{${missing.id}}} cho blank ${missing.id}.`;
   }
-
   return null;
 }
 
-function payloadPreview(
-  type: QuestionType,
-  state: {
-    choices: ChoiceOptionState[];
-    statements: StatementState[];
-    dragItems: DragItemState[];
-    dragSlots: DragSlotState[];
-    fillBlanks: FillBlankState[];
-  },
-) {
-  if (type === 'SINGLE_CHOICE' || type === 'MULTIPLE_CHOICE') {
-    return state.choices.flatMap((option) => [
+function payloadPreview(draft: QuestionDraft) {
+  if (draft.type === 'SINGLE_CHOICE' || draft.type === 'MULTIPLE_CHOICE') {
+    return draft.choices.flatMap((option) => [
       { type: 'bold', content: `${option.id}. ` } satisfies RichTextNode,
       ...parseRichText(option.content || option.id),
       { type: 'text', content: option.isCorrect ? '  ✓' : '' } satisfies RichTextNode,
       { type: 'break' } satisfies RichTextNode,
     ]);
   }
-
-  if (type === 'TRUE_FALSE_MATRIX') {
-    return state.statements.flatMap((statement) => [
+  if (draft.type === 'TRUE_FALSE_MATRIX') {
+    return draft.statements.flatMap((statement) => [
       { type: 'bold', content: `${statement.id}. ` } satisfies RichTextNode,
       ...parseRichText(statement.content || statement.id),
       { type: 'text', content: `  ${statement.isTrue ? 'Đúng' : 'Sai'}` } satisfies RichTextNode,
       { type: 'break' } satisfies RichTextNode,
     ]);
   }
-
-  if (type === 'DRAG_DROP') {
-    return state.dragSlots.flatMap((slot) => [
+  if (draft.type === 'DRAG_DROP') {
+    return draft.dragSlots.flatMap((slot) => [
       { type: 'bold', content: `${slot.label}: ` } satisfies RichTextNode,
       { type: 'text', content: slot.correctItemId } satisfies RichTextNode,
       { type: 'break' } satisfies RichTextNode,
     ]);
   }
-
-  return state.fillBlanks.flatMap((blank) => [
+  return draft.fillBlanks.flatMap((blank) => [
     { type: 'bold', content: `${blank.id}: ` } satisfies RichTextNode,
     { type: 'text', content: `${blank.correctValue}${blank.unit ? ` ${blank.unit}` : ''}` } satisfies RichTextNode,
     { type: 'break' } satisfies RichTextNode,
@@ -1226,20 +960,16 @@ function parseRichText(value: string, includeBlanks = false): RichTextNode[] {
   const nodes: RichTextNode[] = [];
   const pattern = includeBlanks ? /(\{\{[A-Za-z0-9_-]+\}\}|\$\$[^$]+\$\$|\$[^$]+\$|\n)/g : /(\$\$[^$]+\$\$|\$[^$]+\$|\n)/g;
   let cursor = 0;
-
   for (const match of value.matchAll(pattern)) {
     const index = match.index ?? 0;
     if (index > cursor) nodes.push({ type: 'text', content: value.slice(cursor, index) });
     const token = match[0];
-
     if (token === '\n') nodes.push({ type: 'break' });
     else if (token.startsWith('{{') && token.endsWith('}}')) nodes.push({ type: 'blank', blankId: token.slice(2, -2) });
     else if (token.startsWith('$$')) nodes.push({ type: 'latex_block', content: token.slice(2, -2) });
     else nodes.push({ type: 'latex', content: token.slice(1, -1) });
-
     cursor = index + token.length;
   }
-
   if (cursor < value.length) nodes.push({ type: 'text', content: value.slice(cursor) });
   return nodes.filter((node) => node.type === 'break' || node.type === 'blank' || Boolean(node.content?.trim()));
 }
@@ -1269,14 +999,11 @@ function flattenTags(tags: TagNode[]) {
   return result;
 }
 
-function statusBadgeClass(status: QuestionStatus) {
-  if (status === 'PUBLISHED') return 'badge-success';
-  if (status === 'PENDING_REVIEW') return 'badge-warning';
-  if (status === 'ARCHIVED') return 'badge-danger';
-  return 'badge-neutral';
+function isQuestionEnvelope(value: unknown): value is { questions: unknown[] } {
+  return Boolean(value && typeof value === 'object' && 'questions' in value && Array.isArray((value as { questions?: unknown }).questions));
 }
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
-  return 'Không thể lưu câu hỏi.';
+  return null;
 }

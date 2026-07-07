@@ -119,7 +119,7 @@
 - [x] **Filtering & Pagination:** Tất cả list endpoints hỗ trợ `page`, `limit`, `sortBy`, `tagId[]`, `level`, `type`, `status` — trả về `{ data: T[], meta: { page, limit, total, totalPages } }`.
 
 #### Frontend Deliverables
-- [x] **Admin Dashboard Layout:** Sidebar navigation: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics.
+- [x] **Admin Dashboard Layout:** Sidebar navigation: Unified Question Content, Contributions, Exams, Users, Access Codes, Analytics.
 - [x] **Question List Page:** DataTable với filter panel. Pagination. Bulk select + action (Archive, Publish).
 - [x] **Question Detail / Create Form:**
   - Dynamic form: dropdown chọn `type` → render phần payload tương ứng (choices cho SINGLE/MULTIPLE, statements cho TRUE_FALSE, items+slots cho DRAG_DROP, blanks[] cho FILL_NUMBER).
@@ -127,6 +127,7 @@
   - IRT params input với tooltip giải thích ý nghĩa a/b/c.
   - Tag selector (multi-select với tree search).
 - [x] **PassageBundle Create Form:** Upload passage text (RichTextNode[] editor), link câu hỏi vào bundle, validate đúng số lượng (10 READING / 5 SCIENCE).
+- [x] **Unified Section Content Bank:** `/admin/questions` gộp MATH / READING / SCIENCE; MATH gắn tag cho question, READING/SCIENCE gắn tag cho PassageBundle và nhập 10/5 câu hỏi liên quan trong cùng flow.
 - [x] **Contribution Review UI (Admin):** List submissions với status filter. Click → xem file preview (PDF/DOCX embed), form nhập `adminNote`, nút Approve/Reject/set Reviewing.
 - [x] **Bulk JSON Import UI:** Paste JSON payload, validate shape client-side, submit to bulk import API.
 - [x] **Admin Auth/Theme Hardening:** New-tab session bootstrap via refresh cookie; Admin primary palette aligned to TSA red branding.

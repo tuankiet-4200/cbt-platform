@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { BookOpen, BarChart3, User, LogOut, Shield, ChevronRight, GraduationCap, Files, Inbox } from 'lucide-react';
+import { BookOpen, BarChart3, User, LogOut, Shield, ChevronRight, GraduationCap, Inbox } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useLogoutMutation } from '@/features/auth/api/useAuth';
 import { cn } from '@/lib/utils';
@@ -16,8 +16,7 @@ const userNavItems = [
 
 const adminNavItems = [
   { to: '/admin',              label: 'Dashboard',  icon: BarChart3 },
-  { to: '/admin/questions',    label: 'Câu hỏi',    icon: BookOpen },
-  { to: '/admin/passage-bundles', label: 'PassageBundles', icon: Files },
+  { to: '/admin/questions',    label: 'Nội dung câu hỏi', icon: BookOpen },
   { to: '/admin/contributions', label: 'Đóng góp', icon: Inbox },
   { to: '/admin/exams',        label: 'Đề thi',     icon: GraduationCap },
   { to: '/admin/users',        label: 'Người dùng', icon: User },

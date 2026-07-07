@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (role-aware login redirect fix)
+> **Last updated:** 2026-07-07 (unified section content bank and passage bundle tags)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -132,6 +132,7 @@ Status: ⬜ PENDING
    - [x] `GET /api/v1/admin/tags` returns hierarchical Subject → Chapter → Topic → SubTopic tree
    - [x] `POST /api/v1/admin/tags` creates a tag with `parentId`, computed `depth`, `slug`, `orderIndex`
    - [x] `GET /api/v1/admin/questions` supports multi-tag filter via `tagId[]`
+   - [x] `PassageBundle` supports direct taxonomy tags via `passage_bundle_tags`
 
 2. **Question Review Workflow**
    - [x] `PATCH /api/v1/admin/questions/:id/status` supports status transitions with `reviewNote`
@@ -152,7 +153,7 @@ Status: ⬜ PENDING
    - [x] Login redirect is role-aware: ADMIN → `/admin`, USER → `/exams`
 
 ### Frontend — Sprint 2.1
-1. [x] Admin dashboard layout with sidebar entries: Questions, PassageBundles, Contributions, Exams, Users, Access Codes, Analytics
+1. [x] Admin dashboard layout with sidebar entries: Unified Question Content, Contributions, Exams, Users, Access Codes, Analytics
 2. [x] Question List Page with filters, pagination, bulk select, Publish/Archive actions
 3. [x] Question Create Form with dynamic payload editors for all 5 question types
 4. [x] RichText/LaTeX preview using `react-katex`
@@ -163,6 +164,7 @@ Status: ⬜ PENDING
 9. [x] Bulk JSON import UI for admin paste/upload flow
 10. [x] Admin theme uses TSA red primary palette consistent with login/register pages
 11. [x] New browser tabs bootstrap auth session from HttpOnly refresh cookie before redirecting
+12. [x] `/admin/questions` is now a unified Section Content Bank: MATH standalone questions; READING/SCIENCE passage bundle + 10/5 related questions in one flow
 
 ---
 

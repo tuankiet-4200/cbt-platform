@@ -29,6 +29,7 @@ import {
 } from './dto/admin-question.dto';
 import {
   CreatePassageBundleDto,
+  CreatePassageBundleWithQuestionsDto,
   ListPassageBundlesDto,
   UpdatePassageBundleDto,
 } from './dto/passage-bundle.dto';
@@ -138,6 +139,7 @@ export class QuestionsService {
       level: dto.level,
       status: dto.status,
       tags: dto.tagId?.length ? { some: { tagId: { in: dto.tagId } } } : undefined,
+      bundleQuestion: dto.standaloneOnly ? null : undefined,
     };
 
     const [data, total] = await this.prisma.$transaction([
@@ -250,6 +252,9 @@ export class QuestionsService {
         ...(dto.status === QuestionStatus.PUBLISHED
           ? { reviewedById: currentUser.id, publishedAt: new Date() }
           : {}),
+        tags: dto.tagIds?.length
+          ? { create: dto.tagIds.map((tagId) => ({ tagId })) }
+          : undefined,
         questions: {
           create: dto.questions.map((question) => ({
             questionId: question.questionId,
@@ -259,6 +264,58 @@ export class QuestionsService {
         },
       },
       include: this.bundleInclude(),
+    });
+  }
+
+  async createPassageBundleWithQuestions(
+    dto: CreatePassageBundleWithQuestionsDto,
+    currentUser: User,
+  ) {
+    this.validateBundleCount(dto.sectionType, dto.questions.length);
+    validateRichTextArray(dto.contentJson, 'contentJson');
+
+    return this.prisma.$transaction(async (tx) => {
+      const createdQuestions = [];
+      for (const question of dto.questions) {
+        const createdQuestion = await this.createQuestionRecord(
+          {
+            ...question,
+            status: question.status ?? dto.status ?? QuestionStatus.DRAFT,
+            authorId: question.authorId ?? dto.authorId,
+            contributionId: question.contributionId ?? dto.contributionId,
+            tagIds: undefined,
+          },
+          currentUser,
+          tx,
+        );
+        createdQuestions.push(createdQuestion);
+      }
+
+      return tx.passageBundle.create({
+        data: {
+          sectionType: dto.sectionType,
+          title: dto.title,
+          contentJson: dto.contentJson as Prisma.InputJsonValue,
+          expectedTimeSecs: dto.expectedTimeSecs,
+          status: dto.status ?? QuestionStatus.DRAFT,
+          authorId: dto.authorId ?? currentUser.id,
+          contributionId: dto.contributionId,
+          ...(dto.status === QuestionStatus.PUBLISHED
+            ? { reviewedById: currentUser.id, publishedAt: new Date() }
+            : {}),
+          tags: dto.tagIds?.length
+            ? { create: dto.tagIds.map((tagId) => ({ tagId })) }
+            : undefined,
+          questions: {
+            create: createdQuestions.map((question, index) => ({
+              questionId: question.id,
+              orderInBundle: index + 1,
+              points: dto.questions[index].points ?? 1,
+            })),
+          },
+        },
+        include: this.bundleInclude(),
+      });
     });
   }
 
@@ -307,6 +364,15 @@ export class QuestionsService {
           });
         }
       }
+      if (dto.tagIds !== undefined) {
+        await tx.passageBundleTag.deleteMany({ where: { bundleId: id } });
+        if (dto.tagIds.length > 0) {
+          await tx.passageBundleTag.createMany({
+            data: dto.tagIds.map((tagId) => ({ bundleId: id, tagId })),
+            skipDuplicates: true,
+          });
+        }
+      }
 
       return tx.passageBundle.update({
         where: { id },
@@ -330,14 +396,22 @@ export class QuestionsService {
       throw new BadRequestException('Passage bundles only support READING or SCIENCE');
     }
 
-    const expectedCount = sectionType === ExamSectionType.READING ? 10 : 5;
-    if (questions.length !== expectedCount) {
-      throw new BadRequestException(`${sectionType} bundle must contain exactly ${expectedCount} questions`);
-    }
+    this.validateBundleCount(sectionType, questions.length);
 
     const orders = new Set(questions.map((question) => question.orderInBundle));
     if (orders.size !== questions.length) {
       throw new BadRequestException('orderInBundle values must be unique');
+    }
+  }
+
+  private validateBundleCount(sectionType: ExamSectionType, count: number) {
+    if (sectionType === ExamSectionType.MATH) {
+      throw new BadRequestException('Passage bundles only support READING or SCIENCE');
+    }
+
+    const expectedCount = sectionType === ExamSectionType.READING ? 10 : 5;
+    if (count !== expectedCount) {
+      throw new BadRequestException(`${sectionType} bundle must contain exactly ${expectedCount} questions`);
     }
   }
 
@@ -415,9 +489,10 @@ export class QuestionsService {
     return {
       author: { select: { id: true, email: true, displayName: true } },
       reviewedBy: { select: { id: true, email: true, displayName: true } },
+      tags: { include: { tag: true } },
       questions: {
         orderBy: { orderInBundle: 'asc' as const },
-        include: { question: true },
+        include: { question: { include: this.questionInclude() } },
       },
     };
   }

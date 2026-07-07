@@ -70,6 +70,7 @@ export interface PassageBundle {
     points: number;
     question: AdminQuestion;
   }>;
+  tags: Array<{ tag: TagNode }>;
   author: { id: string; email: string; displayName: string };
 }
 
@@ -91,6 +92,7 @@ export interface ListQuestionsParams {
   tagId?: string[];
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  standaloneOnly?: boolean;
 }
 
 export interface CreateQuestionPayload {
@@ -109,7 +111,12 @@ export interface CreatePassageBundlePayload {
   contentJson: RichTextNode[];
   expectedTimeSecs?: number;
   status?: QuestionStatus;
+  tagIds?: string[];
   questions: Array<{ questionId: string; orderInBundle: number; points?: number }>;
+}
+
+export interface CreatePassageBundleWithQuestionsPayload extends Omit<CreatePassageBundlePayload, 'questions'> {
+  questions: Array<CreateQuestionPayload & { points?: number }>;
 }
 
 interface ApiEnvelope<T> {
@@ -182,5 +189,10 @@ export async function listPassageBundles(params: {
 
 export async function createPassageBundle(payload: CreatePassageBundlePayload) {
   const response = await apiClient.post<ApiEnvelope<PassageBundle>>('/admin/passage-bundles', payload);
+  return response.data.data;
+}
+
+export async function createPassageBundleWithQuestions(payload: CreatePassageBundleWithQuestionsPayload) {
+  const response = await apiClient.post<ApiEnvelope<PassageBundle>>('/admin/passage-bundles/with-questions', payload);
   return response.data.data;
 }

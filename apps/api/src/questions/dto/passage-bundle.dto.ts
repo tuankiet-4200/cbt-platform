@@ -9,8 +9,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { OmitType } from '@nestjs/swagger';
 import { ExamSectionType, QuestionStatus } from '@prisma/client';
 import { PaginationDto } from '@/common/dto/pagination.dto';
+import { CreateQuestionDto } from './admin-question.dto';
 
 export class BundleQuestionLinkDto {
   @IsString()
@@ -57,10 +59,29 @@ export class CreatePassageBundleDto {
   @IsString()
   contributionId?: string;
 
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagIds?: string[];
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BundleQuestionLinkDto)
   questions!: BundleQuestionLinkDto[];
+}
+
+export class BundleQuestionCreateDto extends CreateQuestionDto {
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  points?: number;
+}
+
+export class CreatePassageBundleWithQuestionsDto extends OmitType(CreatePassageBundleDto, ['questions'] as const) {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BundleQuestionCreateDto)
+  questions!: BundleQuestionCreateDto[];
 }
 
 export class UpdatePassageBundleDto {
@@ -85,6 +106,11 @@ export class UpdatePassageBundleDto {
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
+  tagIds?: string[];
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BundleQuestionLinkDto)
   questions?: BundleQuestionLinkDto[];
@@ -99,4 +125,3 @@ export class ListPassageBundlesDto extends PaginationDto {
   @IsEnum(QuestionStatus)
   status?: QuestionStatus;
 }
-
