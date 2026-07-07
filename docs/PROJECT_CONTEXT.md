@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (exam blueprint entity split)
+> **Last updated:** 2026-07-08 (blueprint form builder and detailed preview)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -35,7 +35,7 @@ Status: 🟡 IN PROGRESS
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 70% |
+| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 76% |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -181,6 +181,7 @@ Status: 🟡 IN PROGRESS
 1. [x] Exam blueprint generation API: create/update blueprint, availability check, seeded draft generation/regeneration, preview, publish validation
    - Added focused exam settings update endpoint for admin metadata/access policy changes (`title`, `description`, `accessType`) without altering generated content.
    - Phase 2 blueprint split completed: `ExamBlueprint` is now a standalone entity with CRUD/list/availability APIs under `/api/v1/admin/exam-blueprints`; `Exam.blueprintId` links generated exams to the reusable template while `Exam.blueprintJson` remains the immutable snapshot.
+   - Preview API now returns richer generated item payloads including question/bundle content JSON, tags, points, difficulty, and ordering for admin inspection.
 2. [x] Seed mock TSA generation bank: 50 standalone MATH questions, 3 READING bundles x10 questions, 10 SCIENCE bundles x5 questions
    - Seed now creates the default `TSA Standard Matrix` blueprint and links the default free exam to that template snapshot.
 3. [ ] Manual Exam Management API: add/reorder math questions, add/reorder passage bundles
@@ -193,6 +194,8 @@ Status: 🟡 IN PROGRESS
    - Admin preview now opens as a modal with generated MATH questions and READING/SCIENCE bundle/question snippets from the preview API.
    - Exam list now includes a Settings modal for editing title, description, access type (`LOCKED`/`PUBLIC`), and publish state; standalone publish/unpublish table actions were removed.
    - Added `/admin/exam-blueprints` for list/create/edit blueprint templates; `/admin/exams/create` now selects a saved blueprint instead of relying on hard-coded frontend templates.
+   - Phase 3 UX completed: blueprint templates now use a form builder for section targets, tag quotas, child tag min/max, difficulty rules, and MATH question type rules, with readonly JSON preview for audit.
+   - Exam preview modal now includes an item detail inspector for MATH questions and READING/SCIENCE bundles/questions with content, payload, solution, tags, points, and order metadata.
 2. [ ] Manual Exam Builder UI with drag ordering and item replacement
 3. [ ] Access Code Management UI
 4. [ ] User Exam Library unlock flow

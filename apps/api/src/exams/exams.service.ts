@@ -458,6 +458,7 @@ export class ExamsService {
             points: item.points,
             type: item.question.type,
             level: item.question.level,
+            contentJson: item.question.contentJson,
             tags: item.question.tags.map((tag) => ({
               id: tag.tag.id,
               name: tag.tag.name,
@@ -899,11 +900,13 @@ export class ExamsService {
       contentJson: Prisma.JsonValue;
       tags: Array<{ tag: { id: string; name: string; slug: string } }>;
       questions: Array<{
+        points: number;
         question: {
           id: string;
           type: QuestionType;
           level: CognitiveLevel;
           contentJson: Prisma.JsonValue;
+          tags: Array<{ tag: { id: string; name: string; slug: string } }>;
         };
       }>;
     };
@@ -918,6 +921,7 @@ export class ExamsService {
         id: item.passageBundle.id,
         order: item.orderInSection,
         title: item.passageBundle.title,
+        contentJson: item.passageBundle.contentJson,
         tags: item.passageBundle.tags.map((tag) => ({
           id: tag.tag.id,
           name: tag.tag.name,
@@ -927,8 +931,15 @@ export class ExamsService {
         questions: item.passageBundle.questions.map((bundleQuestion, questionIndex) => ({
           id: bundleQuestion.question.id,
           order: questionIndex,
+          points: bundleQuestion.points,
           type: bundleQuestion.question.type,
           level: bundleQuestion.question.level,
+          contentJson: bundleQuestion.question.contentJson,
+          tags: bundleQuestion.question.tags.map((tag) => ({
+            id: tag.tag.id,
+            name: tag.tag.name,
+            slug: tag.tag.slug,
+          })),
           snippet: contentSnippet(bundleQuestion.question.contentJson),
         })),
       })),

@@ -14,6 +14,8 @@ import {
   type ExamBlueprintStatus,
   type Shortage,
 } from '../api/exams.api';
+import { listTags, type ExamSectionType, type TagNode } from '../api/questionBank.api';
+import { BlueprintFormBuilder } from './BlueprintFormBuilder';
 
 const DEFAULT_BLUEPRINT: ExamBlueprint = {
   version: 1,
@@ -37,7 +39,7 @@ export default function AdminExamBlueprintsPage() {
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<ExamBlueprintStatus>('ACTIVE');
   const [durationMins, setDurationMins] = useState(150);
-  const [blueprintText, setBlueprintText] = useState(formatJson(DEFAULT_BLUEPRINT));
+  const [blueprint, setBlueprint] = useState<ExamBlueprint>(DEFAULT_BLUEPRINT);
   const [formError, setFormError] = useState<string | null>(null);
   const [availability, setAvailability] = useState<AvailabilityReport | null>(null);
 
@@ -48,6 +50,14 @@ export default function AdminExamBlueprintsPage() {
 
   const blueprints = blueprintsQuery.data ?? [];
   const activeCount = useMemo(() => blueprints.filter((blueprint) => blueprint.status === 'ACTIVE').length, [blueprints]);
+  const mathTagsQuery = useQuery({ queryKey: ['admin', 'tags', 'MATH'], queryFn: () => listTags({ sectionType: 'MATH' }) });
+  const readingTagsQuery = useQuery({ queryKey: ['admin', 'tags', 'READING'], queryFn: () => listTags({ sectionType: 'READING' }) });
+  const scienceTagsQuery = useQuery({ queryKey: ['admin', 'tags', 'SCIENCE'], queryFn: () => listTags({ sectionType: 'SCIENCE' }) });
+  const tagsBySection: Record<ExamSectionType, TagNode[]> = {
+    MATH: mathTagsQuery.data ?? [],
+    READING: readingTagsQuery.data ?? [],
+    SCIENCE: scienceTagsQuery.data ?? [],
+  };
 
   const createMutation = useMutation({
     mutationFn: () => createExamBlueprint({
@@ -55,7 +65,7 @@ export default function AdminExamBlueprintsPage() {
       description,
       durationMins,
       status,
-      blueprintJson: parseBlueprint(blueprintText),
+      blueprintJson: { ...blueprint, durationMins },
     }),
     onSuccess: () => {
       closeEditor();
@@ -72,7 +82,7 @@ export default function AdminExamBlueprintsPage() {
         description,
         durationMins,
         status,
-        blueprintJson: parseBlueprint(blueprintText),
+        blueprintJson: { ...blueprint, durationMins },
       });
     },
     onSuccess: () => {
@@ -100,7 +110,7 @@ export default function AdminExamBlueprintsPage() {
     setDescription('50 Math questions, 2 Reading bundles, 3 Science bundles');
     setStatus('ACTIVE');
     setDurationMins(150);
-    setBlueprintText(formatJson(DEFAULT_BLUEPRINT));
+    setBlueprint(DEFAULT_BLUEPRINT);
     setAvailability(null);
     setFormError(null);
     setIsEditorOpen(true);
@@ -112,7 +122,7 @@ export default function AdminExamBlueprintsPage() {
     setDescription(blueprint.description ?? '');
     setStatus(blueprint.status);
     setDurationMins(blueprint.durationMins);
-    setBlueprintText(formatJson(blueprint.blueprintJson));
+    setBlueprint(blueprint.blueprintJson);
     setAvailability(null);
     setFormError(null);
     setIsEditorOpen(true);
@@ -126,6 +136,16 @@ export default function AdminExamBlueprintsPage() {
   };
 
   const pending = createMutation.isPending || updateMutation.isPending;
+
+  const updateDuration = (value: number) => {
+    setDurationMins(value);
+    setBlueprint((current) => ({ ...current, durationMins: value }));
+  };
+
+  const updateBlueprint = (nextBlueprint: ExamBlueprint) => {
+    setBlueprint(nextBlueprint);
+    if (nextBlueprint.durationMins) setDurationMins(nextBlueprint.durationMins);
+  };
 
   return (
     <div className="space-y-6">
@@ -231,7 +251,7 @@ export default function AdminExamBlueprintsPage() {
                 </label>
                 <label className="block">
                   <span className="label">Duration</span>
-                  <input className="input" type="number" min={1} max={600} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value))} />
+                  <input className="input" type="number" min={1} max={600} value={durationMins} onChange={(event) => updateDuration(Number(event.target.value))} />
                 </label>
                 <label className="block">
                   <span className="label">Status</span>
@@ -246,9 +266,12 @@ export default function AdminExamBlueprintsPage() {
                 <span className="label">Description</span>
                 <textarea className="input min-h-20 resize-y" value={description} onChange={(event) => setDescription(event.target.value)} />
               </label>
-              <label className="mt-4 block">
-                <span className="label">Blueprint JSON</span>
-                <textarea className="input min-h-[26rem] resize-y font-mono text-xs" value={blueprintText} onChange={(event) => setBlueprintText(event.target.value)} />
+              <div className="mt-5">
+                <BlueprintFormBuilder blueprint={{ ...blueprint, durationMins }} tagsBySection={tagsBySection} onChange={updateBlueprint} />
+              </div>
+              <label className="mt-5 block">
+                <span className="label">Blueprint JSON preview</span>
+                <textarea className="input min-h-[16rem] resize-y font-mono text-xs" value={formatJson({ ...blueprint, durationMins })} readOnly />
               </label>
 
               {formError && <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{formError}</p>}
@@ -312,14 +335,6 @@ function Th({ children, align = 'left' }: { children: ReactNode; align?: 'left' 
       {children}
     </th>
   );
-}
-
-function parseBlueprint(value: string): ExamBlueprint {
-  const parsed = JSON.parse(value) as ExamBlueprint;
-  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sections)) {
-    throw new Error('Blueprint JSON can co version=1 va sections[].');
-  }
-  return parsed;
 }
 
 function formatJson(value: unknown) {

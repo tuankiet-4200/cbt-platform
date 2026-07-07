@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client';
-import type { CognitiveLevel, ExamSectionType, QuestionType } from './questionBank.api';
+import type { CognitiveLevel, ExamSectionType, QuestionContent, QuestionType, RichTextNode } from './questionBank.api';
 
 export type ExamAccessType = 'PUBLIC' | 'LOCKED';
 export type ExamBlueprintStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
@@ -162,6 +162,7 @@ export interface ExamPreviewQuestion {
   type: QuestionType;
   level: CognitiveLevel;
   tags?: ExamPreviewTag[];
+  contentJson?: QuestionContent;
   snippet: string;
 }
 
@@ -170,6 +171,7 @@ export interface ExamPreviewBundle {
   order: number;
   title?: string | null;
   tags: ExamPreviewTag[];
+  contentJson?: RichTextNode[];
   snippet: string;
   questions: ExamPreviewQuestion[];
 }
