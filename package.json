@@ -23,7 +23,8 @@
     "db:seed": "npm run prisma:seed -w apps/api"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "dotenv-cli": "^11.0.0"
   },
   "engines": {
     "node": ">=20.0.0",
