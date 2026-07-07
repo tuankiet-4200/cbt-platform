@@ -130,7 +130,7 @@ export default function AdminQuestionEditorPage() {
   const navigate = useNavigate();
   const params = useParams<{ questionId?: string; bundleId?: string }>();
   const [searchParams] = useSearchParams();
-  const initialSection = normalizeSection(searchParams.get('section'));
+  const [initialSection] = useState<SectionMode>(() => normalizeSection(searchParams.get('section')));
   const isEditMode = Boolean(params.questionId || params.bundleId);
   const [section, setSection] = useState<SectionMode>(initialSection);
   const [status, setStatus] = useState<QuestionStatus>('DRAFT');
@@ -301,6 +301,8 @@ export default function AdminQuestionEditorPage() {
     if (isEditMode) return;
     setSection(nextSection);
     setFormError(null);
+    setBulkError(null);
+    navigate(`/admin/questions/create?section=${nextSection}`, { replace: true });
     if (nextSection !== 'MATH') resetBundleForm(nextSection);
   };
 
@@ -348,6 +350,7 @@ export default function AdminQuestionEditorPage() {
 
   const createBundle = () => {
     if (section === 'MATH') return;
+    const activeSection = section;
     setFormError(null);
 
     const passageContent = parseRichText(bundlePassage);
@@ -359,8 +362,8 @@ export default function AdminQuestionEditorPage() {
       setFormError('Passage/stimulus không được để trống.');
       return;
     }
-    if (bundleDrafts.length !== bundleCount) {
-      setFormError(`${section} cần đúng ${bundleCount} câu hỏi.`);
+    if (bundleDrafts.length !== BUNDLE_COUNTS[activeSection]) {
+      setFormError(`${activeSection} cần đúng ${BUNDLE_COUNTS[activeSection]} câu hỏi.`);
       return;
     }
 
@@ -382,7 +385,7 @@ export default function AdminQuestionEditorPage() {
 
     try {
       createBundleMutation.mutate({
-        sectionType: section,
+        sectionType: activeSection,
         title: bundleTitle,
         status,
         expectedTimeSecs: bundleExpectedTimeSecs,

@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (question management list/create-edit split)
+> **Last updated:** 2026-07-07 (create question section tab state fix)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -166,6 +166,7 @@ Status: ⬜ PENDING
 11. [x] New browser tabs bootstrap auth session from HttpOnly refresh cookie before redirecting
 12. [x] `/admin/questions` is now a unified Section Content Bank: MATH standalone questions; READING/SCIENCE passage bundle + 10/5 related questions in one flow
 13. [x] Question management routes split list and editing flows: `/admin/questions` lists by section, while `/admin/questions/create` and edit routes reuse the shared content editor
+14. [x] Create Question section query param only initializes the active section; tab switches update create state, URL, and submitted section payload
 
 ---
 
