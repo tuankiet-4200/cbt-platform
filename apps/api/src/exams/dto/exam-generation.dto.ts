@@ -9,7 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ExamAccessType } from '@prisma/client';
+import { ExamAccessType, ExamBlueprintStatus } from '@prisma/client';
 
 export class CreateExamDto {
   @IsString()
@@ -33,6 +33,58 @@ export class CreateExamDto {
   @IsOptional()
   @IsEnum(ExamAccessType)
   accessType?: ExamAccessType;
+
+  @IsOptional()
+  @IsObject()
+  blueprintJson?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  blueprintId?: string;
+}
+
+export class CreateExamBlueprintDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  durationMins?: number;
+
+  @IsOptional()
+  @IsEnum(ExamBlueprintStatus)
+  status?: ExamBlueprintStatus;
+
+  @IsObject()
+  blueprintJson!: Record<string, unknown>;
+}
+
+export class UpdateExamBlueprintTemplateDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  durationMins?: number;
+
+  @IsOptional()
+  @IsEnum(ExamBlueprintStatus)
+  status?: ExamBlueprintStatus;
 
   @IsOptional()
   @IsObject()

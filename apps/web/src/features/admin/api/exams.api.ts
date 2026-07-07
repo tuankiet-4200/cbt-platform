@@ -2,6 +2,7 @@ import apiClient from '@/lib/api-client';
 import type { CognitiveLevel, ExamSectionType, QuestionType } from './questionBank.api';
 
 export type ExamAccessType = 'PUBLIC' | 'LOCKED';
+export type ExamBlueprintStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
 export interface TagRule {
   tagSlug?: string;
@@ -60,6 +61,11 @@ export interface AdminExam {
   totalPoints: number;
   accessType: ExamAccessType;
   isPublished: boolean;
+  blueprintId?: string | null;
+  blueprint?: {
+    id: string;
+    name: string;
+  } | null;
   blueprintJson?: ExamBlueprint | null;
   generationSeed?: string | null;
   generatedAt?: string | null;
@@ -73,6 +79,25 @@ export interface AdminExam {
     scienceQuestions: number;
     sessions: number;
     accessCodes: number;
+  };
+}
+
+export interface AdminExamBlueprint {
+  id: string;
+  name: string;
+  description?: string | null;
+  durationMins: number;
+  status: ExamBlueprintStatus;
+  blueprintJson: ExamBlueprint;
+  createdBy?: {
+    id: string;
+    displayName: string;
+    email: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+  counts: {
+    exams: number;
   };
 }
 
@@ -172,8 +197,41 @@ export async function createExam(payload: {
   durationMins?: number;
   accessType?: ExamAccessType;
   blueprintJson?: ExamBlueprint;
+  blueprintId?: string;
 }) {
   const response = await apiClient.post<ApiEnvelope<AdminExam>>('/admin/exams', payload);
+  return response.data.data;
+}
+
+export async function listExamBlueprints() {
+  const response = await apiClient.get<ApiEnvelope<AdminExamBlueprint[]>>('/admin/exam-blueprints');
+  return response.data.data;
+}
+
+export async function createExamBlueprint(payload: {
+  name: string;
+  description?: string;
+  durationMins?: number;
+  status?: ExamBlueprintStatus;
+  blueprintJson: ExamBlueprint;
+}) {
+  const response = await apiClient.post<ApiEnvelope<AdminExamBlueprint>>('/admin/exam-blueprints', payload);
+  return response.data.data;
+}
+
+export async function updateExamBlueprintTemplate(id: string, payload: {
+  name?: string;
+  description?: string;
+  durationMins?: number;
+  status?: ExamBlueprintStatus;
+  blueprintJson?: ExamBlueprint;
+}) {
+  const response = await apiClient.patch<ApiEnvelope<AdminExamBlueprint>>(`/admin/exam-blueprints/${id}`, payload);
+  return response.data.data;
+}
+
+export async function checkExamBlueprintTemplateAvailability(id: string) {
+  const response = await apiClient.get<ApiEnvelope<AvailabilityReport>>(`/admin/exam-blueprints/${id}/availability`);
   return response.data.data;
 }
 

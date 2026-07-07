@@ -77,6 +77,13 @@ enum ExamAccessType {
   LOCKED   // Requires a valid AccessCode to unlock
 }
 
+/// Lifecycle of reusable exam blueprint templates
+enum ExamBlueprintStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
 // =============================================================================
 // CORE ENTITIES
 // =============================================================================
@@ -100,6 +107,7 @@ model User {
   reviewedQuestions     Question[]               @relation("QuestionReviewer")
   authoredBundles       PassageBundle[]          @relation("BundleAuthor")
   reviewedBundles       PassageBundle[]          @relation("BundleReviewer")
+  createdExamBlueprints ExamBlueprint[]          @relation("ExamBlueprintCreator")
   createdAccessCodes    AccessCode[]             @relation("AccessCodeCreator")
   contributions         ContributionSubmission[] @relation("ContributionSubmitter")
   reviewedContributions ContributionSubmission[] @relation("ContributionReviewer")
@@ -368,6 +376,30 @@ model PassageBundleQuestion {
 // EXAM MANAGEMENT
 // =============================================================================
 
+/// A reusable exam matrix / blueprint template.
+///
+/// Exams snapshot blueprintJson at creation/generation time so published exams
+/// remain auditable even if the source blueprint template changes later.
+model ExamBlueprint {
+  id          String              @id @default(uuid())
+  name        String
+  description String?
+  durationMins Int                @default(150) @map("duration_mins")
+  status      ExamBlueprintStatus @default(DRAFT)
+  blueprintJson Json              @map("blueprint_json") @db.JsonB
+
+  createdById String? @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User? @relation("ExamBlueprintCreator", fields: [createdById], references: [id])
+  exams     Exam[]
+
+  @@index([status])
+  @@index([createdById])
+  @@map("exam_blueprints")
+}
+
 /// An exam (collection of questions with time limit).
 ///
 /// An exam is assembled from:
@@ -382,6 +414,7 @@ model Exam {
   totalPoints  Float          @default(0) @map("total_points")
   accessType   ExamAccessType @default(LOCKED)
   isPublished  Boolean        @default(false) @map("is_published")
+  blueprintId   String?        @map("blueprint_id")
   blueprintJson Json?         @map("blueprint_json") @db.JsonB
   generationSeed String?      @map("generation_seed")
   generatedAt    DateTime?    @map("generated_at")
@@ -389,12 +422,14 @@ model Exam {
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
+  blueprint      ExamBlueprint? @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
   mathQuestions   ExamMathQuestion[]
   passageBundles  ExamPassageBundle[]
   accessCodes     AccessCode[]
   accesses        ExamAccess[]
   sessions        ExamSession[]
 
+  @@index([blueprintId])
   @@map("exams")
 }
 

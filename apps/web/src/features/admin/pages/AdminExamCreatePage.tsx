@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -9,52 +9,27 @@ import {
   Loader2,
   Play,
   RefreshCcw,
-  Save,
   Search,
   ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  checkBlueprintAvailability,
+  checkExamBlueprintTemplateAvailability,
   checkExamAvailability,
   createExam,
   generateExamDraft,
+  listExamBlueprints,
   previewExam,
   publishExam,
   regenerateExamDraft,
-  updateExamBlueprint,
   type AdminExam,
   type AvailabilityReport,
   type ExamAccessType,
-  type ExamBlueprint,
   type ExamPreview,
   type GenerateResponse,
   type Shortage,
 } from '../api/exams.api';
 import { ExamPreviewModal } from './ExamPreviewModal';
-
-const DEFAULT_BLUEPRINT: ExamBlueprint = {
-  version: 1,
-  durationMins: 150,
-  randomization: {
-    seed: 'tsa-admin-draft',
-    maxAttempts: 5,
-  },
-  sections: [
-    { sectionType: 'MATH', targetQuestionCount: 50 },
-    { sectionType: 'READING', targetBundleCount: 2, targetQuestionCount: 20 },
-    { sectionType: 'SCIENCE', targetBundleCount: 3, targetQuestionCount: 15 },
-  ],
-};
-
-const BLUEPRINT_TEMPLATES = [
-  {
-    id: 'tsa-standard',
-    name: 'TSA Standard Matrix',
-    description: '50 Math questions, 2 Reading bundles, 3 Science bundles',
-    blueprint: DEFAULT_BLUEPRINT,
-  },
-];
 
 export default function AdminExamCreatePage() {
   const queryClient = useQueryClient();
@@ -63,8 +38,8 @@ export default function AdminExamCreatePage() {
   const [description, setDescription] = useState('');
   const [durationMins, setDurationMins] = useState(150);
   const [accessType, setAccessType] = useState<ExamAccessType>('LOCKED');
-  const [templateId, setTemplateId] = useState(BLUEPRINT_TEMPLATES[0].id);
-  const [blueprintText, setBlueprintText] = useState(formatJson(DEFAULT_BLUEPRINT));
+  const [blueprintId, setBlueprintId] = useState('');
+  const [blueprintText, setBlueprintText] = useState('');
   const [seed, setSeed] = useState('');
   const [maxAttempts, setMaxAttempts] = useState(5);
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,20 +47,33 @@ export default function AdminExamCreatePage() {
   const [generationResult, setGenerationResult] = useState<GenerateResponse | null>(null);
   const [preview, setPreview] = useState<ExamPreview | null>(null);
 
-  const selectedTemplate = useMemo(
-    () => BLUEPRINT_TEMPLATES.find((template) => template.id === templateId) ?? BLUEPRINT_TEMPLATES[0],
-    [templateId],
+  const blueprintsQuery = useQuery({
+    queryKey: ['admin', 'exam-blueprints'],
+    queryFn: listExamBlueprints,
+  });
+
+  const usableBlueprints = useMemo(
+    () => (blueprintsQuery.data ?? []).filter((blueprint) => blueprint.status !== 'ARCHIVED'),
+    [blueprintsQuery.data],
   );
+  const selectedBlueprint = usableBlueprints.find((blueprint) => blueprint.id === blueprintId) ?? usableBlueprints[0] ?? null;
+
+  useEffect(() => {
+    if (!selectedBlueprint || createdExam) return;
+    setBlueprintId(selectedBlueprint.id);
+    setDurationMins(selectedBlueprint.durationMins);
+    setBlueprintText(formatJson(selectedBlueprint.blueprintJson));
+  }, [createdExam, selectedBlueprint]);
 
   const createMutation = useMutation({
     mutationFn: () => {
-      const blueprint = parseBlueprint(blueprintText);
+      if (!selectedBlueprint) throw new Error('Chon blueprint truoc khi tao exam.');
       return createExam({
         title,
         description,
         durationMins,
         accessType,
-        blueprintJson: blueprint,
+        blueprintId: selectedBlueprint.id,
       });
     },
     onSuccess: (exam) => {
@@ -96,21 +84,12 @@ export default function AdminExamCreatePage() {
     onError: (error) => setFormError(getErrorMessage(error) ?? 'Khong tao duoc exam.'),
   });
 
-  const saveBlueprintMutation = useMutation({
-    mutationFn: () => {
-      if (!createdExam) throw new Error('Tao exam truoc khi luu blueprint.');
-      return updateExamBlueprint(createdExam.id, parseBlueprint(blueprintText));
-    },
-    onSuccess: (exam) => {
-      setCreatedExam(exam);
-      setFormError(null);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-    },
-    onError: (error) => setFormError(getErrorMessage(error) ?? 'Khong luu duoc blueprint.'),
-  });
-
   const availabilityMutation = useMutation({
-    mutationFn: () => createdExam ? checkExamAvailability(createdExam.id) : checkBlueprintAvailability(parseBlueprint(blueprintText)),
+    mutationFn: () => {
+      if (createdExam) return checkExamAvailability(createdExam.id);
+      if (!selectedBlueprint) throw new Error('Chon blueprint truoc khi check availability.');
+      return checkExamBlueprintTemplateAvailability(selectedBlueprint.id);
+    },
     onSuccess: (result) => {
       setAvailability(result);
       setFormError(null);
@@ -170,11 +149,13 @@ export default function AdminExamCreatePage() {
     onError: (error) => setFormError(getErrorMessage(error) ?? 'Khong publish duoc exam.'),
   });
 
-  const applyTemplate = (nextTemplateId: string) => {
-    const nextTemplate = BLUEPRINT_TEMPLATES.find((template) => template.id === nextTemplateId) ?? BLUEPRINT_TEMPLATES[0];
-    setTemplateId(nextTemplate.id);
-    setDurationMins(nextTemplate.blueprint.durationMins ?? 150);
-    setBlueprintText(formatJson(nextTemplate.blueprint));
+  const applyBlueprint = (nextBlueprintId: string) => {
+    const nextBlueprint = usableBlueprints.find((blueprint) => blueprint.id === nextBlueprintId);
+    setBlueprintId(nextBlueprintId);
+    if (nextBlueprint) {
+      setDurationMins(nextBlueprint.durationMins);
+      setBlueprintText(formatJson(nextBlueprint.blueprintJson));
+    }
     setAvailability(null);
     setGenerationResult(null);
     setPreview(null);
@@ -189,7 +170,7 @@ export default function AdminExamCreatePage() {
             Back to exams
           </Link>
           <h1 className="mt-3 text-2xl font-bold text-neutral-900">Create exam</h1>
-          <p className="mt-1 text-sm text-neutral-500">Chon blueprint, tao metadata, generate draft va preview truoc khi publish.</p>
+          <p className="mt-1 text-sm text-neutral-500">Chon blueprint co san, tao metadata, generate draft va preview truoc khi publish.</p>
         </div>
         {createdExam && (
           <span className={cn('badge h-9 justify-center px-3', createdExam.isPublished ? 'badge-success' : 'badge-warning')}>
@@ -212,7 +193,7 @@ export default function AdminExamCreatePage() {
               </label>
               <label className="block">
                 <span className="label">Duration</span>
-                <input className="input" type="number" min={1} max={600} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value))} disabled={Boolean(createdExam)} />
+                <input className="input" type="number" min={1} max={600} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value))} disabled />
               </label>
               <label className="block">
                 <span className="label">Access</span>
@@ -227,7 +208,7 @@ export default function AdminExamCreatePage() {
               <textarea className="input min-h-20 resize-y" value={description} onChange={(event) => setDescription(event.target.value)} disabled={Boolean(createdExam)} />
             </label>
             <div className="mt-5 flex justify-end">
-              <button className="btn btn-primary btn-md" type="button" disabled={!title.trim() || Boolean(createdExam) || createMutation.isPending} onClick={() => createMutation.mutate()}>
+              <button className="btn btn-primary btn-md" type="button" disabled={!title.trim() || !selectedBlueprint || Boolean(createdExam) || createMutation.isPending} onClick={() => createMutation.mutate()}>
                 {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FilePlus2 className="h-4 w-4" />}
                 Create draft shell
               </button>
@@ -241,13 +222,13 @@ export default function AdminExamCreatePage() {
                   <FileJson className="h-4 w-4" />
                   Blueprint
                 </div>
-                <p className="mt-1 text-sm text-neutral-500">{selectedTemplate.description}</p>
+                <p className="mt-1 text-sm text-neutral-500">{selectedBlueprint?.description ?? 'Chon mot blueprint template da duoc cau hinh.'}</p>
               </div>
               <label className="block lg:w-72">
-                <span className="label">Template</span>
-                <select className="input" value={templateId} onChange={(event) => applyTemplate(event.target.value)} disabled={Boolean(createdExam)}>
-                  {BLUEPRINT_TEMPLATES.map((template) => (
-                    <option key={template.id} value={template.id}>{template.name}</option>
+                <span className="label">Blueprint</span>
+                <select className="input" value={blueprintId} onChange={(event) => applyBlueprint(event.target.value)} disabled={Boolean(createdExam) || blueprintsQuery.isLoading}>
+                  {usableBlueprints.map((blueprint) => (
+                    <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
                   ))}
                 </select>
               </label>
@@ -255,14 +236,13 @@ export default function AdminExamCreatePage() {
             <textarea
               className="input mt-4 min-h-[28rem] resize-y font-mono text-xs"
               value={blueprintText}
-              onChange={(event) => setBlueprintText(event.target.value)}
+              readOnly
             />
-            <div className="mt-4 flex justify-end">
-              <button className="btn btn-secondary btn-md" type="button" disabled={!createdExam || saveBlueprintMutation.isPending} onClick={() => saveBlueprintMutation.mutate()}>
-                {saveBlueprintMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save blueprint
-              </button>
-            </div>
+            {usableBlueprints.length === 0 && !blueprintsQuery.isLoading && (
+              <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                Chua co blueprint nao kha dung. Hay tao blueprint truoc.
+              </p>
+            )}
             {formError && <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{formError}</p>}
           </section>
 
@@ -362,14 +342,6 @@ function StateRow({ label, done }: { label: string; done: boolean }) {
       <span className={cn('badge', done ? 'badge-success' : 'badge-neutral')}>{done ? 'Done' : 'Waiting'}</span>
     </div>
   );
-}
-
-function parseBlueprint(value: string): ExamBlueprint {
-  const parsed = JSON.parse(value) as ExamBlueprint;
-  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sections)) {
-    throw new Error('Blueprint JSON can co version=1 va sections[].');
-  }
-  return parsed;
 }
 
 function formatJson(value: unknown) {

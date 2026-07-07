@@ -2,13 +2,20 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   CognitiveLevel,
   ExamAccessType,
+  ExamBlueprintStatus,
   ExamSectionType,
   Prisma,
   QuestionStatus,
   QuestionType,
 } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { CreateExamDto, GenerateExamDto, UpdateExamSettingsDto } from './dto/exam-generation.dto';
+import {
+  CreateExamBlueprintDto,
+  CreateExamDto,
+  GenerateExamDto,
+  UpdateExamBlueprintTemplateDto,
+  UpdateExamSettingsDto,
+} from './dto/exam-generation.dto';
 
 type SectionType = 'MATH' | 'READING' | 'SCIENCE';
 type UnitType = 'question' | 'bundle';
@@ -128,6 +135,12 @@ export class ExamsService {
     const exams = await this.prisma.exam.findMany({
       orderBy: { updatedAt: 'desc' },
       include: {
+        blueprint: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         _count: {
           select: {
             mathQuestions: true,
@@ -158,6 +171,8 @@ export class ExamsService {
       accessType: exam.accessType,
       isPublished: exam.isPublished,
       blueprintJson: exam.blueprintJson,
+      blueprintId: exam.blueprintId,
+      blueprint: exam.blueprint,
       generationSeed: exam.generationSeed,
       generatedAt: exam.generatedAt,
       createdAt: exam.createdAt,
@@ -178,10 +193,104 @@ export class ExamsService {
     }));
   }
 
+  async listExamBlueprints() {
+    const blueprints = await this.prisma.examBlueprint.findMany({
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            exams: true,
+          },
+        },
+      },
+    });
+
+    return blueprints.map((blueprint) => ({
+      id: blueprint.id,
+      name: blueprint.name,
+      description: blueprint.description,
+      durationMins: blueprint.durationMins,
+      status: blueprint.status,
+      blueprintJson: blueprint.blueprintJson,
+      createdBy: blueprint.createdBy,
+      createdAt: blueprint.createdAt,
+      updatedAt: blueprint.updatedAt,
+      counts: {
+        exams: blueprint._count.exams,
+      },
+    }));
+  }
+
+  async createExamBlueprint(dto: CreateExamBlueprintDto, createdById?: string) {
+    const blueprint = this.normalizeBlueprint(dto.blueprintJson);
+    const name = dto.name.trim();
+    if (!name) throw new BadRequestException('Blueprint name cannot be empty');
+
+    return this.prisma.examBlueprint.create({
+      data: {
+        name,
+        description: dto.description?.trim() || null,
+        durationMins: dto.durationMins ?? blueprint.durationMins ?? 150,
+        status: dto.status ?? ExamBlueprintStatus.ACTIVE,
+        blueprintJson: blueprint as unknown as Prisma.InputJsonValue,
+        createdById,
+      },
+    });
+  }
+
+  async updateExamBlueprintTemplate(id: string, dto: UpdateExamBlueprintTemplateDto) {
+    await this.assertExamBlueprintExists(id);
+    const data: Prisma.ExamBlueprintUpdateInput = {};
+
+    if (dto.name !== undefined) {
+      const name = dto.name.trim();
+      if (!name) throw new BadRequestException('Blueprint name cannot be empty');
+      data.name = name;
+    }
+    if (dto.description !== undefined) data.description = dto.description.trim() || null;
+    if (dto.status !== undefined) data.status = dto.status;
+
+    if (dto.blueprintJson !== undefined) {
+      const blueprint = this.normalizeBlueprint(dto.blueprintJson);
+      data.blueprintJson = blueprint as unknown as Prisma.InputJsonValue;
+      data.durationMins = dto.durationMins ?? blueprint.durationMins ?? 150;
+    } else if (dto.durationMins !== undefined) {
+      data.durationMins = dto.durationMins;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No blueprint fields provided');
+    }
+
+    return this.prisma.examBlueprint.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async checkExamBlueprintTemplateAvailability(id: string) {
+    const blueprintTemplate = await this.getExamBlueprint(id);
+    const blueprint = this.normalizeBlueprint(blueprintTemplate.blueprintJson as Record<string, unknown>);
+    const pools = await this.buildCandidatePools();
+    return this.buildAvailabilityReport(blueprint, pools);
+  }
+
   async createExam(dto: CreateExamDto) {
-    const blueprint = dto.blueprintJson
-      ? this.normalizeBlueprint(dto.blueprintJson)
-      : DEFAULT_BLUEPRINT;
+    const blueprintTemplate = dto.blueprintId
+      ? await this.getUsableExamBlueprint(dto.blueprintId)
+      : null;
+    const blueprint = blueprintTemplate
+      ? this.normalizeBlueprint(blueprintTemplate.blueprintJson as Record<string, unknown>)
+      : dto.blueprintJson
+        ? this.normalizeBlueprint(dto.blueprintJson)
+        : DEFAULT_BLUEPRINT;
 
     return this.prisma.exam.create({
       data: {
@@ -190,6 +299,7 @@ export class ExamsService {
         instructions: dto.instructions,
         durationMins: dto.durationMins ?? blueprint.durationMins ?? 150,
         accessType: dto.accessType ?? ExamAccessType.LOCKED,
+        blueprintId: blueprintTemplate?.id,
         blueprintJson: blueprint as unknown as Prisma.InputJsonValue,
       },
     });
@@ -228,6 +338,7 @@ export class ExamsService {
       where: { id: examId },
       data: {
         blueprintJson: blueprint as unknown as Prisma.InputJsonValue,
+        blueprintId: null,
         durationMins: blueprint.durationMins,
         isPublished: false,
       },
@@ -387,10 +498,29 @@ export class ExamsService {
     if (!exam) throw new NotFoundException('Exam not found');
   }
 
+  private async assertExamBlueprintExists(id: string) {
+    const blueprint = await this.prisma.examBlueprint.findUnique({ where: { id }, select: { id: true } });
+    if (!blueprint) throw new NotFoundException('Exam blueprint not found');
+  }
+
   private async getExamWithBlueprint(examId: string) {
     const exam = await this.prisma.exam.findUnique({ where: { id: examId } });
     if (!exam) throw new NotFoundException('Exam not found');
     return exam;
+  }
+
+  private async getExamBlueprint(id: string) {
+    const blueprint = await this.prisma.examBlueprint.findUnique({ where: { id } });
+    if (!blueprint) throw new NotFoundException('Exam blueprint not found');
+    return blueprint;
+  }
+
+  private async getUsableExamBlueprint(id: string) {
+    const blueprint = await this.getExamBlueprint(id);
+    if (blueprint.status === ExamBlueprintStatus.ARCHIVED) {
+      throw new BadRequestException('Archived blueprint cannot be used to create exams');
+    }
+    return blueprint;
   }
 
   private normalizeBlueprint(raw: Record<string, unknown>): ExamBlueprint {

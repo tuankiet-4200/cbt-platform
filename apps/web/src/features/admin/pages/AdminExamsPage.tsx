@@ -153,6 +153,7 @@ export default function AdminExamsPage() {
             <thead className="bg-neutral-50">
               <tr>
                 <Th>Exam</Th>
+                <Th>Blueprint</Th>
                 <Th>Access</Th>
                 <Th>Status</Th>
                 <Th>Structure</Th>
@@ -166,6 +167,9 @@ export default function AdminExamsPage() {
                   <td className="min-w-72 px-4 py-4">
                     <p className="font-semibold text-neutral-900">{exam.title}</p>
                     <p className="mt-1 text-sm text-neutral-500">{exam.durationMins} phut · {exam.totalPoints} points</p>
+                  </td>
+                  <td className="min-w-56 px-4 py-4 text-sm text-neutral-600">
+                    {exam.blueprint?.name ?? 'Snapshot only'}
                   </td>
                   <td className="px-4 py-4">
                     <span className="badge badge-neutral">{exam.accessType}</span>

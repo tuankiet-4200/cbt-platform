@@ -1,9 +1,23 @@
-import { Prisma, PrismaClient, UserRole, ExamAccessType, ExamSectionType, QuestionType, QuestionStatus, CognitiveLevel } from '@prisma/client';
+import { Prisma, PrismaClient, UserRole, ExamAccessType, ExamBlueprintStatus, ExamSectionType, QuestionType, QuestionStatus, CognitiveLevel } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 type RichTextNode = { type: 'text'; content: string };
+
+const TSA_STANDARD_BLUEPRINT: Prisma.InputJsonValue = {
+  version: 1,
+  durationMins: 150,
+  randomization: {
+    seed: 'tsa-admin-draft',
+    maxAttempts: 5,
+  },
+  sections: [
+    { sectionType: 'MATH', targetQuestionCount: 50 },
+    { sectionType: 'READING', targetBundleCount: 2, targetQuestionCount: 20 },
+    { sectionType: 'SCIENCE', targetBundleCount: 3, targetQuestionCount: 15 },
+  ],
+};
 
 const LEVELS = [
   CognitiveLevel.RECOGNITION,
@@ -449,11 +463,38 @@ async function main() {
   });
   const mockTagIds = Object.fromEntries(mockTagRows.map((tag) => [tag.slug, tag.id]));
 
-  // ── 4. Create Default Exam ────────────────────────────────────────────────
+  // ── 4. Create Default Exam Blueprint ──────────────────────────────────────
+  console.log('\n🧩 Creating default exam blueprint...');
+  const defaultBlueprint = await prisma.examBlueprint.upsert({
+    where: { id: 'default-tsa-standard-blueprint' },
+    update: {
+      name: 'TSA Standard Matrix',
+      description: '50 Math questions, 2 Reading bundles, 3 Science bundles',
+      durationMins: 150,
+      status: ExamBlueprintStatus.ACTIVE,
+      blueprintJson: TSA_STANDARD_BLUEPRINT,
+      createdById: admin.id,
+    },
+    create: {
+      id: 'default-tsa-standard-blueprint',
+      name: 'TSA Standard Matrix',
+      description: '50 Math questions, 2 Reading bundles, 3 Science bundles',
+      durationMins: 150,
+      status: ExamBlueprintStatus.ACTIVE,
+      blueprintJson: TSA_STANDARD_BLUEPRINT,
+      createdById: admin.id,
+    },
+  });
+  console.log(`✅ Default blueprint created: "${defaultBlueprint.name}"`);
+
+  // ── 5. Create Default Exam ────────────────────────────────────────────────
   console.log('\n📝 Creating default exam...');
   const defaultExam = await prisma.exam.upsert({
     where: { id: 'default-exam-id-placeholder' },
-    update: {},
+    update: {
+      blueprintId: defaultBlueprint.id,
+      blueprintJson: TSA_STANDARD_BLUEPRINT,
+    },
     create: {
       id: 'default-exam-id-placeholder', // Fixed ID for easy reference in auth service
       title: 'Đề thi thử TSA - Đề cơ bản (Miễn phí)',
@@ -477,11 +518,13 @@ Chúc bạn làm bài tốt! 🎯`,
       totalPoints: 150,
       accessType: ExamAccessType.PUBLIC,
       isPublished: true,
+      blueprintId: defaultBlueprint.id,
+      blueprintJson: TSA_STANDARD_BLUEPRINT,
     },
   });
   console.log(`✅ Default exam created: "${defaultExam.title}"`);
 
-  // ── 5. Auto-grant default exam access to student ───────────────────────────
+  // ── 6. Auto-grant default exam access to student ───────────────────────────
   await prisma.examAccess.upsert({
     where: {
       userId_examId: {
@@ -497,7 +540,7 @@ Chúc bạn làm bài tốt! 🎯`,
   });
   console.log(`✅ Default exam access granted to ${student.email}`);
 
-  // ── 6. Create Sample Question ─────────────────────────────────────────────
+  // ── 7. Create Sample Question ─────────────────────────────────────────────
   console.log('\n❓ Creating sample question...');
   const sampleQuestion = await upsertPublishedQuestion({
     id: 'seed-sample-math-extrema',
