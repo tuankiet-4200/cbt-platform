@@ -51,6 +51,7 @@ export interface AdminQuestion {
   author: { id: string; email: string; displayName: string };
   reviewedBy?: { id: string; email: string; displayName: string } | null;
   tags: Array<{ tag: TagNode }>;
+  bundleQuestion?: { bundleId: string; questionId: string; orderInBundle: number; points: number } | null;
 }
 
 export type ExamSectionType = 'MATH' | 'READING' | 'SCIENCE';
@@ -105,6 +106,10 @@ export interface CreateQuestionPayload {
   tagIds?: string[];
 }
 
+export type UpdateQuestionPayload = Partial<CreateQuestionPayload> & {
+  reviewNote?: string;
+};
+
 export interface CreatePassageBundlePayload {
   sectionType: Exclude<ExamSectionType, 'MATH'>;
   title: string;
@@ -118,6 +123,8 @@ export interface CreatePassageBundlePayload {
 export interface CreatePassageBundleWithQuestionsPayload extends Omit<CreatePassageBundlePayload, 'questions'> {
   questions: Array<CreateQuestionPayload & { points?: number }>;
 }
+
+export type UpdatePassageBundlePayload = Partial<CreatePassageBundlePayload>;
 
 interface ApiEnvelope<T> {
   data: T;
@@ -148,6 +155,16 @@ export async function listTags() {
 
 export async function createQuestion(payload: CreateQuestionPayload) {
   const response = await apiClient.post<ApiEnvelope<AdminQuestion>>('/admin/questions', payload);
+  return response.data.data;
+}
+
+export async function getQuestion(id: string) {
+  const response = await apiClient.get<ApiEnvelope<AdminQuestion>>(`/admin/questions/${id}`);
+  return response.data.data;
+}
+
+export async function updateQuestion(id: string, payload: UpdateQuestionPayload) {
+  const response = await apiClient.patch<ApiEnvelope<AdminQuestion>>(`/admin/questions/${id}`, payload);
   return response.data.data;
 }
 
@@ -194,5 +211,15 @@ export async function createPassageBundle(payload: CreatePassageBundlePayload) {
 
 export async function createPassageBundleWithQuestions(payload: CreatePassageBundleWithQuestionsPayload) {
   const response = await apiClient.post<ApiEnvelope<PassageBundle>>('/admin/passage-bundles/with-questions', payload);
+  return response.data.data;
+}
+
+export async function getPassageBundle(id: string) {
+  const response = await apiClient.get<ApiEnvelope<PassageBundle>>(`/admin/passage-bundles/${id}`);
+  return response.data.data;
+}
+
+export async function updatePassageBundle(id: string, payload: UpdatePassageBundlePayload) {
+  const response = await apiClient.patch<ApiEnvelope<PassageBundle>>(`/admin/passage-bundles/${id}`, payload);
   return response.data.data;
 }

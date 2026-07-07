@@ -57,6 +57,11 @@ export class QuestionsController {
     return this.questionsService.listQuestions(dto);
   }
 
+  @Get('questions/:id')
+  getQuestion(@Param('id') id: string) {
+    return this.questionsService.getQuestion(id);
+  }
+
   @Patch('questions/:id')
   updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
     return this.questionsService.updateQuestion(id, dto);
@@ -92,6 +97,11 @@ export class QuestionsController {
   @Get('passage-bundles')
   listPassageBundles(@Query() dto: ListPassageBundlesDto) {
     return this.questionsService.listPassageBundles(dto);
+  }
+
+  @Get('passage-bundles/:id')
+  getPassageBundle(@Param('id') id: string) {
+    return this.questionsService.getPassageBundle(id);
   }
 
   @Patch('passage-bundles/:id')

@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (unified section content bank and passage bundle tags)
+> **Last updated:** 2026-07-07 (question management list/create-edit split)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -165,6 +165,7 @@ Status: ⬜ PENDING
 10. [x] Admin theme uses TSA red primary palette consistent with login/register pages
 11. [x] New browser tabs bootstrap auth session from HttpOnly refresh cookie before redirecting
 12. [x] `/admin/questions` is now a unified Section Content Bank: MATH standalone questions; READING/SCIENCE passage bundle + 10/5 related questions in one flow
+13. [x] Question management routes split list and editing flows: `/admin/questions` lists by section, while `/admin/questions/create` and edit routes reuse the shared content editor
 
 ---
 

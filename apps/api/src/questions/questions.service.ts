@@ -156,6 +156,15 @@ export class QuestionsService {
     return paginate(data, total, dto);
   }
 
+  async getQuestion(id: string) {
+    const question = await this.prisma.question.findUnique({
+      where: { id },
+      include: this.questionInclude(),
+    });
+    if (!question) throw new NotFoundException('Question not found');
+    return question;
+  }
+
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
     const existing = await this.prisma.question.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Question not found');
@@ -337,6 +346,15 @@ export class QuestionsService {
     ]);
 
     return paginate(data, total, dto);
+  }
+
+  async getPassageBundle(id: string) {
+    const bundle = await this.prisma.passageBundle.findUnique({
+      where: { id },
+      include: this.bundleInclude(),
+    });
+    if (!bundle) throw new NotFoundException('Passage bundle not found');
+    return bundle;
   }
 
   async updatePassageBundle(id: string, dto: UpdatePassageBundleDto) {
