@@ -61,7 +61,7 @@ export default function AdminQuestionsPage() {
         page: 1,
         limit: 50,
         sectionType: section === 'MATH' ? '' : section,
-        status,
+        status: status || undefined,
       }),
     enabled: section !== 'MATH',
   });

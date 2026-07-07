@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (TSA mock generation seed bank)
+> **Last updated:** 2026-07-07 (admin question bundle list filter fix)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -169,6 +169,7 @@ Status: 🟡 IN PROGRESS
 13. [x] Question management routes split list and editing flows: `/admin/questions` lists by section, while `/admin/questions/create` and edit routes reuse the shared content editor
 14. [x] Create Question section query param only initializes the active section; tab switches update create state, URL, and submitted section payload
 15. [x] Tag Management module added: `/admin/tags` list with MATH/READING/SCIENCE tabs plus shared create/edit tag form pages
+16. [x] READING/SCIENCE bundle list omits empty status filter so "All status" shows seeded bundles correctly
 
 ---
 
