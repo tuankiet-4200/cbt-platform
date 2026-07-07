@@ -47,65 +47,101 @@ async function main() {
   // ── 3. Create Tag Taxonomy ────────────────────────────────────────────────
   console.log('\n📚 Creating tag taxonomy...');
 
-  // Level 0: Subjects
-  const mathTag = await prisma.tag.upsert({
-    where: { slug: 'toan-hoc' },
-    update: { sectionType: ExamSectionType.MATH },
-    create: { name: 'Toán học', slug: 'toan-hoc', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 0 },
+  // Level 0: MATH concrete domains
+  const arithmeticTag = await prisma.tag.upsert({
+    where: { slug: 'so-hoc' },
+    update: { name: 'Số học', sectionType: ExamSectionType.MATH, parentId: null, depth: 0, orderIndex: 0 },
+    create: { name: 'Số học', slug: 'so-hoc', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 0 },
   });
-  const physicsTag = await prisma.tag.upsert({
-    where: { slug: 'vat-ly' },
-    update: { sectionType: ExamSectionType.SCIENCE },
-    create: { name: 'Vật lý', slug: 'vat-ly', sectionType: ExamSectionType.SCIENCE, depth: 0, orderIndex: 1 },
-  });
-  const chemTag = await prisma.tag.upsert({
-    where: { slug: 'hoa-hoc' },
-    update: { sectionType: ExamSectionType.SCIENCE },
-    create: { name: 'Hóa học', slug: 'hoa-hoc', sectionType: ExamSectionType.SCIENCE, depth: 0, orderIndex: 2 },
-  });
-  const logicTag = await prisma.tag.upsert({
-    where: { slug: 'tu-duy-logic' },
-    update: { sectionType: ExamSectionType.MATH },
-    create: { name: 'Tư duy logic', slug: 'tu-duy-logic', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 3 },
-  });
-  const readingTag = await prisma.tag.upsert({
-    where: { slug: 'doc-hieu' },
-    update: { sectionType: ExamSectionType.READING },
-    create: { name: 'Đọc hiểu', slug: 'doc-hieu', sectionType: ExamSectionType.READING, depth: 0, orderIndex: 4 },
-  });
-
-  // Level 1: Math chapters
   const algebraTag = await prisma.tag.upsert({
     where: { slug: 'dai-so' },
-    update: { sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1 },
-    create: { name: 'Đại số', slug: 'dai-so', sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1, orderIndex: 0 },
+    update: { name: 'Đại số', sectionType: ExamSectionType.MATH, parentId: null, depth: 0, orderIndex: 1 },
+    create: { name: 'Đại số', slug: 'dai-so', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 1 },
   });
-  const calculusTag = await prisma.tag.upsert({
-    where: { slug: 'giai-tich' },
-    update: { sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1 },
-    create: { name: 'Giải tích', slug: 'giai-tich', sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1, orderIndex: 1 },
+  const functionTag = await prisma.tag.upsert({
+    where: { slug: 'ham-so' },
+    update: { name: 'Hàm số', sectionType: ExamSectionType.MATH, parentId: null, depth: 0, orderIndex: 2 },
+    create: { name: 'Hàm số', slug: 'ham-so', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 2 },
   });
   const geometryTag = await prisma.tag.upsert({
     where: { slug: 'hinh-hoc' },
-    update: { sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1 },
-    create: { name: 'Hình học', slug: 'hinh-hoc', sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1, orderIndex: 2 },
+    update: { name: 'Hình học', sectionType: ExamSectionType.MATH, parentId: null, depth: 0, orderIndex: 3 },
+    create: { name: 'Hình học', slug: 'hinh-hoc', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 3 },
   });
-  const combinatoricsTag = await prisma.tag.upsert({
-    where: { slug: 'to-hop-xac-suat' },
-    update: { sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1 },
-    create: { name: 'Tổ hợp - Xác suất', slug: 'to-hop-xac-suat', sectionType: ExamSectionType.MATH, parentId: mathTag.id, depth: 1, orderIndex: 3 },
+  const statisticsProbabilityTag = await prisma.tag.upsert({
+    where: { slug: 'thong-ke-xac-suat' },
+    update: { name: 'Thống kê - Xác suất', sectionType: ExamSectionType.MATH, parentId: null, depth: 0, orderIndex: 4 },
+    create: { name: 'Thống kê - Xác suất', slug: 'thong-ke-xac-suat', sectionType: ExamSectionType.MATH, depth: 0, orderIndex: 4 },
+  });
+  await prisma.tag.upsert({
+    where: { slug: 'toan-hoc' },
+    update: { name: 'Toán học (legacy)', sectionType: ExamSectionType.MATH, parentId: arithmeticTag.id, depth: 1, orderIndex: 99 },
+    create: { name: 'Toán học (legacy)', slug: 'toan-hoc', sectionType: ExamSectionType.MATH, parentId: arithmeticTag.id, depth: 1, orderIndex: 99 },
+  });
+  await prisma.tag.upsert({
+    where: { slug: 'tu-duy-logic' },
+    update: { sectionType: ExamSectionType.MATH, parentId: algebraTag.id, depth: 1, orderIndex: 10 },
+    create: { name: 'Tư duy logic', slug: 'tu-duy-logic', sectionType: ExamSectionType.MATH, parentId: algebraTag.id, depth: 1, orderIndex: 10 },
   });
 
-  // Level 2: Topics
-  const functionTag = await prisma.tag.upsert({
-    where: { slug: 'ham-so' },
-    update: { sectionType: ExamSectionType.MATH, parentId: algebraTag.id, depth: 2 },
-    create: { name: 'Hàm số', slug: 'ham-so', sectionType: ExamSectionType.MATH, parentId: algebraTag.id, depth: 2, orderIndex: 0 },
+  // Level 0: READING passage topic domains
+  const readingRootTags = [
+    ['doc-khoa-hoc', 'Khoa học'],
+    ['doc-cong-nghe', 'Công nghệ'],
+    ['doc-kinh-te', 'Kinh tế'],
+    ['doc-ky-thuat', 'Kỹ thuật'],
+    ['doc-cong-nghiep', 'Công nghiệp'],
+    ['doc-nong-nghiep', 'Nông nghiệp'],
+    ['doc-tai-chinh', 'Tài chính'],
+    ['doc-ngan-hang', 'Ngân hàng'],
+    ['doc-y-duoc', 'Y dược'],
+  ] as const;
+  for (const [index, [slug, name]] of readingRootTags.entries()) {
+    await prisma.tag.upsert({
+      where: { slug },
+      update: { name, sectionType: ExamSectionType.READING, parentId: null, depth: 0, orderIndex: index },
+      create: { name, slug, sectionType: ExamSectionType.READING, depth: 0, orderIndex: index },
+    });
+  }
+  const readingScienceTag = await prisma.tag.findUniqueOrThrow({ where: { slug: 'doc-khoa-hoc' } });
+  await prisma.tag.upsert({
+    where: { slug: 'doc-hieu' },
+    update: { name: 'Đọc hiểu (legacy)', sectionType: ExamSectionType.READING, parentId: readingScienceTag.id, depth: 1, orderIndex: 99 },
+    create: { name: 'Đọc hiểu (legacy)', slug: 'doc-hieu', sectionType: ExamSectionType.READING, parentId: readingScienceTag.id, depth: 1, orderIndex: 99 },
+  });
+
+  // Level 0: SCIENCE domains
+  await prisma.tag.upsert({
+    where: { slug: 'vat-ly' },
+    update: { sectionType: ExamSectionType.SCIENCE, parentId: null, depth: 0, orderIndex: 0 },
+    create: { name: 'Vật lý', slug: 'vat-ly', sectionType: ExamSectionType.SCIENCE, depth: 0, orderIndex: 0 },
+  });
+  await prisma.tag.upsert({
+    where: { slug: 'hoa-hoc' },
+    update: { sectionType: ExamSectionType.SCIENCE, parentId: null, depth: 0, orderIndex: 1 },
+    create: { name: 'Hóa học', slug: 'hoa-hoc', sectionType: ExamSectionType.SCIENCE, depth: 0, orderIndex: 1 },
+  });
+  await prisma.tag.upsert({
+    where: { slug: 'sinh-hoc' },
+    update: { sectionType: ExamSectionType.SCIENCE, parentId: null, depth: 0, orderIndex: 2 },
+    create: { name: 'Sinh học', slug: 'sinh-hoc', sectionType: ExamSectionType.SCIENCE, depth: 0, orderIndex: 2 },
+  });
+
+  // Level 1+: existing sample child taxonomy under concrete MATH roots
+  await prisma.tag.upsert({
+    where: { slug: 'giai-tich' },
+    update: { sectionType: ExamSectionType.MATH, parentId: functionTag.id, depth: 1, orderIndex: 0 },
+    create: { name: 'Giải tích', slug: 'giai-tich', sectionType: ExamSectionType.MATH, parentId: functionTag.id, depth: 1, orderIndex: 0 },
+  });
+  await prisma.tag.upsert({
+    where: { slug: 'to-hop-xac-suat' },
+    update: { name: 'Tổ hợp - Xác suất', sectionType: ExamSectionType.MATH, parentId: statisticsProbabilityTag.id, depth: 1, orderIndex: 0 },
+    create: { name: 'Tổ hợp - Xác suất', slug: 'to-hop-xac-suat', sectionType: ExamSectionType.MATH, parentId: statisticsProbabilityTag.id, depth: 1, orderIndex: 0 },
   });
   const extremaTag = await prisma.tag.upsert({
     where: { slug: 'cuc-tri' },
-    update: { sectionType: ExamSectionType.MATH, parentId: functionTag.id, depth: 3 },
-    create: { name: 'Cực trị', slug: 'cuc-tri', sectionType: ExamSectionType.MATH, parentId: functionTag.id, depth: 3, orderIndex: 0 },
+    update: { sectionType: ExamSectionType.MATH, parentId: functionTag.id, depth: 1, orderIndex: 1 },
+    create: { name: 'Cực trị', slug: 'cuc-tri', sectionType: ExamSectionType.MATH, parentId: functionTag.id, depth: 1, orderIndex: 1 },
   });
 
   console.log('✅ Tag taxonomy created');

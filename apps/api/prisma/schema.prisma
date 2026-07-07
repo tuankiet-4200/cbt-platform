@@ -382,6 +382,9 @@ model Exam {
   totalPoints  Float          @default(0) @map("total_points")
   accessType   ExamAccessType @default(LOCKED)
   isPublished  Boolean        @default(false) @map("is_published")
+  blueprintJson Json?         @map("blueprint_json") @db.JsonB
+  generationSeed String?      @map("generation_seed")
+  generatedAt    DateTime?    @map("generated_at")
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 

@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (section-aware tag management module)
+> **Last updated:** 2026-07-07 (backend TSA exam blueprint generation)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
-Status: ⬜ PENDING
+Status: 🟡 IN PROGRESS
 
 ### Sprint Progress Overview
 
@@ -35,7 +35,7 @@ Status: ⬜ PENDING
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | ⬜ Pending | — |
+| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 35% |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -177,9 +177,10 @@ Status: ⬜ PENDING
 **Goal:** Admin can assemble and publish a complete exam; users can unlock locked exams using access codes.
 
 ### Backend — Sprint 2.2
-1. [ ] Exam Management API: create exam, add math questions, add passage bundles, preview, publish
-2. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
-3. [ ] User Exam List API: list unlocked/public exams with question counts
+1. [x] Exam blueprint generation API: create/update blueprint, availability check, seeded draft generation/regeneration, preview, publish validation
+2. [ ] Manual Exam Management API: add/reorder math questions, add/reorder passage bundles
+3. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
+4. [ ] User Exam List API: list unlocked/public exams with question counts
 
 ### Frontend — Sprint 2.2
 1. [ ] Exam Builder UI with section-based assembly and drag ordering

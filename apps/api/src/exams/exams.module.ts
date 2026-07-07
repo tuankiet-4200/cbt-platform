@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@/common/prisma/prisma.module';
+import { ExamsController } from './exams.controller';
+import { ExamsService } from './exams.service';
 
-/** TODO: Implement in Sprint 1.2+ */
-@Module({})
+@Module({
+  imports: [PrismaModule],
+  controllers: [ExamsController],
+  providers: [ExamsService],
+})
 export class ExamsModule {}
