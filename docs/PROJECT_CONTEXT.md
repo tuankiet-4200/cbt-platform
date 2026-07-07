@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-07 (admin exam settings modal)
+> **Last updated:** 2026-07-07 (admin exam publish moved to settings)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -189,7 +189,7 @@ Status: 🟡 IN PROGRESS
 1. [x] Admin Exam Management UI: list exams, create metadata, edit blueprint JSON, check availability, generate/regenerate draft, preview section breakdown, publish/unpublish
    - Phase 1 UX split completed: `/admin/exams` is now a focused exam list with preview/publish actions; `/admin/exams/create` owns metadata, blueprint selection/editing, availability check, draft generation, preview, and publish.
    - Admin preview now opens as a modal with generated MATH questions and READING/SCIENCE bundle/question snippets from the preview API.
-   - Exam list now includes a Settings modal for editing title, description, and access type (`LOCKED`/`PUBLIC`).
+   - Exam list now includes a Settings modal for editing title, description, access type (`LOCKED`/`PUBLIC`), and publish state; standalone publish/unpublish table actions were removed.
 2. [ ] Manual Exam Builder UI with drag ordering and item replacement
 3. [ ] Access Code Management UI
 4. [ ] User Exam Library unlock flow

@@ -9,7 +9,6 @@ import {
   Loader2,
   Search,
   Settings,
-  ShieldCheck,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -34,6 +33,7 @@ export default function AdminExamsPage() {
   const [settingsTitle, setSettingsTitle] = useState('');
   const [settingsDescription, setSettingsDescription] = useState('');
   const [settingsAccessType, setSettingsAccessType] = useState<ExamAccessType>('LOCKED');
+  const [settingsPublished, setSettingsPublished] = useState(false);
 
   const examsQuery = useQuery({
     queryKey: ['admin', 'exams'],
@@ -62,30 +62,24 @@ export default function AdminExamsPage() {
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Preview failed.'),
   });
 
-  const publishMutation = useMutation({
-    mutationFn: (exam: AdminExam) => publishExam(exam.id, !exam.isPublished),
-    onSuccess: () => {
-      setActionError(null);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-    },
-    onError: (error) => setActionError(getErrorMessage(error) ?? 'Publish state update failed.'),
-  });
-
   const settingsMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!settingsExam) throw new Error('Select an exam first.');
-      return updateExamSettings(settingsExam.id, {
+      await updateExamSettings(settingsExam.id, {
         title: settingsTitle,
         description: settingsDescription,
         accessType: settingsAccessType,
       });
+      if (settingsPublished !== settingsExam.isPublished) {
+        await publishExam(settingsExam.id, settingsPublished);
+      }
     },
     onSuccess: () => {
       setSettingsExam(null);
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
     },
-    onError: (error) => setActionError(getErrorMessage(error) ?? 'Update settings failed.'),
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Save settings failed.'),
   });
 
   const openSettings = (exam: AdminExam) => {
@@ -93,6 +87,7 @@ export default function AdminExamsPage() {
     setSettingsTitle(exam.title);
     setSettingsDescription(exam.description ?? '');
     setSettingsAccessType(exam.accessType);
+    setSettingsPublished(exam.isPublished);
     setActionError(null);
   };
 
@@ -209,15 +204,6 @@ export default function AdminExamsPage() {
                         {previewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                         Preview
                       </button>
-                      <button
-                        type="button"
-                        className={cn('btn btn-sm', exam.isPublished ? 'btn-secondary' : 'btn-primary')}
-                        onClick={() => publishMutation.mutate(exam)}
-                        disabled={publishMutation.isPending}
-                      >
-                        {publishMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                        {exam.isPublished ? 'Unpublish' : 'Publish'}
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -243,10 +229,12 @@ export default function AdminExamsPage() {
           title={settingsTitle}
           description={settingsDescription}
           accessType={settingsAccessType}
+          isPublished={settingsPublished}
           pending={settingsMutation.isPending}
           onTitleChange={setSettingsTitle}
           onDescriptionChange={setSettingsDescription}
           onAccessTypeChange={setSettingsAccessType}
+          onPublishedChange={setSettingsPublished}
           onClose={() => setSettingsExam(null)}
           onSubmit={() => settingsMutation.mutate()}
         />
@@ -259,20 +247,24 @@ function ExamSettingsModal({
   title,
   description,
   accessType,
+  isPublished,
   pending,
   onTitleChange,
   onDescriptionChange,
   onAccessTypeChange,
+  onPublishedChange,
   onClose,
   onSubmit,
 }: {
   title: string;
   description: string;
   accessType: ExamAccessType;
+  isPublished: boolean;
   pending?: boolean;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onAccessTypeChange: (value: ExamAccessType) => void;
+  onPublishedChange: (value: boolean) => void;
   onClose: () => void;
   onSubmit: () => void;
 }) {
@@ -312,6 +304,18 @@ function ExamSettingsModal({
               <option value="LOCKED">LOCKED</option>
               <option value="PUBLIC">PUBLIC</option>
             </select>
+          </label>
+          <label className="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-4">
+            <span>
+              <span className="block text-sm font-semibold text-neutral-900">Publish state</span>
+              <span className="mt-1 block text-sm text-neutral-500">Draft exams are hidden from students even when access is PUBLIC.</span>
+            </span>
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-neutral-300 text-primary-600"
+              checked={isPublished}
+              onChange={(event) => onPublishedChange(event.target.checked)}
+            />
           </label>
         </div>
 
