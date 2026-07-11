@@ -82,6 +82,10 @@ export default function AdminExamBuilderPage() {
 
   const builder = builderQuery.data;
   const sectionIds = useMemo(() => getSectionIds(builder, activeSection), [activeSection, builder]);
+  const hasMetadataChanges = useMemo(() => {
+    if (!builder) return false;
+    return titleDraft !== builder.title || descriptionDraft !== (builder.description ?? '');
+  }, [builder, descriptionDraft, titleDraft]);
 
   useEffect(() => {
     if (!builder) return;
@@ -198,6 +202,10 @@ export default function AdminExamBuilderPage() {
     });
   };
 
+  const saveMetadata = () => {
+    confirmIfPublished('Updating metadata on a published exam changes what students see in the exam library and exam details.', () => metadataMutation.mutate());
+  };
+
   const togglePublish = () => {
     if (!builder) return;
     const nextPublished = !builder.isPublished;
@@ -269,7 +277,16 @@ export default function AdminExamBuilderPage() {
             Delete
           </button>
           <button
-            className={cn('btn btn-md', builder?.isPublished ? 'btn-secondary' : 'btn-primary')}
+            className="btn btn-primary btn-md"
+            type="button"
+            disabled={!builder || metadataMutation.isPending || !titleDraft.trim() || !hasMetadataChanges}
+            onClick={saveMetadata}
+          >
+            {metadataMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save
+          </button>
+          <button
+            className="btn btn-secondary btn-md"
             type="button"
             disabled={!builder || publishMutation.isPending}
             onClick={togglePublish}
@@ -305,8 +322,8 @@ export default function AdminExamBuilderPage() {
           <button
             className="btn btn-primary btn-md"
             type="button"
-            disabled={!builder || metadataMutation.isPending || !titleDraft.trim()}
-            onClick={() => confirmIfPublished('Updating metadata on a published exam changes what students see in the exam library and exam details.', () => metadataMutation.mutate())}
+            disabled={!builder || metadataMutation.isPending || !titleDraft.trim() || !hasMetadataChanges}
+            onClick={saveMetadata}
           >
             {metadataMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save metadata

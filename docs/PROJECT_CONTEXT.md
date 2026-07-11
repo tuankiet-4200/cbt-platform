@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-12 (exam edit publish controls)
+> **Last updated:** 2026-07-12 (exam edit save action)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -210,6 +210,7 @@ Status: 🟡 IN PROGRESS
    - Blueprint builder now uses tag min/max rules with nested sub-tag and tag-scoped difficulty configuration; root tag quota is removed from UI and ignored by blueprint normalization.
    - Exam management now routes generated exams to `/admin/exams/:examId/edit`, combining metadata edit, assembly reorder/replacement, preview, and delete with confirmation for published-impacting edits.
    - Exam edit workspace now includes publish/unpublish controls and a visible Draft/Published badge so admins can manage release state without returning to the exam list.
+   - Exam edit header now includes a primary Save action for title/description metadata changes, while reorder/replace actions continue to persist immediately.
 3. [x] Access Code Management UI
    - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
 4. [ ] User Exam Library unlock flow
