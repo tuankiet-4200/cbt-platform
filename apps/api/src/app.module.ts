@@ -16,6 +16,7 @@ import { ResultsModule } from './results/results.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AdminModule } from './admin/admin.module';
 import { ContributionsModule } from './contributions/contributions.module';
+import { AccessCodesModule } from './access-codes/access-codes.module';
 
 const envFilePath = [
   join(process.cwd(), '.env.local'),
@@ -67,6 +68,7 @@ const envFilePath = [
     AnalyticsModule,
     AdminModule,
     ContributionsModule,
+    AccessCodesModule,
   ],
 })
 export class AppModule {}

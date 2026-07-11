@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-11 (admin UX fixes and exam edit flow)
+> **Last updated:** 2026-07-12 (access code management)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -35,7 +35,7 @@ Status: 🟡 IN PROGRESS
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 84% |
+| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 92% |
 | 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
@@ -188,7 +188,10 @@ Status: 🟡 IN PROGRESS
    - Added builder APIs under `/api/v1/admin/exams/:id/builder` for full assembly inspection, replacement candidates, section reorder, and slot replacement.
    - Published exams are locked from assembly edits; admins must unpublish before changing question/bundle composition to preserve audit consistency.
    - Replacement candidates only include published standalone MATH questions and valid published READING/SCIENCE bundles with exact bundle cardinality.
-4. [ ] Access Code API: create/list/deactivate codes, atomic unlock flow
+4. [x] Access Code API: create/list/deactivate codes, atomic unlock flow
+   - Added `AccessCodesModule` with admin list/create/deactivate endpoints under `/api/v1/admin/access-codes`.
+   - Added `POST /api/v1/exams/unlock` with Serializable transaction semantics, quota increment, expiry/active checks, and idempotent already-unlocked handling.
+   - Access codes are generated as 8-character uppercase alphanumeric codes and can only be created for published `LOCKED` exams.
 5. [ ] User Exam List API: list unlocked/public exams with question counts
 
 ### Frontend — Sprint 2.2
@@ -206,7 +209,8 @@ Status: 🟡 IN PROGRESS
    - Admin question lists now page at 20 items per page, and question/tag editors render taxonomy as a parent-child tree instead of a flat tag list.
    - Blueprint builder now uses tag min/max rules with nested sub-tag and tag-scoped difficulty configuration; root tag quota is removed from UI and ignored by blueprint normalization.
    - Exam management now routes generated exams to `/admin/exams/:examId/edit`, combining metadata edit, assembly reorder/replacement, preview, and delete with confirmation for published-impacting edits.
-3. [ ] Access Code Management UI
+3. [x] Access Code Management UI
+   - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
 4. [ ] User Exam Library unlock flow
 
 ---
