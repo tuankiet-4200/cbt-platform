@@ -183,6 +183,19 @@ export interface GenerateResponse {
   shortages?: Shortage[];
 }
 
+export interface ExamBuilder extends ExamPreview {
+  validation: {
+    ok: boolean;
+    shortages: Shortage[];
+  };
+}
+
+export interface ReplacementCandidates {
+  MATH: ExamPreviewQuestion[];
+  READING: Array<ExamPreviewBundle & { sectionType: 'READING' }>;
+  SCIENCE: Array<ExamPreviewBundle & { sectionType: 'SCIENCE' }>;
+}
+
 interface ApiEnvelope<T> {
   data: T;
 }
@@ -273,6 +286,49 @@ export async function regenerateExamDraft(id: string, payload: { seed?: string; 
 
 export async function previewExam(id: string) {
   const response = await apiClient.get<ApiEnvelope<ExamPreview>>(`/admin/exams/${id}/preview`);
+  return response.data.data;
+}
+
+export async function getExamBuilder(id: string) {
+  const response = await apiClient.get<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder`);
+  return response.data.data;
+}
+
+export async function listReplacementCandidates(id: string) {
+  const response = await apiClient.get<ApiEnvelope<ReplacementCandidates>>(`/admin/exams/${id}/builder/candidates`);
+  return response.data.data;
+}
+
+export async function reorderMathQuestions(id: string, questionIds: string[]) {
+  const response = await apiClient.patch<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/math/reorder`, { questionIds });
+  return response.data.data;
+}
+
+export async function reorderPassageBundles(
+  id: string,
+  payload: { sectionType: Exclude<ExamSectionType, 'MATH'>; passageBundleIds: string[] },
+) {
+  const response = await apiClient.patch<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/bundles/reorder`, payload);
+  return response.data.data;
+}
+
+export async function replaceMathQuestion(
+  id: string,
+  payload: { currentQuestionId: string; replacementQuestionId: string },
+) {
+  const response = await apiClient.patch<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/math/replace`, payload);
+  return response.data.data;
+}
+
+export async function replacePassageBundle(
+  id: string,
+  payload: {
+    sectionType: Exclude<ExamSectionType, 'MATH'>;
+    currentPassageBundleId: string;
+    replacementPassageBundleId: string;
+  },
+) {
+  const response = await apiClient.patch<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/bundles/replace`, payload);
   return response.data.data;
 }
 

@@ -8,6 +8,10 @@ import {
   CreateExamDto,
   GenerateExamDto,
   PublishExamDto,
+  ReorderMathQuestionsDto,
+  ReorderPassageBundlesDto,
+  ReplaceMathQuestionDto,
+  ReplacePassageBundleDto,
   UpdateExamBlueprintDto,
   UpdateExamSettingsDto,
 } from './dto/exam-generation.dto';
@@ -65,6 +69,41 @@ export class ExamsController {
   @Get(':id/preview')
   preview(@Param('id') id: string): Promise<unknown> {
     return this.examsService.previewExam(id);
+  }
+
+  @Get(':id/builder')
+  builder(@Param('id') id: string): Promise<unknown> {
+    return this.examsService.getExamBuilder(id);
+  }
+
+  @Get(':id/builder/candidates')
+  replacementCandidates(@Param('id') id: string): Promise<unknown> {
+    return this.examsService.listReplacementCandidates(id);
+  }
+
+  @Patch(':id/builder/math/reorder')
+  reorderMath(@Param('id') id: string, @Body() dto: ReorderMathQuestionsDto): Promise<unknown> {
+    return this.examsService.reorderMathQuestions(id, dto.questionIds);
+  }
+
+  @Patch(':id/builder/bundles/reorder')
+  reorderBundles(@Param('id') id: string, @Body() dto: ReorderPassageBundlesDto): Promise<unknown> {
+    return this.examsService.reorderPassageBundles(id, dto.sectionType, dto.passageBundleIds);
+  }
+
+  @Patch(':id/builder/math/replace')
+  replaceMath(@Param('id') id: string, @Body() dto: ReplaceMathQuestionDto): Promise<unknown> {
+    return this.examsService.replaceMathQuestion(id, dto.currentQuestionId, dto.replacementQuestionId);
+  }
+
+  @Patch(':id/builder/bundles/replace')
+  replaceBundle(@Param('id') id: string, @Body() dto: ReplacePassageBundleDto): Promise<unknown> {
+    return this.examsService.replacePassageBundle(
+      id,
+      dto.sectionType,
+      dto.currentPassageBundleId,
+      dto.replacementPassageBundleId,
+    );
   }
 
   @Patch(':id/publish')

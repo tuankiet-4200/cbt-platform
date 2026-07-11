@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -9,7 +10,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ExamAccessType, ExamBlueprintStatus } from '@prisma/client';
+import { ExamAccessType, ExamBlueprintStatus, ExamSectionType } from '@prisma/client';
 
 export class CreateExamDto {
   @IsString()
@@ -131,4 +132,38 @@ export class GenerateExamDto {
 export class PublishExamDto {
   @IsBoolean()
   isPublished!: boolean;
+}
+
+export class ReorderMathQuestionsDto {
+  @IsArray()
+  @IsString({ each: true })
+  questionIds!: string[];
+}
+
+export class ReorderPassageBundlesDto {
+  @IsEnum(ExamSectionType)
+  sectionType!: ExamSectionType;
+
+  @IsArray()
+  @IsString({ each: true })
+  passageBundleIds!: string[];
+}
+
+export class ReplaceMathQuestionDto {
+  @IsString()
+  currentQuestionId!: string;
+
+  @IsString()
+  replacementQuestionId!: string;
+}
+
+export class ReplacePassageBundleDto {
+  @IsEnum(ExamSectionType)
+  sectionType!: ExamSectionType;
+
+  @IsString()
+  currentPassageBundleId!: string;
+
+  @IsString()
+  replacementPassageBundleId!: string;
 }

@@ -473,6 +473,251 @@ export class ExamsService {
     };
   }
 
+  async getExamBuilder(examId: string) {
+    const preview = await this.previewExam(examId);
+    const validation = await this.validatePersistedExam(examId);
+
+    return {
+      ...preview,
+      validation,
+    };
+  }
+
+  async listReplacementCandidates(examId: string) {
+    await this.assertExamExists(examId);
+
+    const [usedMathRows, usedBundleRows, mathQuestions, bundles] = await this.prisma.$transaction([
+      this.prisma.examMathQuestion.findMany({ where: { examId }, select: { questionId: true } }),
+      this.prisma.examPassageBundle.findMany({ where: { examId }, select: { passageBundleId: true } }),
+      this.prisma.question.findMany({
+        where: {
+          status: QuestionStatus.PUBLISHED,
+          bundleQuestion: null,
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: { tags: { include: { tag: true } } },
+      }),
+      this.prisma.passageBundle.findMany({
+        where: {
+          status: QuestionStatus.PUBLISHED,
+          sectionType: { in: [ExamSectionType.READING, ExamSectionType.SCIENCE] },
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          tags: { include: { tag: true } },
+          questions: {
+            orderBy: { orderInBundle: 'asc' },
+            include: {
+              question: {
+                include: { tags: { include: { tag: true } } },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const usedMathIds = new Set(usedMathRows.map((row) => row.questionId));
+    const usedBundleIds = new Set(usedBundleRows.map((row) => row.passageBundleId));
+    const validBundles = bundles.filter((bundle) =>
+      bundle.sectionType === ExamSectionType.READING
+        ? bundle.questions.length === 10
+        : bundle.questions.length === 5,
+    );
+
+    return {
+      MATH: mathQuestions
+        .filter((question) => !usedMathIds.has(question.id))
+        .map((question) => ({
+          id: question.id,
+          type: question.type,
+          level: question.level,
+          contentJson: question.contentJson,
+          tags: question.tags.map((tag) => ({
+            id: tag.tag.id,
+            name: tag.tag.name,
+            slug: tag.tag.slug,
+          })),
+          snippet: contentSnippet(question.contentJson),
+        })),
+      READING: validBundles
+        .filter((bundle) => bundle.sectionType === ExamSectionType.READING && !usedBundleIds.has(bundle.id))
+        .map((bundle) => this.replacementBundleDto(bundle)),
+      SCIENCE: validBundles
+        .filter((bundle) => bundle.sectionType === ExamSectionType.SCIENCE && !usedBundleIds.has(bundle.id))
+        .map((bundle) => this.replacementBundleDto(bundle)),
+    };
+  }
+
+  async reorderMathQuestions(examId: string, questionIds: string[]) {
+    await this.assertDraftExam(examId);
+    if (new Set(questionIds).size !== questionIds.length) {
+      throw new BadRequestException('Duplicate questionIds are not allowed');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.examMathQuestion.findMany({
+        where: { examId },
+        select: { id: true, questionId: true },
+      });
+      if (rows.length !== questionIds.length) {
+        throw new BadRequestException('Reorder payload must include every math question in the section');
+      }
+
+      const rowByQuestionId = new Map(rows.map((row) => [row.questionId, row]));
+      for (const questionId of questionIds) {
+        if (!rowByQuestionId.has(questionId)) {
+          throw new BadRequestException(`Question ${questionId} is not in this exam`);
+        }
+      }
+
+      await Promise.all(rows.map((row, index) =>
+        tx.examMathQuestion.update({
+          where: { id: row.id },
+          data: { orderInSection: -index - 1 },
+        }),
+      ));
+      await Promise.all(questionIds.map((questionId, index) =>
+        tx.examMathQuestion.update({
+          where: { id: rowByQuestionId.get(questionId)!.id },
+          data: { orderInSection: index },
+        }),
+      ));
+      await tx.exam.update({ where: { id: examId }, data: { updatedAt: new Date() } });
+    });
+
+    return this.getExamBuilder(examId);
+  }
+
+  async reorderPassageBundles(examId: string, sectionType: ExamSectionType, passageBundleIds: string[]) {
+    await this.assertDraftExam(examId);
+    if (sectionType === ExamSectionType.MATH) {
+      throw new BadRequestException('Use math reorder endpoint for MATH section');
+    }
+    if (new Set(passageBundleIds).size !== passageBundleIds.length) {
+      throw new BadRequestException('Duplicate passageBundleIds are not allowed');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.examPassageBundle.findMany({
+        where: { examId, sectionType },
+        select: { id: true, passageBundleId: true },
+      });
+      if (rows.length !== passageBundleIds.length) {
+        throw new BadRequestException('Reorder payload must include every bundle in the section');
+      }
+
+      const rowByBundleId = new Map(rows.map((row) => [row.passageBundleId, row]));
+      for (const passageBundleId of passageBundleIds) {
+        if (!rowByBundleId.has(passageBundleId)) {
+          throw new BadRequestException(`Bundle ${passageBundleId} is not in this exam section`);
+        }
+      }
+
+      await Promise.all(rows.map((row, index) =>
+        tx.examPassageBundle.update({
+          where: { id: row.id },
+          data: { orderInSection: -index - 1 },
+        }),
+      ));
+      await Promise.all(passageBundleIds.map((passageBundleId, index) =>
+        tx.examPassageBundle.update({
+          where: { id: rowByBundleId.get(passageBundleId)!.id },
+          data: { orderInSection: index },
+        }),
+      ));
+      await tx.exam.update({ where: { id: examId }, data: { updatedAt: new Date() } });
+    });
+
+    return this.getExamBuilder(examId);
+  }
+
+  async replaceMathQuestion(examId: string, currentQuestionId: string, replacementQuestionId: string) {
+    await this.assertDraftExam(examId);
+    if (currentQuestionId === replacementQuestionId) return this.getExamBuilder(examId);
+
+    await this.prisma.$transaction(async (tx) => {
+      const [currentRow, duplicateRow, replacement] = await Promise.all([
+        tx.examMathQuestion.findUnique({
+          where: { examId_questionId: { examId, questionId: currentQuestionId } },
+        }),
+        tx.examMathQuestion.findUnique({
+          where: { examId_questionId: { examId, questionId: replacementQuestionId } },
+        }),
+        tx.question.findUnique({
+          where: { id: replacementQuestionId },
+          include: { bundleQuestion: true },
+        }),
+      ]);
+
+      if (!currentRow) throw new NotFoundException('Current math question is not in this exam');
+      if (duplicateRow) throw new BadRequestException('Replacement question is already in this exam');
+      if (!replacement) throw new NotFoundException('Replacement question not found');
+      if (replacement.status !== QuestionStatus.PUBLISHED || replacement.bundleQuestion) {
+        throw new BadRequestException('Replacement must be a published standalone MATH question');
+      }
+
+      await tx.examMathQuestion.update({
+        where: { id: currentRow.id },
+        data: {
+          questionId: replacementQuestionId,
+          points: 1,
+        },
+      });
+      await this.recalculateExamTotalPoints(tx, examId);
+    });
+
+    return this.getExamBuilder(examId);
+  }
+
+  async replacePassageBundle(
+    examId: string,
+    sectionType: ExamSectionType,
+    currentPassageBundleId: string,
+    replacementPassageBundleId: string,
+  ) {
+    await this.assertDraftExam(examId);
+    if (sectionType === ExamSectionType.MATH) {
+      throw new BadRequestException('Use math replacement endpoint for MATH section');
+    }
+    if (currentPassageBundleId === replacementPassageBundleId) return this.getExamBuilder(examId);
+
+    await this.prisma.$transaction(async (tx) => {
+      const [currentRow, duplicateRow, replacement] = await Promise.all([
+        tx.examPassageBundle.findFirst({
+          where: { examId, sectionType, passageBundleId: currentPassageBundleId },
+        }),
+        tx.examPassageBundle.findUnique({
+          where: { examId_passageBundleId: { examId, passageBundleId: replacementPassageBundleId } },
+        }),
+        tx.passageBundle.findUnique({
+          where: { id: replacementPassageBundleId },
+          include: { questions: true },
+        }),
+      ]);
+
+      if (!currentRow) throw new NotFoundException('Current bundle is not in this exam section');
+      if (duplicateRow) throw new BadRequestException('Replacement bundle is already in this exam');
+      if (!replacement) throw new NotFoundException('Replacement bundle not found');
+      if (replacement.status !== QuestionStatus.PUBLISHED || replacement.sectionType !== sectionType) {
+        throw new BadRequestException('Replacement must be a published bundle in the same section');
+      }
+
+      const expectedCount = sectionType === ExamSectionType.READING ? 10 : 5;
+      if (replacement.questions.length !== expectedCount) {
+        throw new BadRequestException(`Replacement bundle must contain exactly ${expectedCount} questions`);
+      }
+
+      await tx.examPassageBundle.update({
+        where: { id: currentRow.id },
+        data: { passageBundleId: replacementPassageBundleId },
+      });
+      await this.recalculateExamTotalPoints(tx, examId);
+    });
+
+    return this.getExamBuilder(examId);
+  }
+
   async setPublishState(examId: string, isPublished: boolean) {
     if (isPublished) {
       const preview = await this.previewExam(examId);
@@ -497,6 +742,17 @@ export class ExamsService {
   private async assertExamExists(examId: string) {
     const exam = await this.prisma.exam.findUnique({ where: { id: examId }, select: { id: true } });
     if (!exam) throw new NotFoundException('Exam not found');
+  }
+
+  private async assertDraftExam(examId: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      select: { id: true, isPublished: true },
+    });
+    if (!exam) throw new NotFoundException('Exam not found');
+    if (exam.isPublished) {
+      throw new BadRequestException('Published exams cannot be edited. Unpublish before using the builder.');
+    }
   }
 
   private async assertExamBlueprintExists(id: string) {
@@ -890,6 +1146,90 @@ export class ExamsService {
         .map((row) => pools.science.find((item) => item.id === row.passageBundleId))
         .filter((item): item is BundleCandidate => Boolean(item)),
     };
+  }
+
+  private async validatePersistedExam(examId: string) {
+    const exam = await this.getExamWithBlueprint(examId);
+    const blueprint = this.normalizeBlueprint((exam.blueprintJson ?? DEFAULT_BLUEPRINT) as Record<string, unknown>);
+    const pools = await this.buildCandidatePools();
+    const selection = await this.selectionFromPersistedExam(examId, pools);
+    return this.validateSelection(blueprint, selection, pools);
+  }
+
+  private replacementBundleDto(bundle: {
+    id: string;
+    title: string | null;
+    sectionType: ExamSectionType;
+    contentJson: Prisma.JsonValue;
+    tags: Array<{ tag: { id: string; name: string; slug: string } }>;
+    questions: Array<{
+      points: number;
+      question: {
+        id: string;
+        type: QuestionType;
+        level: CognitiveLevel;
+        contentJson: Prisma.JsonValue;
+        tags: Array<{ tag: { id: string; name: string; slug: string } }>;
+      };
+    }>;
+  }) {
+    return {
+      id: bundle.id,
+      title: bundle.title,
+      sectionType: bundle.sectionType,
+      contentJson: bundle.contentJson,
+      tags: bundle.tags.map((tag) => ({
+        id: tag.tag.id,
+        name: tag.tag.name,
+        slug: tag.tag.slug,
+      })),
+      snippet: contentSnippet(bundle.contentJson),
+      questions: bundle.questions.map((bundleQuestion, index) => ({
+        id: bundleQuestion.question.id,
+        order: index,
+        points: bundleQuestion.points,
+        type: bundleQuestion.question.type,
+        level: bundleQuestion.question.level,
+        contentJson: bundleQuestion.question.contentJson,
+        tags: bundleQuestion.question.tags.map((tag) => ({
+          id: tag.tag.id,
+          name: tag.tag.name,
+          slug: tag.tag.slug,
+        })),
+        snippet: contentSnippet(bundleQuestion.question.contentJson),
+      })),
+    };
+  }
+
+  private async recalculateExamTotalPoints(tx: Prisma.TransactionClient, examId: string) {
+    const [mathRows, bundleRows] = await Promise.all([
+      tx.examMathQuestion.findMany({ where: { examId }, select: { points: true } }),
+      tx.examPassageBundle.findMany({
+        where: { examId },
+        select: {
+          passageBundle: {
+            select: {
+              questions: { select: { points: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const totalPoints =
+      mathRows.reduce((sum, row) => sum + row.points, 0) +
+      bundleRows.reduce(
+        (sum, row) => sum + row.passageBundle.questions.reduce((bundleSum, question) => bundleSum + question.points, 0),
+        0,
+      );
+
+    await tx.exam.update({
+      where: { id: examId },
+      data: {
+        totalPoints,
+        updatedAt: new Date(),
+      },
+    });
   }
 
   private bundlePreview(items: Array<{

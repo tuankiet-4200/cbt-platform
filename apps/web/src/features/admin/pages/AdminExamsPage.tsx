@@ -6,6 +6,7 @@ import {
   Eye,
   FilePlus2,
   GraduationCap,
+  Layers3,
   Loader2,
   Search,
   Settings,
@@ -191,6 +192,14 @@ export default function AdminExamsPage() {
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex justify-end gap-2">
+                      <Link
+                        to={`/admin/exams/${exam.id}/builder`}
+                        className={cn('btn btn-secondary btn-sm', !exam.generatedAt && 'pointer-events-none opacity-50')}
+                        aria-disabled={!exam.generatedAt}
+                      >
+                        <Layers3 className="h-4 w-4" />
+                        Builder
+                      </Link>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"

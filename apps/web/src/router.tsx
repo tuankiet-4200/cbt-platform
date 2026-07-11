@@ -27,6 +27,7 @@ const AdminContributionsPage = lazy(() => import('@/features/admin/pages/AdminCo
 const AdminExamBlueprintsPage = lazy(() => import('@/features/admin/pages/AdminExamBlueprintsPage'));
 const AdminExamsPage    = lazy(() => import('@/features/admin/pages/AdminExamsPage'));
 const AdminExamCreatePage = lazy(() => import('@/features/admin/pages/AdminExamCreatePage'));
+const AdminExamBuilderPage = lazy(() => import('@/features/admin/pages/AdminExamBuilderPage'));
 const AdminUsersPage    = lazy(() => import('@/features/admin/pages/AdminUsersPage'));
 const AdminCodesPage    = lazy(() => import('@/features/admin/pages/AdminCodesPage'));
 
@@ -91,6 +92,7 @@ export const router = createBrowserRouter([
               { path: '/admin/exam-blueprints', element: withSuspense(AdminExamBlueprintsPage) },
               { path: '/admin/exams',          element: withSuspense(AdminExamsPage) },
               { path: '/admin/exams/create',   element: withSuspense(AdminExamCreatePage) },
+              { path: '/admin/exams/:examId/builder', element: withSuspense(AdminExamBuilderPage) },
               { path: '/admin/users',          element: withSuspense(AdminUsersPage) },
               { path: '/admin/access-codes',   element: withSuspense(AdminCodesPage) },
               { path: '/admin/analytics',      element: withSuspense(AnalyticsPage) },
