@@ -282,9 +282,9 @@ export default function AdminExamCreatePage() {
               <ActionButton icon={RefreshCcw} label="Regenerate" pending={regenerateMutation.isPending} disabled={!createdExam} onClick={() => regenerateMutation.mutate()} />
               <ActionButton icon={Search} label="Preview" pending={previewMutation.isPending} disabled={!createdExam} onClick={() => previewMutation.mutate()} />
               {createdExam && generationResult?.ok && (
-                <Link className="btn btn-secondary btn-md" to={`/admin/exams/${createdExam.id}/builder`}>
+                <Link className="btn btn-secondary btn-md" to={`/admin/exams/${createdExam.id}/edit`}>
                   <Layers3 className="h-4 w-4" />
-                  Open builder
+                  Open editor
                 </Link>
               )}
               <ActionButton

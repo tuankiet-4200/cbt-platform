@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Edit3, FileText, FlaskConical, ListChecks, Plus, Sigma } from 'lucide-react';
@@ -39,14 +39,19 @@ export default function AdminQuestionsPage() {
   const navigate = useNavigate();
   const [section, setSection] = useState<SectionMode>('MATH');
   const [status, setStatus] = useState<'' | QuestionStatus>('');
+  const [page, setPage] = useState(1);
   const sectionMeta = SECTIONS.find((item) => item.value === section) ?? SECTIONS[0];
 
+  useEffect(() => {
+    setPage(1);
+  }, [section, status]);
+
   const mathQuestionsQuery = useQuery({
-    queryKey: ['admin', 'questions', 'list', section, status],
+    queryKey: ['admin', 'questions', 'list', section, status, page],
     queryFn: () =>
       listQuestions({
-        page: 1,
-        limit: 50,
+        page,
+        limit: 20,
         status: status || undefined,
         standaloneOnly: true,
         sortBy: 'createdAt',
@@ -56,11 +61,11 @@ export default function AdminQuestionsPage() {
   });
 
   const bundlesQuery = useQuery({
-    queryKey: ['admin', 'passage-bundles', 'list', section, status],
+    queryKey: ['admin', 'passage-bundles', 'list', section, status, page],
     queryFn: () =>
       listPassageBundles({
-        page: 1,
-        limit: 50,
+        page,
+        limit: 20,
         sectionType: section === 'MATH' ? '' : section,
         status: status || undefined,
       }),
@@ -71,6 +76,7 @@ export default function AdminQuestionsPage() {
   const total = section === 'MATH'
     ? mathQuestionsQuery.data?.meta?.total ?? mathQuestionsQuery.data?.data.length ?? 0
     : bundlesQuery.data?.meta?.total ?? bundlesQuery.data?.data.length ?? 0;
+  const meta = section === 'MATH' ? mathQuestionsQuery.data?.meta : bundlesQuery.data?.meta;
 
   return (
     <div className="space-y-6">
@@ -137,6 +143,15 @@ export default function AdminQuestionsPage() {
           <MathQuestionList questions={mathQuestionsQuery.data?.data ?? []} />
         ) : (
           <BundleQuestionList bundles={bundlesQuery.data?.data ?? []} />
+        )}
+        {meta && meta.totalPages > 1 && (
+          <Pagination
+            page={meta.page}
+            totalPages={meta.totalPages}
+            hasPrevPage={meta.hasPrevPage}
+            hasNextPage={meta.hasNextPage}
+            onPageChange={setPage}
+          />
         )}
       </section>
     </div>
@@ -210,6 +225,55 @@ function TagBadges({ tags }: { tags: TagNode[] }) {
       {tags.map((tag) => (
         <span key={tag.id} className="badge badge-neutral">{tag.name}</span>
       ))}
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  hasPrevPage,
+  hasNextPage,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  hasPrevPage: boolean;
+  hasNextPage: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1)
+    .filter((item) => item === 1 || item === totalPages || Math.abs(item - page) <= 1);
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-neutral-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-neutral-500">Page {page} / {totalPages}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn btn-secondary btn-sm" type="button" disabled={!hasPrevPage} onClick={() => onPageChange(page - 1)}>
+          Previous
+        </button>
+        {pages.map((item, index) => {
+          const previous = pages[index - 1];
+          return (
+            <span key={item} className="flex items-center gap-2">
+              {previous && item - previous > 1 && <span className="text-sm text-neutral-400">...</span>}
+              <button
+                type="button"
+                className={cn(
+                  'h-9 min-w-9 rounded-md border px-3 text-sm font-semibold transition',
+                  item === page ? 'border-primary-600 bg-primary-600 text-white' : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50',
+                )}
+                onClick={() => onPageChange(item)}
+              >
+                {item}
+              </button>
+            </span>
+          );
+        })}
+        <button className="btn btn-secondary btn-sm" type="button" disabled={!hasNextPage} onClick={() => onPageChange(page + 1)}>
+          Next
+        </button>
+      </div>
     </div>
   );
 }

@@ -31,6 +31,8 @@ interface ChildTagRule {
   tagSlug?: string;
   min?: number;
   max?: number;
+  childTagRules?: ChildTagRule[];
+  difficultyRules?: DifficultyRule[];
 }
 
 interface DifficultyRule {
@@ -331,6 +333,28 @@ export class ExamsService {
     });
   }
 
+  async deleteExam(examId: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      select: {
+        id: true,
+        title: true,
+        _count: {
+          select: {
+            sessions: true,
+          },
+        },
+      },
+    });
+    if (!exam) throw new NotFoundException('Exam not found');
+    if (exam._count.sessions > 0) {
+      throw new BadRequestException('Cannot delete an exam that already has exam sessions');
+    }
+
+    await this.prisma.exam.delete({ where: { id: examId } });
+    return { ok: true, id: examId, title: exam.title };
+  }
+
   async updateBlueprint(examId: string, rawBlueprint: Record<string, unknown>) {
     await this.assertExamExists(examId);
     const blueprint = this.normalizeBlueprint(rawBlueprint);
@@ -440,6 +464,7 @@ export class ExamsService {
     return {
       id: exam.id,
       title: exam.title,
+      description: exam.description,
       durationMins: exam.durationMins,
       accessType: exam.accessType,
       isPublished: exam.isPublished,
@@ -550,7 +575,7 @@ export class ExamsService {
   }
 
   async reorderMathQuestions(examId: string, questionIds: string[]) {
-    await this.assertDraftExam(examId);
+    await this.assertExamExists(examId);
     if (new Set(questionIds).size !== questionIds.length) {
       throw new BadRequestException('Duplicate questionIds are not allowed');
     }
@@ -590,7 +615,7 @@ export class ExamsService {
   }
 
   async reorderPassageBundles(examId: string, sectionType: ExamSectionType, passageBundleIds: string[]) {
-    await this.assertDraftExam(examId);
+    await this.assertExamExists(examId);
     if (sectionType === ExamSectionType.MATH) {
       throw new BadRequestException('Use math reorder endpoint for MATH section');
     }
@@ -633,7 +658,7 @@ export class ExamsService {
   }
 
   async replaceMathQuestion(examId: string, currentQuestionId: string, replacementQuestionId: string) {
-    await this.assertDraftExam(examId);
+    await this.assertExamExists(examId);
     if (currentQuestionId === replacementQuestionId) return this.getExamBuilder(examId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -676,7 +701,7 @@ export class ExamsService {
     currentPassageBundleId: string,
     replacementPassageBundleId: string,
   ) {
-    await this.assertDraftExam(examId);
+    await this.assertExamExists(examId);
     if (sectionType === ExamSectionType.MATH) {
       throw new BadRequestException('Use math replacement endpoint for MATH section');
     }
@@ -744,17 +769,6 @@ export class ExamsService {
     if (!exam) throw new NotFoundException('Exam not found');
   }
 
-  private async assertDraftExam(examId: string) {
-    const exam = await this.prisma.exam.findUnique({
-      where: { id: examId },
-      select: { id: true, isPublished: true },
-    });
-    if (!exam) throw new NotFoundException('Exam not found');
-    if (exam.isPublished) {
-      throw new BadRequestException('Published exams cannot be edited. Unpublish before using the builder.');
-    }
-  }
-
   private async assertExamBlueprintExists(id: string) {
     const blueprint = await this.prisma.examBlueprint.findUnique({ where: { id }, select: { id: true } });
     if (!blueprint) throw new NotFoundException('Exam blueprint not found');
@@ -795,7 +809,7 @@ export class ExamsService {
         sectionType,
         targetQuestionCount,
         targetBundleCount,
-        rootTagRules: parseTagRules(section.rootTagRules),
+        rootTagRules: [],
         childTagRules: parseChildTagRules(section.childTagRules),
         difficultyRules: parseDifficultyRules(section.difficultyRules),
         questionTypeRules: sectionType === 'MATH' ? parseQuestionTypeRules(section.questionTypeRules) : [],
@@ -911,7 +925,8 @@ export class ExamsService {
 
       for (const rule of section.childTagRules ?? []) {
         const tagIds = this.resolveTagRule(rule, section.sectionType, pools.tags);
-        const available = sectionPool.filter((item) => intersects(item.tagIds, tagIds)).length;
+        const scopedPool = sectionPool.filter((item) => intersects(item.tagIds, tagIds));
+        const available = scopedPool.length;
         const required = rule.min ?? 0;
         if (required > 0 && available < required) {
           shortages.push({
@@ -922,6 +937,7 @@ export class ExamsService {
             unit,
           });
         }
+        this.addNestedAvailabilityShortages(section, rule, scopedPool, pools, shortages, `tag ${rule.tagSlug ?? rule.tagId}`);
       }
 
       for (const rule of section.difficultyRules ?? []) {
@@ -1020,26 +1036,7 @@ export class ExamsService {
       }
 
       for (const rule of section.childTagRules ?? []) {
-        const tagIds = this.resolveTagRule(rule, section.sectionType, pools.tags);
-        const count = selected.filter((item) => intersects(item.tagIds, tagIds)).length;
-        if (rule.min !== undefined && count < rule.min) {
-          shortages.push({
-            section: section.sectionType,
-            constraint: `child tag min ${rule.tagSlug ?? rule.tagId}`,
-            required: rule.min,
-            available: count,
-            unit,
-          });
-        }
-        if (rule.max !== undefined && count > rule.max) {
-          shortages.push({
-            section: section.sectionType,
-            constraint: `child tag max ${rule.tagSlug ?? rule.tagId}`,
-            required: rule.max,
-            available: count,
-            unit,
-          });
-        }
+        this.addTagRuleValidationShortages(section, rule, selected, pools, shortages, unit, `tag ${rule.tagSlug ?? rule.tagId}`);
       }
 
       for (const rule of section.difficultyRules ?? []) {
@@ -1067,6 +1064,120 @@ export class ExamsService {
     }
 
     return { ok: shortages.length === 0, shortages };
+  }
+
+  private addNestedAvailabilityShortages(
+    section: SectionBlueprint,
+    rule: ChildTagRule,
+    scopedPool: Array<MathCandidate | BundleCandidate>,
+    pools: CandidatePools,
+    shortages: Shortage[],
+    prefix: string,
+  ) {
+    for (const difficultyRule of rule.difficultyRules ?? []) {
+      const available = this.availableLevelCount(section.sectionType, scopedPool, difficultyRule.level);
+      const required = difficultyRule.min ?? this.resolveRuleCount(difficultyRule, section.targetQuestionCount ?? this.requiredUnits(section));
+      if (required > 0 && available < required) {
+        shortages.push({
+          section: section.sectionType,
+          constraint: `${prefix} difficulty ${difficultyRule.level}`,
+          required,
+          available,
+          unit: 'question-level',
+        });
+      }
+    }
+
+    for (const childRule of rule.childTagRules ?? []) {
+      const childTagIds = this.resolveTagRule(childRule, section.sectionType, pools.tags);
+      const childPool = scopedPool.filter((item) => intersects(item.tagIds, childTagIds));
+      const required = childRule.min ?? 0;
+      if (required > 0 && childPool.length < required) {
+        shortages.push({
+          section: section.sectionType,
+          constraint: `${prefix} sub tag ${childRule.tagSlug ?? childRule.tagId}`,
+          required,
+          available: childPool.length,
+          unit: section.sectionType === 'MATH' ? 'question' : 'bundle',
+        });
+      }
+      this.addNestedAvailabilityShortages(
+        section,
+        childRule,
+        childPool,
+        pools,
+        shortages,
+        `${prefix} > ${childRule.tagSlug ?? childRule.tagId}`,
+      );
+    }
+  }
+
+  private addTagRuleValidationShortages(
+    section: SectionBlueprint,
+    rule: ChildTagRule,
+    selected: Array<MathCandidate | BundleCandidate>,
+    pools: CandidatePools,
+    shortages: Shortage[],
+    unit: UnitType,
+    prefix: string,
+  ) {
+    const tagIds = this.resolveTagRule(rule, section.sectionType, pools.tags);
+    const scopedSelected = selected.filter((item) => intersects(item.tagIds, tagIds));
+    const count = scopedSelected.length;
+
+    if (rule.min !== undefined && count < rule.min) {
+      shortages.push({
+        section: section.sectionType,
+        constraint: `${prefix} min`,
+        required: rule.min,
+        available: count,
+        unit,
+      });
+    }
+    if (rule.max !== undefined && count > rule.max) {
+      shortages.push({
+        section: section.sectionType,
+        constraint: `${prefix} max`,
+        required: rule.max,
+        available: count,
+        unit,
+      });
+    }
+
+    for (const difficultyRule of rule.difficultyRules ?? []) {
+      const levelCount = this.selectedLevelCount(section.sectionType, scopedSelected, difficultyRule.level);
+      const required = difficultyRule.min ?? this.resolveRuleCount(difficultyRule, section.targetQuestionCount ?? this.requiredUnits(section));
+      if (required > 0 && levelCount < required) {
+        shortages.push({
+          section: section.sectionType,
+          constraint: `${prefix} difficulty ${difficultyRule.level}`,
+          required,
+          available: levelCount,
+          unit: 'question-level',
+        });
+      }
+      if (difficultyRule.max !== undefined && levelCount > difficultyRule.max) {
+        shortages.push({
+          section: section.sectionType,
+          constraint: `${prefix} difficulty max ${difficultyRule.level}`,
+          required: difficultyRule.max,
+          available: levelCount,
+          unit: 'question-level',
+        });
+      }
+    }
+
+    for (const childRule of rule.childTagRules ?? []) {
+      this.addTagRuleValidationShortages(
+        section,
+        childRule,
+        scopedSelected,
+        pools,
+        shortages,
+        unit,
+        `${prefix} > ${childRule.tagSlug ?? childRule.tagId}`,
+      );
+    }
   }
 
   private async persistGeneratedDraft(
@@ -1380,6 +1491,8 @@ function parseChildTagRules(value: unknown): ChildTagRule[] {
       tagSlug: typeof item.tagSlug === 'string' ? item.tagSlug : undefined,
       min: numberOrUndefined(item.min),
       max: numberOrUndefined(item.max),
+      childTagRules: parseChildTagRules(item.childTagRules),
+      difficultyRules: parseDifficultyRules(item.difficultyRules),
     };
   });
 }

@@ -101,25 +101,6 @@ export function ExamPreviewModal({ preview, onClose }: ExamPreviewModalProps) {
               </div>
             </section>
 
-            <section className="mt-6">
-              <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
-                <Layers className="h-4 w-4 text-primary-600" />
-                Section items
-              </div>
-              <div className="mt-3 space-y-3">
-                {activeSection === 'MATH'
-                  ? (preview.sections.MATH.items ?? []).map((question) => (
-                      <QuestionRow key={question.id} question={question} onInspect={() => inspectQuestion(question)} />
-                    ))
-                  : ((preview.sections[activeSection].bundles ?? []) as ExamPreviewBundle[]).map((bundle) => (
-                      <BundleRow key={bundle.id} bundle={bundle} onInspectBundle={() => inspectBundle(bundle)} onInspectQuestion={inspectQuestion} />
-                    ))}
-                {activePreview.itemCount === 0 && (
-                  <p className="rounded-lg bg-neutral-50 p-6 text-center text-sm text-neutral-500">Chua co item trong section nay.</p>
-                )}
-              </div>
-            </section>
-
             {(selectedQuestion || selectedBundle) && (
               <section className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -148,6 +129,25 @@ export function ExamPreviewModal({ preview, onClose }: ExamPreviewModalProps) {
                 )}
               </section>
             )}
+
+            <section className="mt-6">
+              <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+                <Layers className="h-4 w-4 text-primary-600" />
+                Section items
+              </div>
+              <div className="mt-3 space-y-3">
+                {activeSection === 'MATH'
+                  ? (preview.sections.MATH.items ?? []).map((question) => (
+                      <QuestionRow key={question.id} question={question} onInspect={() => inspectQuestion(question)} />
+                    ))
+                  : ((preview.sections[activeSection].bundles ?? []) as ExamPreviewBundle[]).map((bundle) => (
+                      <BundleRow key={bundle.id} bundle={bundle} onInspectBundle={() => inspectBundle(bundle)} onInspectQuestion={inspectQuestion} />
+                    ))}
+                {activePreview.itemCount === 0 && (
+                  <p className="rounded-lg bg-neutral-50 p-6 text-center text-sm text-neutral-500">Chua co item trong section nay.</p>
+                )}
+              </div>
+            </section>
           </main>
         </div>
       </div>

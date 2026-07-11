@@ -1,24 +1,27 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  AlertTriangle,
   Eye,
   FileSearch,
   GripVertical,
   Layers3,
   Loader2,
   RefreshCcw,
+  Save,
   Search,
-  ShieldAlert,
   Shuffle,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExamSectionType } from '../api/questionBank.api';
 import {
+  deleteExam,
   getExamBuilder,
   listReplacementCandidates,
   previewExam,
@@ -26,6 +29,7 @@ import {
   reorderPassageBundles,
   replaceMathQuestion,
   replacePassageBundle,
+  updateExamSettings,
   type ExamPreview,
   type ExamPreviewBundle,
   type ExamPreviewQuestion,
@@ -45,12 +49,22 @@ const SECTIONS: Array<{ value: BuilderSection; label: string }> = [
 
 export default function AdminExamBuilderPage() {
   const { examId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<BuilderSection>('MATH');
   const [replacementTarget, setReplacementTarget] = useState<ReplacementTarget | null>(null);
   const [candidateSearch, setCandidateSearch] = useState('');
   const [preview, setPreview] = useState<ExamPreview | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
 
   const builderQuery = useQuery({
     queryKey: ['admin', 'exam-builder', examId],
@@ -66,6 +80,12 @@ export default function AdminExamBuilderPage() {
 
   const builder = builderQuery.data;
   const sectionIds = useMemo(() => getSectionIds(builder, activeSection), [activeSection, builder]);
+
+  useEffect(() => {
+    if (!builder) return;
+    setTitleDraft(builder.title);
+    setDescriptionDraft(builder.description ?? '');
+  }, [builder?.id]);
 
   const refreshBuilder = (nextBuilder: Awaited<ReturnType<typeof getExamBuilder>>) => {
     queryClient.setQueryData(['admin', 'exam-builder', examId], nextBuilder);
@@ -122,13 +142,55 @@ export default function AdminExamBuilderPage() {
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Khong preview duoc exam.'),
   });
 
+  const metadataMutation = useMutation({
+    mutationFn: () => {
+      if (!examId) throw new Error('Missing exam id.');
+      return updateExamSettings(examId, {
+        title: titleDraft,
+        description: descriptionDraft,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
+      builderQuery.refetch();
+      setActionError(null);
+    },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Khong cap nhat metadata duoc.'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+      if (!examId) throw new Error('Missing exam id.');
+      return deleteExam(examId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
+      navigate('/admin/exams');
+    },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Khong xoa duoc exam.'),
+  });
+
+  const confirmIfPublished = (description: string, onConfirm: () => void) => {
+    if (!builder?.isPublished) {
+      onConfirm();
+      return;
+    }
+    setConfirmAction({
+      title: 'Confirm published exam update',
+      description,
+      confirmLabel: 'Update anyway',
+      onConfirm,
+    });
+  };
+
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = sectionIds.indexOf(String(active.id));
     const newIndex = sectionIds.indexOf(String(over.id));
     if (oldIndex < 0 || newIndex < 0) return;
-    reorderMutation.mutate(arrayMove(sectionIds, oldIndex, newIndex));
+    const nextIds = arrayMove(sectionIds, oldIndex, newIndex);
+    confirmIfPublished('Reordering items in a published exam can change the student-facing order and audit trail for future attempts.', () => reorderMutation.mutate(nextIds));
   };
 
   const candidates = useMemo(() => {
@@ -150,12 +212,27 @@ export default function AdminExamBuilderPage() {
           </Link>
           <div className="mt-3 flex items-center gap-2 text-sm font-medium text-primary-700">
             <Layers3 className="h-4 w-4" />
-            Manual exam builder
+            Edit exam
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-neutral-900">{builder?.title ?? 'Exam builder'}</h1>
-          <p className="mt-1 text-sm text-neutral-500">Reorder generated items and replace weak slots while preserving the blueprint audit trail.</p>
+          <h1 className="mt-2 text-2xl font-bold text-neutral-900">{builder?.title ?? 'Exam editor'}</h1>
+          <p className="mt-1 text-sm text-neutral-500">Edit metadata, reorder generated items, replace weak slots, and preview before publishing.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            className="btn btn-danger btn-md"
+            type="button"
+            disabled={!builder || deleteMutation.isPending}
+            onClick={() => setConfirmAction({
+              title: 'Delete exam',
+              description: 'This permanently deletes the exam shell and generated assembly. Exams with existing sessions are protected and cannot be deleted.',
+              confirmLabel: 'Delete exam',
+              danger: true,
+              onConfirm: () => deleteMutation.mutate(),
+            })}
+          >
+            {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Delete
+          </button>
           <button className="btn btn-secondary btn-md" type="button" onClick={() => builderQuery.refetch()} disabled={builderQuery.isFetching}>
             {builderQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
             Refresh
@@ -171,12 +248,27 @@ export default function AdminExamBuilderPage() {
         <div className="rounded-lg border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700">{actionError}</div>
       )}
 
-      {builder?.isPublished && (
-        <div className="flex items-start gap-3 rounded-lg border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>Published exams are locked for assembly edits. Unpublish in Settings before reordering or replacing items.</p>
+      <section className="card p-5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+          <label className="block">
+            <span className="label">Title</span>
+            <input className="input" value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">Description</span>
+            <input className="input" value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} />
+          </label>
+          <button
+            className="btn btn-primary btn-md"
+            type="button"
+            disabled={!builder || metadataMutation.isPending || !titleDraft.trim()}
+            onClick={() => confirmIfPublished('Updating metadata on a published exam changes what students see in the exam library and exam details.', () => metadataMutation.mutate())}
+          >
+            {metadataMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save metadata
+          </button>
         </div>
-      )}
+      </section>
 
       <section className="grid gap-4 md:grid-cols-4">
         <Metric label="Total points" value={builder?.totalPoints ?? '-'} />
@@ -226,7 +318,7 @@ export default function AdminExamBuilderPage() {
                       <QuestionRow
                         key={question.id}
                         question={question}
-                        disabled={builder.isPublished || reorderMutation.isPending}
+                  disabled={reorderMutation.isPending}
                         onReplace={() => setReplacementTarget({ section: 'MATH', id: question.id, label: `M${question.order + 1}` })}
                       />
                     ))}
@@ -235,7 +327,7 @@ export default function AdminExamBuilderPage() {
                       <BundleRow
                         key={bundle.id}
                         bundle={bundle}
-                        disabled={builder.isPublished || reorderMutation.isPending}
+                        disabled={reorderMutation.isPending}
                         onReplace={() => setReplacementTarget({ section: activeSection, id: bundle.id, label: `${activeSection}-${bundle.order + 1}` })}
                       />
                     ))}
@@ -271,8 +363,8 @@ export default function AdminExamBuilderPage() {
                 <CandidateCard
                   key={candidate.id}
                   candidate={candidate}
-                  disabled={!replacementTarget || replacementTarget.section !== activeSection || builder?.isPublished || replaceMutation.isPending}
-                  onChoose={() => replaceMutation.mutate(candidate.id)}
+                  disabled={!replacementTarget || replacementTarget.section !== activeSection || replaceMutation.isPending}
+                  onChoose={() => confirmIfPublished('Replacing items in a published exam changes the content students will see in future attempts and can affect score comparability.', () => replaceMutation.mutate(candidate.id))}
                 />
               ))}
               {!candidatesQuery.isLoading && candidates.length === 0 && (
@@ -305,6 +397,20 @@ export default function AdminExamBuilderPage() {
       </section>
 
       {preview && <ExamPreviewModal preview={preview} onClose={() => setPreview(null)} />}
+      {confirmAction && (
+        <ConfirmModal
+          title={confirmAction.title}
+          description={confirmAction.description}
+          confirmLabel={confirmAction.confirmLabel}
+          danger={confirmAction.danger}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => {
+            const action = confirmAction.onConfirm;
+            setConfirmAction(null);
+            action();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -439,6 +545,46 @@ function TagLine({ tags, compact }: { tags: Array<{ id: string; name: string; sl
 
 function ValidationBadge({ ok }: { ok: boolean }) {
   return <span className={cn('badge h-9 px-3', ok ? 'badge-success' : 'badge-danger')}>{ok ? 'Validation OK' : 'Needs review'}</span>;
+}
+
+function ConfirmModal({
+  title,
+  description,
+  confirmLabel,
+  danger,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-neutral-950/45 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+        <div className="flex items-start gap-3 border-b border-neutral-200 p-5">
+          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', danger ? 'bg-danger-50 text-danger-700' : 'bg-warning-50 text-warning-700')}>
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-bold text-neutral-900">{title}</h2>
+            <p className="mt-1 text-sm leading-6 text-neutral-600">{description}</p>
+          </div>
+        </div>
+        <footer className="flex justify-end gap-2 p-4">
+          <button type="button" className="btn btn-secondary btn-md" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className={cn('btn btn-md', danger ? 'btn-danger' : 'btn-primary')} onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
 }
 
 function getSectionIds(builder: Awaited<ReturnType<typeof getExamBuilder>> | undefined, section: BuilderSection) {

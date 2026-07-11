@@ -15,6 +15,8 @@ export interface ChildTagRule {
   tagId?: string;
   min?: number;
   max?: number;
+  childTagRules?: ChildTagRule[];
+  difficultyRules?: DifficultyRule[];
 }
 
 export interface DifficultyRule {
@@ -118,6 +120,7 @@ export interface AvailabilityReport {
 export interface ExamPreview {
   id: string;
   title: string;
+  description?: string | null;
   durationMins: number;
   accessType: ExamAccessType;
   isPublished: boolean;
@@ -256,6 +259,11 @@ export async function updateExamSettings(id: string, payload: {
   accessType?: ExamAccessType;
 }) {
   const response = await apiClient.patch<ApiEnvelope<AdminExam>>(`/admin/exams/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deleteExam(id: string) {
+  const response = await apiClient.delete<ApiEnvelope<{ ok: boolean; id: string; title: string }>>(`/admin/exams/${id}`);
   return response.data.data;
 }
 

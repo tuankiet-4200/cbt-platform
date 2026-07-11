@@ -104,9 +104,10 @@ export default function AdminTagEditorPage() {
   };
 
   const handleSectionChange = (sectionType: ExamSectionType) => {
+    if (isEditMode) return;
     patch({ sectionType, parentId: '' });
     setFormError(null);
-    if (!isEditMode) navigate(`/admin/tags/create?section=${sectionType}`, { replace: true });
+    navigate(`/admin/tags/create?section=${sectionType}`, { replace: true });
   };
 
   const submit = () => {
@@ -151,9 +152,11 @@ export default function AdminTagEditorPage() {
               key={value}
               type="button"
               onClick={() => handleSectionChange(value)}
+              disabled={isEditMode}
               className={cn(
                 'flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition',
                 form.sectionType === value ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
+                isEditMode && form.sectionType !== value && 'cursor-not-allowed opacity-45',
               )}
             >
               <Icon className="h-4 w-4" />
@@ -235,7 +238,9 @@ function TagForm({
               { value: '', label: 'Root tag' },
               ...parentOptions.map((tag) => ({
                 value: tag.id,
-                label: `${'· '.repeat(tag.depth)}${tag.name}`,
+                label: tag.name,
+                description: tag.slug,
+                depth: tag.depth,
               })),
             ]}
             onChange={(value) => onPatch({ parentId: value })}

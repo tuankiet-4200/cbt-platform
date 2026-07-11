@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Dispatch, ElementType, ReactNode, SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -272,7 +272,7 @@ export default function AdminQuestionEditorPage() {
   const activeBundleDraft = bundleDrafts[activeBundleIndex] ?? bundleDrafts[0];
   const sectionMeta = SECTIONS.find((item) => item.value === section) ?? SECTIONS[0];
   const bundleCount = section === 'MATH' ? 0 : BUNDLE_COUNTS[section];
-  const flatTags = useMemo(() => flattenTags(tagsQuery.data ?? []), [tagsQuery.data]);
+  const tagTree = tagsQuery.data ?? [];
 
   useEffect(() => {
     const question = editQuestionQuery.data;
@@ -527,7 +527,7 @@ export default function AdminQuestionEditorPage() {
             <>
               <QuestionEditor draft={mathDraft} setDraft={setMathDraft} title="MATH question" />
               <div className="mt-5 border-t border-neutral-200 pt-5">
-                <TagPicker title="Question tags" tags={flatTags} selectedIds={mathTagIds} onChange={setMathTagIds} />
+                <TagPicker title="Question tags" tags={tagTree} selectedIds={mathTagIds} onChange={setMathTagIds} />
               </div>
               <SubmitBar
                 error={formError ?? getErrorMessage(createMathMutation.error) ?? getErrorMessage(updateMathMutation.error)}
@@ -547,7 +547,7 @@ export default function AdminQuestionEditorPage() {
                     placeholder="Hỗ trợ LaTeX inline bằng $...$ và block bằng $$...$$"
                   />
                 </Field>
-                <TagPicker title="PassageBundle tags" tags={flatTags} selectedIds={bundleTagIds} onChange={setBundleTagIds} />
+                <TagPicker title="PassageBundle tags" tags={tagTree} selectedIds={bundleTagIds} onChange={setBundleTagIds} />
               </div>
 
               <div className="mt-5 border-t border-neutral-200 pt-5">
@@ -886,25 +886,63 @@ function IconButton({ disabled, label, onClick }: { disabled?: boolean; label: s
 }
 
 function TagPicker({ title, tags, selectedIds, onChange }: { title: string; tags: TagNode[]; selectedIds: string[]; onChange: (ids: string[]) => void }) {
+  const toggle = (tagId: string, checked: boolean) => {
+    if (checked) onChange([...selectedIds, tagId]);
+    else onChange(selectedIds.filter((id) => id !== tagId));
+  };
+
   return (
     <div>
       <h3 className="text-sm font-semibold text-neutral-800">{title}</h3>
-      <div className="mt-3 grid max-h-52 gap-2 overflow-y-auto rounded-lg border border-neutral-200 p-3 md:grid-cols-2">
+      <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-2">
         {tags.map((tag) => (
-          <label key={tag.id} className="flex items-center gap-2 text-sm text-neutral-700">
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(tag.id)}
-              onChange={(event) => {
-                if (event.target.checked) onChange([...selectedIds, tag.id]);
-                else onChange(selectedIds.filter((id) => id !== tag.id));
-              }}
-            />
-            <span style={{ paddingLeft: `${tag.depth * 0.75}rem` }}>{tag.name}</span>
-          </label>
+          <TagCheckboxNode
+            key={tag.id}
+            tag={tag}
+            selectedIds={selectedIds}
+            onToggle={toggle}
+          />
         ))}
         {tags.length === 0 && <p className="text-sm text-neutral-500">Chưa có taxonomy.</p>}
       </div>
+    </div>
+  );
+}
+
+function TagCheckboxNode({
+  tag,
+  selectedIds,
+  onToggle,
+}: {
+  tag: TagNode;
+  selectedIds: string[];
+  onToggle: (tagId: string, checked: boolean) => void;
+}) {
+  const checked = selectedIds.includes(tag.id);
+  return (
+    <div>
+      <label
+        className={cn(
+          'relative flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-neutral-700 transition hover:bg-neutral-50',
+          tag.depth === 0 && 'font-semibold text-neutral-900',
+        )}
+        style={{ marginLeft: `${tag.depth * 1.1}rem` }}
+      >
+        {tag.depth > 0 && (
+          <span className="absolute -left-3 top-0 h-full w-3 border-l border-neutral-200 before:absolute before:left-0 before:top-1/2 before:h-px before:w-3 before:bg-neutral-200" />
+        )}
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-neutral-300 text-primary-600"
+          checked={checked}
+          onChange={(event) => onToggle(tag.id, event.target.checked)}
+        />
+        <span className="truncate">{tag.name}</span>
+        {tag.children.length > 0 && <span className="ml-auto text-xs font-medium text-neutral-400">{tag.children.length}</span>}
+      </label>
+      {tag.children.map((child) => (
+        <TagCheckboxNode key={child.id} tag={child} selectedIds={selectedIds} onToggle={onToggle} />
+      ))}
     </div>
   );
 }
@@ -1249,17 +1287,6 @@ function summarizeRichText(nodes: RichTextNode[]) {
     .trim();
 }
 
-function flattenTags(tags: TagNode[]) {
-  const result: TagNode[] = [];
-  const visit = (items: TagNode[]) => {
-    items.forEach((item) => {
-      result.push(item);
-      visit(item.children);
-    });
-  };
-  visit(tags);
-  return result;
-}
 
 function isQuestionEnvelope(value: unknown): value is { questions: unknown[] } {
   return Boolean(value && typeof value === 'object' && 'questions' in value && Array.isArray((value as { questions?: unknown }).questions));

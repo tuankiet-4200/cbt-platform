@@ -92,6 +92,7 @@ export const router = createBrowserRouter([
               { path: '/admin/exam-blueprints', element: withSuspense(AdminExamBlueprintsPage) },
               { path: '/admin/exams',          element: withSuspense(AdminExamsPage) },
               { path: '/admin/exams/create',   element: withSuspense(AdminExamCreatePage) },
+              { path: '/admin/exams/:examId/edit', element: withSuspense(AdminExamBuilderPage) },
               { path: '/admin/exams/:examId/builder', element: withSuspense(AdminExamBuilderPage) },
               { path: '/admin/users',          element: withSuspense(AdminUsersPage) },
               { path: '/admin/access-codes',   element: withSuspense(AdminCodesPage) },

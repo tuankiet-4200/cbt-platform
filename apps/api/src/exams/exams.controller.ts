@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -36,6 +36,11 @@ export class ExamsController {
   @Patch(':id')
   updateSettings(@Param('id') id: string, @Body() dto: UpdateExamSettingsDto): Promise<unknown> {
     return this.examsService.updateSettings(id, dto);
+  }
+
+  @Delete(':id')
+  deleteExam(@Param('id') id: string): Promise<unknown> {
+    return this.examsService.deleteExam(id);
   }
 
   @Patch(':id/blueprint')

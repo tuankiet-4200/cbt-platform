@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Eye,
   FilePlus2,
@@ -9,33 +9,20 @@ import {
   Layers3,
   Loader2,
   Search,
-  Settings,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SelectField } from '@/components/ui/SelectField';
 import {
   listExams,
   previewExam,
-  publishExam,
-  updateExamSettings,
-  type AdminExam,
-  type ExamAccessType,
   type ExamPreview,
 } from '../api/exams.api';
 import { ExamPreviewModal } from './ExamPreviewModal';
 
 export default function AdminExamsPage() {
-  const queryClient = useQueryClient();
   const [preview, setPreview] = useState<ExamPreview | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
-  const [settingsExam, setSettingsExam] = useState<AdminExam | null>(null);
-  const [settingsTitle, setSettingsTitle] = useState('');
-  const [settingsDescription, setSettingsDescription] = useState('');
-  const [settingsAccessType, setSettingsAccessType] = useState<ExamAccessType>('LOCKED');
-  const [settingsPublished, setSettingsPublished] = useState(false);
 
   const examsQuery = useQuery({
     queryKey: ['admin', 'exams'],
@@ -63,35 +50,6 @@ export default function AdminExamsPage() {
     },
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Preview failed.'),
   });
-
-  const settingsMutation = useMutation({
-    mutationFn: async () => {
-      if (!settingsExam) throw new Error('Select an exam first.');
-      await updateExamSettings(settingsExam.id, {
-        title: settingsTitle,
-        description: settingsDescription,
-        accessType: settingsAccessType,
-      });
-      if (settingsPublished !== settingsExam.isPublished) {
-        await publishExam(settingsExam.id, settingsPublished);
-      }
-    },
-    onSuccess: () => {
-      setSettingsExam(null);
-      setActionError(null);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
-    },
-    onError: (error) => setActionError(getErrorMessage(error) ?? 'Save settings failed.'),
-  });
-
-  const openSettings = (exam: AdminExam) => {
-    setSettingsExam(exam);
-    setSettingsTitle(exam.title);
-    setSettingsDescription(exam.description ?? '');
-    setSettingsAccessType(exam.accessType);
-    setSettingsPublished(exam.isPublished);
-    setActionError(null);
-  };
 
   return (
     <div className="space-y-6">
@@ -194,21 +152,13 @@ export default function AdminExamsPage() {
                   <td className="px-4 py-4">
                     <div className="flex justify-end gap-2">
                       <Link
-                        to={`/admin/exams/${exam.id}/builder`}
+                        to={`/admin/exams/${exam.id}/edit`}
                         className={cn('btn btn-secondary btn-sm', !exam.generatedAt && 'pointer-events-none opacity-50')}
                         aria-disabled={!exam.generatedAt}
                       >
                         <Layers3 className="h-4 w-4" />
-                        Builder
+                        Edit
                       </Link>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => openSettings(exam)}
-                      >
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </button>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
@@ -238,115 +188,6 @@ export default function AdminExamsPage() {
       </section>
 
       {preview && <ExamPreviewModal preview={preview} onClose={() => setPreview(null)} />}
-      {settingsExam && (
-        <ExamSettingsModal
-          title={settingsTitle}
-          description={settingsDescription}
-          accessType={settingsAccessType}
-          isPublished={settingsPublished}
-          pending={settingsMutation.isPending}
-          onTitleChange={setSettingsTitle}
-          onDescriptionChange={setSettingsDescription}
-          onAccessTypeChange={setSettingsAccessType}
-          onPublishedChange={setSettingsPublished}
-          onClose={() => setSettingsExam(null)}
-          onSubmit={() => settingsMutation.mutate()}
-        />
-      )}
-    </div>
-  );
-}
-
-function ExamSettingsModal({
-  title,
-  description,
-  accessType,
-  isPublished,
-  pending,
-  onTitleChange,
-  onDescriptionChange,
-  onAccessTypeChange,
-  onPublishedChange,
-  onClose,
-  onSubmit,
-}: {
-  title: string;
-  description: string;
-  accessType: ExamAccessType;
-  isPublished: boolean;
-  pending?: boolean;
-  onTitleChange: (value: string) => void;
-  onDescriptionChange: (value: string) => void;
-  onAccessTypeChange: (value: ExamAccessType) => void;
-  onPublishedChange: (value: boolean) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 bg-neutral-950/40 px-4 py-6 backdrop-blur-sm">
-      <div className="mx-auto max-w-2xl rounded-lg bg-white shadow-xl">
-        <header className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
-              <Settings className="h-4 w-4" />
-              Exam settings
-            </div>
-            <h2 className="mt-1 text-xl font-bold text-neutral-900">Edit metadata and access</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-neutral-200 text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
-            aria-label="Close settings"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-
-        <div className="space-y-4 p-5">
-          <label className="block">
-            <span className="label">Title</span>
-            <input className="input" value={title} onChange={(event) => onTitleChange(event.target.value)} />
-          </label>
-          <label className="block">
-            <span className="label">Description</span>
-            <textarea className="input min-h-24 resize-y" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
-          </label>
-          <label className="block">
-            <span className="label">Access type</span>
-            <SelectField
-              value={accessType}
-              options={[
-                { value: 'LOCKED', label: 'LOCKED' },
-                { value: 'PUBLIC', label: 'PUBLIC' },
-              ]}
-              onChange={(value) => onAccessTypeChange(value as ExamAccessType)}
-            />
-          </label>
-          <label className="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-4">
-            <span>
-              <span className="block text-sm font-semibold text-neutral-900">Publish state</span>
-              <span className="mt-1 block text-sm text-neutral-500">Draft exams are hidden from students even when access is PUBLIC.</span>
-            </span>
-            <input
-              type="checkbox"
-              className="h-5 w-5 rounded border-neutral-300 text-primary-600"
-              checked={isPublished}
-              onChange={(event) => onPublishedChange(event.target.checked)}
-            />
-          </label>
-        </div>
-
-        <footer className="flex justify-end gap-2 border-t border-neutral-200 px-5 py-4">
-          <button type="button" className="btn btn-secondary btn-md" onClick={onClose} disabled={pending}>
-            Cancel
-          </button>
-          <button type="button" className="btn btn-primary btn-md" onClick={onSubmit} disabled={pending || !title.trim()}>
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
-            Save settings
-          </button>
-        </footer>
-      </div>
     </div>
   );
 }

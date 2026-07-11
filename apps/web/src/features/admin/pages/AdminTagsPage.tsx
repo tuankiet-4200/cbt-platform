@@ -71,7 +71,7 @@ export default function AdminTagsPage() {
         {tagsQuery.isLoading ? (
           <p className="p-8 text-center text-sm text-neutral-500">Đang tải tag...</p>
         ) : (
-          <TagList tags={flatTags} />
+          <TagList tags={tags} />
         )}
       </section>
     </div>
@@ -84,24 +84,49 @@ function TagList({ tags }: { tags: TagNode[] }) {
   }
 
   return (
-    <div className="divide-y divide-neutral-100">
+    <div className="space-y-1 p-4">
       {tags.map((tag) => (
-        <article key={tag.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <div style={{ paddingLeft: `${tag.depth * 1.25}rem` }}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="badge badge-primary">{tag.sectionType}</span>
-              <span className="badge badge-neutral">Depth {tag.depth}</span>
-              <span className="badge badge-neutral">Order {tag.orderIndex}</span>
-            </div>
-            <p className="mt-3 font-semibold text-neutral-900">{tag.name}</p>
-            <p className="mt-1 text-sm text-neutral-500">{tag.slug}</p>
-          </div>
-          <Link className="btn btn-secondary btn-md" to={`/admin/tags/${tag.id}/edit`}>
-            <Edit3 className="h-4 w-4" />
-            Edit
-          </Link>
-        </article>
+        <TagTreeNode key={tag.id} tag={tag} />
       ))}
+    </div>
+  );
+}
+
+function TagTreeNode({ tag }: { tag: TagNode }) {
+  return (
+    <div>
+      <article
+        className={cn(
+          'relative grid gap-3 rounded-lg px-3 py-3 transition hover:bg-neutral-50 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center',
+          tag.depth === 0 && 'bg-white',
+        )}
+        style={{ marginLeft: `${tag.depth * 1.35}rem` }}
+      >
+        {tag.depth > 0 && (
+          <span className="absolute -left-4 top-0 h-full w-4 border-l border-neutral-200 before:absolute before:left-0 before:top-1/2 before:h-px before:w-4 before:bg-neutral-200" />
+        )}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="badge badge-primary">{tag.sectionType}</span>
+            <span className="badge badge-neutral">Depth {tag.depth}</span>
+            <span className="badge badge-neutral">Order {tag.orderIndex}</span>
+            {tag.children.length > 0 && <span className="badge badge-neutral">{tag.children.length} children</span>}
+          </div>
+          <p className={cn('mt-2 font-semibold text-neutral-900', tag.depth === 0 && 'text-base')}>{tag.name}</p>
+          <p className="mt-1 text-sm text-neutral-500">{tag.slug}</p>
+        </div>
+        <Link className="btn btn-secondary btn-sm" to={`/admin/tags/${tag.id}/edit`}>
+          <Edit3 className="h-4 w-4" />
+          Edit
+        </Link>
+      </article>
+      {tag.children.length > 0 && (
+        <div>
+          {tag.children.map((child) => (
+            <TagTreeNode key={child.id} tag={child} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ export interface SelectOption {
   value: string;
   label: string;
   description?: string;
+  depth?: number;
   disabled?: boolean;
 }
 
@@ -100,7 +101,10 @@ export function SelectField({
                   <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
                     {active && <Check className="h-4 w-4" />}
                   </span>
-                  <span className="min-w-0">
+                  <span className="relative min-w-0 flex-1" style={{ paddingLeft: `${(option.depth ?? 0) * 1.05}rem` }}>
+                    {(option.depth ?? 0) > 0 && (
+                      <span className="absolute left-0 top-0 h-full w-3 border-l border-neutral-200 before:absolute before:left-0 before:top-1/2 before:h-px before:w-3 before:bg-neutral-200" />
+                    )}
                     <span className="block truncate font-medium">{option.label}</span>
                     {option.description && <span className="mt-0.5 block text-xs text-neutral-500">{option.description}</span>}
                   </span>

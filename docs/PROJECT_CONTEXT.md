@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-11 (admin dropdown UI polish)
+> **Last updated:** 2026-07-11 (admin UX fixes and exam edit flow)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -200,9 +200,12 @@ Status: 🟡 IN PROGRESS
    - Phase 3 UX completed: blueprint templates now use a form builder for section targets, tag quotas, child tag min/max, difficulty rules, and MATH question type rules, with readonly JSON preview for audit.
    - Exam preview modal now includes an item detail inspector for MATH questions and READING/SCIENCE bundles/questions with content, payload, solution, tags, points, and order metadata.
 2. [x] Manual Exam Builder UI with drag ordering and item replacement
-   - Added `/admin/exams/:examId/builder` as a dedicated assembly workspace with MATH/READING/SCIENCE tabs, drag ordering, replacement bank, validation summary, and preview access.
-   - `/admin/exams` now links generated exams to Builder, and `/admin/exams/create` shows an Open builder CTA after successful generation.
+   - Added `/admin/exams/:examId/edit` as a dedicated exam edit workspace with MATH/READING/SCIENCE tabs, drag ordering, replacement bank, validation summary, and preview access.
+   - `/admin/exams` now links generated exams to Edit, and `/admin/exams/create` shows an Open editor CTA after successful generation.
    - Admin dropdowns now use a shared custom `SelectField` component instead of native browser `<select>` popups for a consistent polished UI across question, contribution, tag, exam, blueprint, and editor screens.
+   - Admin question lists now page at 20 items per page, and question/tag editors render taxonomy as a parent-child tree instead of a flat tag list.
+   - Blueprint builder now uses tag min/max rules with nested sub-tag and tag-scoped difficulty configuration; root tag quota is removed from UI and ignored by blueprint normalization.
+   - Exam management now routes generated exams to `/admin/exams/:examId/edit`, combining metadata edit, assembly reorder/replacement, preview, and delete with confirmation for published-impacting edits.
 3. [ ] Access Code Management UI
 4. [ ] User Exam Library unlock flow
 
