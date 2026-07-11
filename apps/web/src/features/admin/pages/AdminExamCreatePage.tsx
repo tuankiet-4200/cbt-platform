@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import {
   checkExamBlueprintTemplateAvailability,
   checkExamAvailability,
@@ -198,10 +199,15 @@ export default function AdminExamCreatePage() {
               </label>
               <label className="block">
                 <span className="label">Access</span>
-                <select className="input" value={accessType} onChange={(event) => setAccessType(event.target.value as ExamAccessType)} disabled={Boolean(createdExam)}>
-                  <option value="LOCKED">LOCKED</option>
-                  <option value="PUBLIC">PUBLIC</option>
-                </select>
+                <SelectField
+                  value={accessType}
+                  options={[
+                    { value: 'LOCKED', label: 'LOCKED' },
+                    { value: 'PUBLIC', label: 'PUBLIC' },
+                  ]}
+                  disabled={Boolean(createdExam)}
+                  onChange={(value) => setAccessType(value as ExamAccessType)}
+                />
               </label>
             </div>
             <label className="mt-4 block">
@@ -227,11 +233,17 @@ export default function AdminExamCreatePage() {
               </div>
               <label className="block lg:w-72">
                 <span className="label">Blueprint</span>
-                <select className="input" value={blueprintId} onChange={(event) => applyBlueprint(event.target.value)} disabled={Boolean(createdExam) || blueprintsQuery.isLoading}>
-                  {usableBlueprints.map((blueprint) => (
-                    <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
-                  ))}
-                </select>
+                <SelectField
+                  value={blueprintId}
+                  options={usableBlueprints.map((blueprint) => ({
+                    value: blueprint.id,
+                    label: blueprint.name,
+                    description: blueprint.status,
+                  }))}
+                  disabled={Boolean(createdExam) || blueprintsQuery.isLoading}
+                  placeholder="Select blueprint"
+                  onChange={applyBlueprint}
+                />
               </label>
             </div>
             <textarea

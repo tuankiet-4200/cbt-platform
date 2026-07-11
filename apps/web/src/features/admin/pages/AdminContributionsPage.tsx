@@ -9,6 +9,7 @@ import {
   type ContributionSubmission,
 } from '../api/contributions.api';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 
 const STATUS_OPTIONS: Array<{ value: '' | ContributionStatus; label: string }> = [
   { value: '', label: 'All status' },
@@ -65,13 +66,12 @@ export default function AdminContributionsPage() {
           <h1 className="mt-2 text-2xl font-bold text-neutral-900">Duyệt đóng góp</h1>
           <p className="mt-1 text-sm text-neutral-500">Xử lý PDF/DOCX cộng đồng gửi lên và ghi chú kết quả review.</p>
         </div>
-        <select className="input w-56" value={status} onChange={(event) => setStatus(event.target.value as '' | ContributionStatus)}>
-          {STATUS_OPTIONS.map((item) => (
-            <option key={item.value || 'all'} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+        <SelectField
+          className="w-56"
+          value={status}
+          options={STATUS_OPTIONS}
+          onChange={(value) => setStatus(value as '' | ContributionStatus)}
+        />
       </header>
 
       <section className="grid gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">

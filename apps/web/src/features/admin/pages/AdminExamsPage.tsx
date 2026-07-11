@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import {
   listExams,
   previewExam,
@@ -313,10 +314,14 @@ function ExamSettingsModal({
           </label>
           <label className="block">
             <span className="label">Access type</span>
-            <select className="input" value={accessType} onChange={(event) => onAccessTypeChange(event.target.value as ExamAccessType)}>
-              <option value="LOCKED">LOCKED</option>
-              <option value="PUBLIC">PUBLIC</option>
-            </select>
+            <SelectField
+              value={accessType}
+              options={[
+                { value: 'LOCKED', label: 'LOCKED' },
+                { value: 'PUBLIC', label: 'PUBLIC' },
+              ]}
+              onChange={(value) => onAccessTypeChange(value as ExamAccessType)}
+            />
           </label>
           <label className="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-4">
             <span>

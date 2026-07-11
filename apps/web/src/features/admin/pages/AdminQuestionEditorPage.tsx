@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { BlockMath, InlineMath } from 'react-katex';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import {
   bulkCreateQuestions,
   createPassageBundleWithQuestions,
@@ -497,11 +498,11 @@ export default function AdminQuestionEditorPage() {
         <div className="card p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Status">
-              <select className="input" value={status} onChange={(event) => setStatus(event.target.value as QuestionStatus)}>
-                {STATUSES.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
-                ))}
-              </select>
+              <SelectField
+                value={status}
+                options={STATUSES}
+                onChange={(value) => setStatus(value as QuestionStatus)}
+              />
             </Field>
             {section !== 'MATH' && (
               <>
@@ -681,18 +682,18 @@ function QuestionEditor({
 
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Type">
-          <select className="input" value={draft.type} onChange={(event) => patch({ type: event.target.value as QuestionType })}>
-            {QUESTION_TYPES.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
-            ))}
-          </select>
+          <SelectField
+            value={draft.type}
+            options={QUESTION_TYPES}
+            onChange={(value) => patch({ type: value as QuestionType })}
+          />
         </Field>
         <Field label="Level">
-          <select className="input" value={draft.level} onChange={(event) => patch({ level: event.target.value as CognitiveLevel })}>
-            {LEVELS.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
-            ))}
-          </select>
+          <SelectField
+            value={draft.level}
+            options={LEVELS}
+            onChange={(value) => patch({ level: value as CognitiveLevel })}
+          />
         </Field>
       </div>
 
@@ -767,10 +768,14 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           <div key={statement.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_2.25rem]">
             <input className="input" value={statement.id} disabled />
             <input className="input" value={statement.content} onChange={(event) => updateStatement(index, { content: event.target.value })} />
-            <select className="input" value={String(statement.isTrue)} onChange={(event) => updateStatement(index, { isTrue: event.target.value === 'true' })}>
-              <option value="true">Đúng</option>
-              <option value="false">Sai</option>
-            </select>
+            <SelectField
+              value={String(statement.isTrue)}
+              options={[
+                { value: 'true', label: 'Đúng' },
+                { value: 'false', label: 'Sai' },
+              ]}
+              onChange={(value) => updateStatement(index, { isTrue: value === 'true' })}
+            />
             <IconButton disabled={draft.statements.length <= 1} label="Remove statement" onClick={() => patch({ statements: draft.statements.filter((_, itemIndex) => itemIndex !== index) })} />
           </div>
         ))}
@@ -796,9 +801,11 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           {draft.dragSlots.map((slot, index) => (
             <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
               <input className="input" value={slot.label} onChange={(event) => updateDragSlot(index, { label: event.target.value })} />
-              <select className="input" value={slot.correctItemId} onChange={(event) => updateDragSlot(index, { correctItemId: event.target.value })}>
-                {draft.dragItems.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
-              </select>
+              <SelectField
+                value={slot.correctItemId}
+                options={draft.dragItems.map((item) => ({ value: item.id, label: item.id }))}
+                onChange={(value) => updateDragSlot(index, { correctItemId: value })}
+              />
               <IconButton disabled={draft.dragSlots.length <= 1} label="Remove slot" onClick={() => patch({ dragSlots: draft.dragSlots.filter((_, itemIndex) => itemIndex !== index) })} />
             </div>
           ))}

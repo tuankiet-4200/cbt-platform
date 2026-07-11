@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { BookOpen, Check, FlaskConical, Loader2, Sigma, Tags } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import {
   createTag,
   getTag,
@@ -228,14 +229,17 @@ function TagForm({
 
       <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_10rem]">
         <Field label="Parent tag">
-          <select className="input" value={form.parentId} onChange={(event) => onPatch({ parentId: event.target.value })}>
-            <option value="">Root tag</option>
-            {parentOptions.map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {'- '.repeat(tag.depth)}{tag.name}
-              </option>
-            ))}
-          </select>
+          <SelectField
+            value={form.parentId}
+            options={[
+              { value: '', label: 'Root tag' },
+              ...parentOptions.map((tag) => ({
+                value: tag.id,
+                label: `${'· '.repeat(tag.depth)}${tag.name}`,
+              })),
+            ]}
+            onChange={(value) => onPatch({ parentId: value })}
+          />
         </Field>
         <Field label="Order">
           <input

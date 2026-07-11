@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { SelectField } from '@/components/ui/SelectField';
 import type {
   ChildTagRule,
   DifficultyRule,
@@ -163,9 +164,11 @@ function SectionEditor({ section, tags, onChange }: {
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem_8rem_2.5rem]">
             <label className="block">
               <span className="label">Level</span>
-              <select className="input" value={rule.level} onChange={(event) => updateDifficultyRule(section, index, { level: event.target.value as CognitiveLevel }, onChange)}>
-                {LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}
-              </select>
+              <SelectField
+                value={rule.level}
+                options={LEVELS.map((level) => ({ value: level, label: level }))}
+                onChange={(value) => updateDifficultyRule(section, index, { level: value as CognitiveLevel }, onChange)}
+              />
             </label>
             <NumberInput label="Count" value={rule.count ?? 0} onChange={(count) => updateDifficultyRule(section, index, { count: count || undefined }, onChange)} />
             <NumberInput label="Percent" value={rule.percent ?? 0} onChange={(percent) => updateDifficultyRule(section, index, { percent: percent || undefined }, onChange)} />
@@ -186,9 +189,11 @@ function SectionEditor({ section, tags, onChange }: {
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem_8rem_2.5rem]">
               <label className="block">
                 <span className="label">Type</span>
-                <select className="input" value={rule.type} onChange={(event) => updateQuestionTypeRule(section, index, { type: event.target.value as QuestionType }, onChange)}>
-                  {QUESTION_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                </select>
+                <SelectField
+                  value={rule.type}
+                  options={QUESTION_TYPES.map((type) => ({ value: type, label: type }))}
+                  onChange={(value) => updateQuestionTypeRule(section, index, { type: value as QuestionType }, onChange)}
+                />
               </label>
               <NumberInput label="Count" value={rule.count ?? 0} onChange={(count) => updateQuestionTypeRule(section, index, { count: count || undefined }, onChange)} />
               <NumberInput label="Percent" value={rule.percent ?? 0} onChange={(percent) => updateQuestionTypeRule(section, index, { percent: percent || undefined }, onChange)} />
@@ -232,10 +237,12 @@ function TagSelect({ value, tags, onChange }: { value: string; tags: Array<{ slu
   return (
     <label className="block">
       <span className="label">Tag</span>
-      <select className="input" value={value} onChange={(event) => onChange(event.target.value)}>
-        {tags.length === 0 && <option value="">No tags</option>}
-        {tags.map((tag) => <option key={tag.slug} value={tag.slug}>{tag.label}</option>)}
-      </select>
+      <SelectField
+        value={value}
+        options={tags.length === 0 ? [{ value: '', label: 'No tags', disabled: true }] : tags.map((tag) => ({ value: tag.slug, label: tag.label }))}
+        placeholder="Select tag"
+        onChange={onChange}
+      />
     </label>
   );
 }

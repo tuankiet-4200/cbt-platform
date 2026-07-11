@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, FileJson, Loader2, Pencil, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import {
   checkExamBlueprintTemplateAvailability,
   createExamBlueprint,
@@ -255,11 +256,15 @@ export default function AdminExamBlueprintsPage() {
                 </label>
                 <label className="block">
                   <span className="label">Status</span>
-                  <select className="input" value={status} onChange={(event) => setStatus(event.target.value as ExamBlueprintStatus)}>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="ARCHIVED">ARCHIVED</option>
-                  </select>
+                  <SelectField
+                    value={status}
+                    options={[
+                      { value: 'DRAFT', label: 'DRAFT' },
+                      { value: 'ACTIVE', label: 'ACTIVE' },
+                      { value: 'ARCHIVED', label: 'ARCHIVED' },
+                    ]}
+                    onChange={(value) => setStatus(value as ExamBlueprintStatus)}
+                  />
                 </label>
               </div>
               <label className="mt-4 block">

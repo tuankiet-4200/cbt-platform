@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Edit3, FileText, FlaskConical, ListChecks, Plus, Sigma } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import {
   listPassageBundles,
   listQuestions,
@@ -83,13 +84,12 @@ export default function AdminQuestionsPage() {
           <p className="mt-1 text-sm text-neutral-500">{sectionMeta.description}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <select className="input w-full sm:w-52" value={status} onChange={(event) => setStatus(event.target.value as '' | QuestionStatus)}>
-            {STATUS_OPTIONS.map((item) => (
-              <option key={item.value || 'all'} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+          <SelectField
+            className="w-full sm:w-52"
+            value={status}
+            options={STATUS_OPTIONS}
+            onChange={(value) => setStatus(value as '' | QuestionStatus)}
+          />
           <span className="badge badge-neutral h-9 justify-center px-3">{total} items</span>
         </div>
       </header>

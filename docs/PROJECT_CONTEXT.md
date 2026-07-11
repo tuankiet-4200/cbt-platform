@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-11 (manual exam builder MVP)
+> **Last updated:** 2026-07-11 (admin dropdown UI polish)
 
 ### Active Sprint
 **Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
@@ -202,6 +202,7 @@ Status: 🟡 IN PROGRESS
 2. [x] Manual Exam Builder UI with drag ordering and item replacement
    - Added `/admin/exams/:examId/builder` as a dedicated assembly workspace with MATH/READING/SCIENCE tabs, drag ordering, replacement bank, validation summary, and preview access.
    - `/admin/exams` now links generated exams to Builder, and `/admin/exams/create` shows an Open builder CTA after successful generation.
+   - Admin dropdowns now use a shared custom `SelectField` component instead of native browser `<select>` popups for a consistent polished UI across question, contribution, tag, exam, blueprint, and editor screens.
 3. [ ] Access Code Management UI
 4. [ ] User Exam Library unlock flow
 
