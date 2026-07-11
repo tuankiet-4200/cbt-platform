@@ -15,6 +15,7 @@ import {
   RefreshCcw,
   Save,
   Search,
+  ShieldCheck,
   Shuffle,
   Trash2,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
   getExamBuilder,
   listReplacementCandidates,
   previewExam,
+  publishExam,
   reorderMathQuestions,
   reorderPassageBundles,
   replaceMathQuestion,
@@ -158,6 +160,19 @@ export default function AdminExamBuilderPage() {
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Khong cap nhat metadata duoc.'),
   });
 
+  const publishMutation = useMutation({
+    mutationFn: (nextPublished: boolean) => {
+      if (!examId) throw new Error('Missing exam id.');
+      return publishExam(examId, nextPublished);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
+      builderQuery.refetch();
+      setActionError(null);
+    },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Khong cap nhat trang thai publish duoc.'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => {
       if (!examId) throw new Error('Missing exam id.');
@@ -180,6 +195,19 @@ export default function AdminExamBuilderPage() {
       description,
       confirmLabel: 'Update anyway',
       onConfirm,
+    });
+  };
+
+  const togglePublish = () => {
+    if (!builder) return;
+    const nextPublished = !builder.isPublished;
+    setConfirmAction({
+      title: nextPublished ? 'Publish exam' : 'Unpublish exam',
+      description: nextPublished
+        ? 'Publishing runs validation and makes this exam available to students according to its access type.'
+        : 'Unpublishing hides this exam from students and prevents new attempts while preserving existing sessions and results.',
+      confirmLabel: nextPublished ? 'Publish exam' : 'Unpublish exam',
+      onConfirm: () => publishMutation.mutate(nextPublished),
     });
   };
 
@@ -214,7 +242,14 @@ export default function AdminExamBuilderPage() {
             <Layers3 className="h-4 w-4" />
             Edit exam
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-neutral-900">{builder?.title ?? 'Exam editor'}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-neutral-900">{builder?.title ?? 'Exam editor'}</h1>
+            {builder && (
+              <span className={cn('badge', builder.isPublished ? 'badge-success' : 'badge-warning')}>
+                {builder.isPublished ? 'Published' : 'Draft'}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-neutral-500">Edit metadata, reorder generated items, replace weak slots, and preview before publishing.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -232,6 +267,15 @@ export default function AdminExamBuilderPage() {
           >
             {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             Delete
+          </button>
+          <button
+            className={cn('btn btn-md', builder?.isPublished ? 'btn-secondary' : 'btn-primary')}
+            type="button"
+            disabled={!builder || publishMutation.isPending}
+            onClick={togglePublish}
+          >
+            {publishMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            {builder?.isPublished ? 'Unpublish' : 'Publish'}
           </button>
           <button className="btn btn-secondary btn-md" type="button" onClick={() => builderQuery.refetch()} disabled={builderQuery.isFetching}>
             {builderQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
