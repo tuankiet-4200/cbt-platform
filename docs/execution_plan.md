@@ -266,30 +266,30 @@
 ### Sprint 4.1 (Tuần 13–14) — Result Engine & Personal Analytics
 
 #### Backend Deliverables
-- [ ] **Result API:**
-  - `GET /api/v1/results/:sessionId` → Kết quả đầy đủ: `totalScore`, `sectionScores[]` (MATH/READING/SCIENCE), tagBreakdown, durationSecs.
-  - `GET /api/v1/results/:sessionId/answers` → Từng câu: content, answerJson (user), correctAnswer, isCorrect, pointsEarned, timeSpentMs, solution. **Chỉ trả về đáp án đúng SAU KHI session đã SUBMITTED.**
-- [ ] **Personal Analytics API:**
+- [x] **Result API:**
+  - `GET /api/v1/results/:attemptId` → Kết quả đầy đủ: `totalScore`, `sectionScores[]` (MATH/READING/SCIENCE), tagBreakdown, durationSecs.
+  - `GET /api/v1/results/:attemptId/answers` → Từng câu: content, answerJson (user), correctAnswer, isCorrect, pointsEarned, timeSpentMs, solution. **Chỉ trả về đáp án đúng SAU KHI attempt đã GRADED.**
+- [x] **Personal Analytics API:**
   - `GET /api/v1/analytics/me/exams/:examId` → Lịch sử lần thi, điểm, ngày.
   - `GET /api/v1/analytics/me/weaknesses` → Tỷ lệ đúng GROUP BY tag.
   - `GET /api/v1/analytics/me/time-analysis` → Avg time/question vs `expectedTimeSecs`.
-- [ ] **Leaderboard API:** `GET /api/v1/exams/:examId/leaderboard` → Top 100 dùng Redis Sorted Set `ZADD leaderboard:{examId} score userId`. Update sau mỗi grading job.
+- [x] **Leaderboard API:** `GET /api/v1/exams/:examId/leaderboard` → Top 100 dùng Redis Sorted Set `ZADD leaderboard:{examId} score userId`. Update điểm tốt nhất sau mỗi grading job.
 
 #### Frontend Deliverables
-- [ ] **Result Page (`/results/:sessionId`):**
+- [x] **Result Page (`/results/:attemptId`):**
   - Điểm số hero (totalScore/maxScore + percent).
   - **3-section score card**: MATH / READING / SCIENCE — dùng `sectionScores[]` từ `ExamResult`.
   - Radar chart 3 trục (Toán, Đọc hiểu, Khoa học) với `recharts`.
   - Tag breakdown bar chart.
-- [ ] **Answer Review Page (`/results/:sessionId/review`):**
+- [x] **Answer Review Page (`/results/:attemptId/review`):**
   - List câu hỏi với màu (xanh=đúng, đỏ=sai, xám=bỏ).
   - PassageBundle questions hiển thị trong 2-column layout với passage.
   - Click expand: full content, đáp án đúng, lời giải (RichTextNode rendered), timeSpentMs.
   - Filter: Chỉ sai / chỉ đánh dấu / chỉ bỏ.
-- [ ] **Personal Analytics Dashboard:** Progress chart, điểm mạnh/yếu, "Cần cải thiện" section.
+- [x] **Personal Analytics Dashboard:** Progress chart, điểm mạnh/yếu, "Cần cải thiện" section, lịch sử thi và leaderboard.
 
 #### ⚠️ Rủi ro Sprint 4.1
-> **R11 — Large Result Payload:** Lazy load câu hỏi trong review page. Pagination cho answer list. Server-side compression (đã enable `compression()` trong main.ts).
+> **R11 — Large Result Payload (đã xử lý):** Review tải theo section; MATH phân trang câu hỏi, READING/SCIENCE phân trang theo PassageBundle nguyên tử. Server-side compression đã enable trong `main.ts`.
 
 ---
 
