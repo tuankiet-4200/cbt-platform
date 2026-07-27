@@ -22,10 +22,10 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (section-scoped session architecture approved)
+> **Last updated:** 2026-07-27 (Sprint 3.1 section-scoped session engine completed)
 
 ### Active Sprint
-**Sprint 3.1 (Tuần 9–10) — Exam Session Engine & Write Path**
+**Sprint 3.2 (Tuần 11–12) — Question Renderers & Proctoring**
 Status: ⬜ READY TO START
 
 ### Sprint Progress Overview
@@ -36,8 +36,8 @@ Status: ⬜ READY TO START
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
 | 2.2 | Exam Assembly & Access Code System | ✅ COMPLETE | 100% |
-| **3.1** | **Exam Session Engine & Write Path** | ⬜ Ready | 0% |
-| 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
+| 3.1 | Exam Session Engine & Write Path | ✅ COMPLETE | 100% |
+| **3.2** | **Question Renderers & Proctoring** | ⬜ Ready | 0% |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
 | 4.2 | IRT Integration & Advanced Features | ⬜ Pending | — |
 | 5.1 | Performance & Security Hardening | ⬜ Pending | — |
@@ -232,23 +232,45 @@ Status: ⬜ READY TO START
 
 ---
 
-## 🎯 Next Up: Sprint 3.1 Tasks
+## ✅ Sprint 3.1 — What Was Completed
 
 **Goal:** A student can start or resume an authorized exam, answer reliably through transient network failures, recover state, and submit exactly once.
 
 ### Backend — Sprint 3.1
-1. [ ] Migrate `ExamAttempt` aggregate plus section-scoped `ExamSession`; move aggregate `ExamResult` ownership to the attempt
-2. [ ] Session lifecycle API: create/resume attempt, sequential section start, safe section payload, server-authoritative section `endTime`, and idempotent submit/transition
-3. [ ] Redis answer sync API with batched writes, 24-hour TTL, and `X-Idempotency-Key`
-4. [ ] BullMQ periodic/final answer flush from Redis to PostgreSQL
-5. [ ] Session recovery API with Redis primary and PostgreSQL fallback
+1. [x] Migrated `ExamAttempt` aggregate plus section-scoped `ExamSession`; aggregate `ExamResult` ownership moved to the attempt
+2. [x] Added create/resume attempt, sequential section start, safe section payload, server-authoritative section `endTime`, timeout jobs, and idempotent submit/transition
+3. [x] Added Redis answer sync with batched writes, 24-hour TTL, section membership validation, and `X-Idempotency-Key`
+4. [x] Added BullMQ delayed flush/final synchronous flush to PostgreSQL plus final `grade-attempt` queue hand-off
+5. [x] Added session recovery with Redis primary and PostgreSQL fallback
 
 ### Frontend — Sprint 3.1
-1. [ ] Section confirmation/loading screens based on the approved TSA reference
-2. [ ] Zustand exam store persisted per section session and linked to its parent attempt
-3. [ ] Debounced answer sync with offline queue and reconnect handling
-4. [ ] Server-authoritative section countdown timer
-5. [ ] Section submission summary and next-section transition flow
+1. [x] Added section confirmation/loading screens based on the approved TSA reference
+2. [x] Added Zustand exam store persisted under `exam_session_{sessionId}` and linked to its parent attempt
+3. [x] Added debounced answer sync, offline queue, reconnect handling, and final pre-submit sync
+4. [x] Added server-authoritative section countdown timer with automatic timeout submission
+5. [x] Added submission confirmation, completion summary, and explicit next-section transition
+6. [x] Added MATH single-column and READING/SCIENCE independent-scroll two-column shells, navigator, progress, connection state, and fullscreen-exit warning
+
+### Quality — Sprint 3.1
+- [x] Prisma migration `20260727041422_add_section_scoped_exam_attempts` applied and database constraints verified
+- [x] API unit tests pass (4/4)
+- [x] API and Web lint, typecheck, and production builds pass
+- [x] End-to-end localhost smoke test passed: create attempt → MATH sync/recovery/submit → READING → SCIENCE → idempotent final submit
+- [x] Active session payload smoke test found zero leaked grading keys or solutions
+
+---
+
+## 🎯 Next Up: Sprint 3.2 Tasks
+
+### Backend — Sprint 3.2
+1. [ ] Implement aggregate grading worker for all five question types with all-or-nothing multi-slot rules
+2. [ ] Persist `ExamResult`, per-section scores, and graded `SessionAnswer` details
+3. [ ] Add proctoring event ingestion and admin event timeline APIs
+
+### Frontend — Sprint 3.2
+1. [ ] Refine all five question renderers, including native drag-and-drop interaction
+2. [ ] Persist tab-switch, blur, copy, and fullscreen-exit proctoring events
+3. [ ] Add result and answer-review screens backed by aggregate attempt results
 
 ---
 
@@ -315,12 +337,12 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 
 | Service | Container | Port | Status (as of last update) |
 |---------|-----------|------|--------------------------|
-| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — 18 tables migrated |
+| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — 19 tables migrated; ExamAttempt constraints verified |
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
-| NestJS API | — | 3000 | ✅ Working — user exam endpoints smoke-tested |
-| Vite frontend | — | 5173 | ✅ Working — exam library build and route smoke-tested |
+| NestJS API | — | 3000 | ✅ Working — full section lifecycle, Redis recovery, BullMQ flush, and idempotent submit smoke-tested |
+| Vite frontend | — | 5173 | ✅ Working — section exam experience builds successfully |
 
 ```bash
 # Start dev environment
