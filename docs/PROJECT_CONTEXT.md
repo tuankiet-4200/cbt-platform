@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (user exam list redesigned from supplied mockup)
+> **Last updated:** 2026-07-27 (section-scoped session architecture approved)
 
 ### Active Sprint
 **Sprint 3.1 (Tuần 9–10) — Exam Session Engine & Write Path**
@@ -237,16 +237,18 @@ Status: ⬜ READY TO START
 **Goal:** A student can start or resume an authorized exam, answer reliably through transient network failures, recover state, and submit exactly once.
 
 ### Backend — Sprint 3.1
-1. [ ] Session lifecycle API: create/resume, safe exam payload, server-authoritative `endTime`, and idempotent submit
-2. [ ] Redis answer sync API with batched writes, 24-hour TTL, and `X-Idempotency-Key`
-3. [ ] BullMQ periodic/final answer flush from Redis to PostgreSQL
-4. [ ] Session recovery API with Redis primary and PostgreSQL fallback
+1. [ ] Migrate `ExamAttempt` aggregate plus section-scoped `ExamSession`; move aggregate `ExamResult` ownership to the attempt
+2. [ ] Session lifecycle API: create/resume attempt, sequential section start, safe section payload, server-authoritative section `endTime`, and idempotent submit/transition
+3. [ ] Redis answer sync API with batched writes, 24-hour TTL, and `X-Idempotency-Key`
+4. [ ] BullMQ periodic/final answer flush from Redis to PostgreSQL
+5. [ ] Session recovery API with Redis primary and PostgreSQL fallback
 
 ### Frontend — Sprint 3.1
-1. [ ] Zustand exam store persisted per session
-2. [ ] Debounced answer sync with offline queue and reconnect handling
-3. [ ] Server-authoritative global countdown timer
-4. [ ] Start/resume flow from exam detail into the full-screen exam route
+1. [ ] Section confirmation/loading screens based on the approved TSA reference
+2. [ ] Zustand exam store persisted per section session and linked to its parent attempt
+3. [ ] Debounced answer sync with offline queue and reconnect handling
+4. [ ] Server-authoritative section countdown timer
+5. [ ] Section submission summary and next-section transition flow
 
 ---
 
@@ -270,6 +272,9 @@ These decisions are FINAL and must not be reversed without explicit user approva
 ### Tech Choices
 | Decision | Rule |
 |----------|------|
+| **Exam attempt/session lifecycle** | One `ExamAttempt` aggregates three sequential `ExamSession` records: MATH, READING, SCIENCE. Each section has its own confirmation, server-authoritative timer, submission, and transition screen. |
+| **Default section durations** | MATH = 60 minutes, READING = 30 minutes, SCIENCE = 60 minutes. Blueprint section JSON may override these values. |
+| **Aggregate result ownership** | `ExamResult` belongs to `ExamAttempt`; `sectionScores[]` stores the MATH/READING/SCIENCE breakdown. |
 | Tailwind CSS | **v4 only**. CSS-first `@theme {}`. No `tailwind.config.js`. Plugin: `@tailwindcss/vite`. |
 | Rich text format | **`RichTextNode[]` JSON** (NOT Markdown string). See `QuestionContentSpec.md`. |
 | File storage | **Supabase Storage**. Public `images` bucket for question images; private `contributions` bucket with signed URLs for PDF/DOCX. |
@@ -298,6 +303,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | `docs/PROJECT_CONTEXT.md` | **THIS FILE** — Live project state (read first, update last) |
 | `docs/execution_plan.md` | Full 5-month sprint plan with deliverables |
 | `docs/QuestionContentSpec.md` | Canonical question content schema v2.1 |
+| `docs/section-session-architecture.md` | Approved ExamAttempt + independently timed section-session architecture |
 | `.agents/AGENTS.md` | Agent rules — Prisma workflow, commit convention, checklists |
 | `apps/api/prisma/schema.prisma` | Database schema — source of truth (18 tables) |
 | `apps/web/src/index.css` | Tailwind v4 design tokens + component CSS |
