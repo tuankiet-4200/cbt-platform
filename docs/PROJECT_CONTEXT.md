@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-12 (exam edit save action)
+> **Last updated:** 2026-07-27 (Sprint 2.2 complete — user exam library and unlock flow)
 
 ### Active Sprint
-**Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System**  
-Status: 🟡 IN PROGRESS
+**Sprint 3.1 (Tuần 9–10) — Exam Session Engine & Write Path**
+Status: ⬜ READY TO START
 
 ### Sprint Progress Overview
 
@@ -35,8 +35,8 @@ Status: 🟡 IN PROGRESS
 | 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
 | 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| **2.2** | **Exam Assembly & Access Code System** | 🟡 In Progress | 92% |
-| 3.1 | Exam Session Engine & Write Path | ⬜ Pending | — |
+| 2.2 | Exam Assembly & Access Code System | ✅ COMPLETE | 100% |
+| **3.1** | **Exam Session Engine & Write Path** | ⬜ Ready | 0% |
 | 3.2 | Question Renderers & Proctoring | ⬜ Pending | — |
 | 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
 | 4.2 | IRT Integration & Advanced Features | ⬜ Pending | — |
@@ -173,7 +173,7 @@ Status: 🟡 IN PROGRESS
 
 ---
 
-## 🎯 Next Up: Sprint 2.2 Tasks
+## ✅ Sprint 2.2 — What Was Completed
 
 **Goal:** Admin can assemble and publish a complete exam; users can unlock locked exams using access codes.
 
@@ -192,7 +192,11 @@ Status: 🟡 IN PROGRESS
    - Added `AccessCodesModule` with admin list/create/deactivate endpoints under `/api/v1/admin/access-codes`.
    - Added `POST /api/v1/exams/unlock` with Serializable transaction semantics, quota increment, expiry/active checks, and idempotent already-unlocked handling.
    - Access codes are generated as 8-character uppercase alphanumeric codes and can only be created for published `LOCKED` exams.
-5. [ ] User Exam List API: list unlocked/public exams with question counts
+5. [x] User Exam List API: list unlocked/public exams with question counts
+   - Added authenticated `GET /api/v1/exams` and `GET /api/v1/exams/:id`.
+   - User visibility is restricted to published PUBLIC exams or published LOCKED exams backed by `ExamAccess`.
+   - Responses include per-section and total question counts, access source, and latest session metadata without exposing question content, solutions, or correct answers.
+   - Added focused unit tests for access filtering, section count mapping, response redaction, and inaccessible exam handling.
 
 ### Frontend — Sprint 2.2
 1. [x] Admin Exam Management UI: list exams, create metadata, edit blueprint JSON, check availability, generate/regenerate draft, preview section breakdown, publish/unpublish
@@ -213,7 +217,35 @@ Status: 🟡 IN PROGRESS
    - Exam edit header now includes a primary Save action for title/description metadata changes, while reorder/replace actions continue to persist immediately.
 3. [x] Access Code Management UI
    - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
-4. [ ] User Exam Library unlock flow
+4. [x] User Exam Library unlock flow
+   - `/exams` now provides a student-facing exam library with search, access filters, section counts, progress status, loading/error/empty states, and a polished TSA-themed responsive layout.
+   - Added normalized 8-character access code entry wired to `POST /api/v1/exams/unlock`, including success/error feedback and automatic library refresh.
+   - `/exams/:id` now shows safe exam metadata, section structure, instructions, access state, and a Sprint 3.1-ready start/resume area.
+
+### Quality & Tooling — Sprint 2.2 Closeout
+- [x] API unit tests pass (3/3)
+- [x] API and Web TypeScript typecheck pass
+- [x] API and Web production builds pass
+- [x] Added ESLint 9 flat configuration; both workspace lint scripts pass
+- [x] Confirmed no spurious `vite.config.js` / `vite.config.d.ts` output
+
+---
+
+## 🎯 Next Up: Sprint 3.1 Tasks
+
+**Goal:** A student can start or resume an authorized exam, answer reliably through transient network failures, recover state, and submit exactly once.
+
+### Backend — Sprint 3.1
+1. [ ] Session lifecycle API: create/resume, safe exam payload, server-authoritative `endTime`, and idempotent submit
+2. [ ] Redis answer sync API with batched writes, 24-hour TTL, and `X-Idempotency-Key`
+3. [ ] BullMQ periodic/final answer flush from Redis to PostgreSQL
+4. [ ] Session recovery API with Redis primary and PostgreSQL fallback
+
+### Frontend — Sprint 3.1
+1. [ ] Zustand exam store persisted per session
+2. [ ] Debounced answer sync with offline queue and reconnect handling
+3. [ ] Server-authoritative global countdown timer
+4. [ ] Start/resume flow from exam detail into the full-screen exam route
 
 ---
 
@@ -280,8 +312,8 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
-| NestJS API | — | 3000 | ⬜ Not started yet |
-| Vite frontend | — | 5173 | ⬜ Not running (smoke-tested earlier in this task) |
+| NestJS API | — | 3000 | ✅ Working — user exam endpoints smoke-tested |
+| Vite frontend | — | 5173 | ✅ Working — exam library build and route smoke-tested |
 
 ```bash
 # Start dev environment
