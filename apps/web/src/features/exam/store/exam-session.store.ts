@@ -47,6 +47,31 @@ function storageKey(sessionId: string) {
   return `exam_session_${sessionId}`;
 }
 
+function attemptFlagsKey(attemptId: string) {
+  return `exam_attempt_flags_${attemptId}`;
+}
+
+export function readAttemptFlaggedQuestionIds(attemptId: string): string[] {
+  if (!attemptId) return [];
+  try {
+    const raw = localStorage.getItem(attemptFlagsKey(attemptId));
+    const value: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistAttemptFlags(attemptId: string, questionIds: string[]) {
+  if (!attemptId) return;
+  localStorage.setItem(
+    attemptFlagsKey(attemptId),
+    JSON.stringify(questionIds),
+  );
+}
+
 function readPersisted(sessionId: string): PersistedSessionState | null {
   try {
     const raw = localStorage.getItem(storageKey(sessionId));
@@ -127,6 +152,14 @@ export const useExamSessionStore = create<ExamSessionState>((set, get) => ({
         : [...state.flaggedQuestionIds, questionId],
     }));
     persistCurrent(get);
+    const current = get();
+    const attemptFlags = readAttemptFlaggedQuestionIds(current.attemptId);
+    persistAttemptFlags(
+      current.attemptId,
+      current.flaggedQuestionIds.includes(questionId)
+        ? [...new Set([...attemptFlags, questionId])]
+        : attemptFlags.filter((id) => id !== questionId),
+    );
   },
   setConnected: (connected) => set({ connected }),
   clear: () => {

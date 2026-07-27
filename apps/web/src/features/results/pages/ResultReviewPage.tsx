@@ -13,13 +13,14 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { RichText } from '@/features/exam/components/RichText';
 import type { ExamSectionType } from '@/features/exam/api/sessions.api';
+import { readAttemptFlaggedQuestionIds } from '@/features/exam/store/exam-session.store';
 import {
   getAnswerReview,
   type ReviewBundle,
   type ReviewQuestion,
 } from '../api/results.api';
 
-type Filter = 'ALL' | 'WRONG' | 'SKIPPED' | 'CORRECT';
+type Filter = 'ALL' | 'WRONG' | 'FLAGGED' | 'SKIPPED' | 'CORRECT';
 
 const SECTIONS: Array<{ value: ExamSectionType; label: string }> = [
   { value: 'MATH', label: 'Tư duy Toán học' },
@@ -33,6 +34,10 @@ export default function ResultReviewPage() {
   const [section, setSection] = useState<ExamSectionType>('MATH');
   const [page, setPage] = useState(1);
   const limit = section === 'MATH' ? 10 : 1;
+  const flaggedQuestionIds = useMemo(
+    () => new Set(readAttemptFlaggedQuestionIds(attemptId)),
+    [attemptId],
+  );
   const reviewQuery = useQuery({
     queryKey: ['answer-review', attemptId, section, page, limit],
     queryFn: () => getAnswerReview(attemptId, section, page, limit),
@@ -55,11 +60,11 @@ export default function ResultReviewPage() {
       .map((bundle) => ({
         ...bundle,
         questions: bundle.questions.filter((question) =>
-          matchesFilter(question, filter),
+          matchesFilter(question, filter, flaggedQuestionIds),
         ),
       }))
       .filter((bundle) => bundle.questions.length > 0);
-  }, [filter, reviewQuery.data, section]);
+  }, [filter, flaggedQuestionIds, reviewQuery.data, section]);
 
   if (reviewQuery.isLoading) {
     return (
@@ -99,7 +104,7 @@ export default function ResultReviewPage() {
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(['ALL', 'WRONG', 'SKIPPED', 'CORRECT'] as Filter[]).map((value) => (
+            {(['ALL', 'WRONG', 'FLAGGED', 'SKIPPED', 'CORRECT'] as Filter[]).map((value) => (
               <button
                 key={value}
                 type="button"
@@ -327,8 +332,13 @@ function formatAnswer(value: Record<string, unknown>) {
   return JSON.stringify(value);
 }
 
-function matchesFilter(question: ReviewQuestion, filter: Filter) {
+function matchesFilter(
+  question: ReviewQuestion,
+  filter: Filter,
+  flaggedQuestionIds: Set<string>,
+) {
   if (filter === 'ALL') return true;
+  if (filter === 'FLAGGED') return flaggedQuestionIds.has(question.id);
   if (filter === 'SKIPPED') return question.userAnswer === null;
   if (filter === 'CORRECT') return question.isCorrect === true;
   return question.userAnswer !== null && question.isCorrect === false;
@@ -338,6 +348,7 @@ function filterLabel(filter: Filter) {
   return {
     ALL: 'Tất cả',
     WRONG: 'Chỉ câu sai',
+    FLAGGED: 'Đã đánh dấu',
     SKIPPED: 'Bỏ trống',
     CORRECT: 'Câu đúng',
   }[filter];
