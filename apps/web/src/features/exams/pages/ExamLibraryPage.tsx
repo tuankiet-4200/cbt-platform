@@ -85,7 +85,7 @@ export default function ExamLibraryPage() {
               <HeroMetric icon={BookOpen} value={exams.length} label="đề khả dụng" />
               <HeroMetric
                 icon={Trophy}
-                value={exams.filter((exam) => exam.latestSession?.status === 'GRADED').length}
+                value={exams.filter((exam) => ['SUBMITTED', 'GRADED'].includes(exam.latestAttempt?.status ?? '')).length}
                 label="đề hoàn thành"
               />
             </div>
@@ -193,8 +193,8 @@ export default function ExamLibraryPage() {
 }
 
 function ExamCard({ exam }: { exam: UserExam }) {
-  const isInProgress = exam.latestSession?.status === 'IN_PROGRESS';
-  const isCompleted = exam.latestSession?.status === 'GRADED';
+  const isInProgress = exam.latestAttempt?.status === 'IN_PROGRESS';
+  const isCompleted = ['SUBMITTED', 'GRADED'].includes(exam.latestAttempt?.status ?? '');
 
   return (
     <article className="overflow-hidden rounded-lg border border-neutral-100 bg-white shadow-soft">
@@ -231,9 +231,9 @@ function ExamCard({ exam }: { exam: UserExam }) {
               ? 'Đề công khai'
               : 'Đã mở khóa'}
         </span>
-        {isInProgress && exam.latestSession ? (
+        {isInProgress && exam.latestAttempt ? (
           <Link
-            to={`/exam/${exam.latestSession.id}`}
+            to={`/exam/attempt/${exam.latestAttempt.id}`}
             className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-5 text-sm font-semibold text-white transition hover:bg-success-700"
           >
             Tiếp tục làm bài

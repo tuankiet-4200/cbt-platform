@@ -68,7 +68,7 @@ export const router = createBrowserRouter([
       {
         element: <ExamLayout />,
         children: [
-          { path: '/exam/:sessionId', element: withSuspense(ExamSessionPage) },
+          { path: '/exam/attempt/:attemptId', element: withSuspense(ExamSessionPage) },
         ],
       },
 

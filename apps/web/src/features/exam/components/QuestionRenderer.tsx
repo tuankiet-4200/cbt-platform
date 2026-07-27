@@ -1,0 +1,291 @@
+import { RichText } from './RichText';
+import type { RichTextNode, SessionQuestion } from '../api/sessions.api';
+
+type Answer = Record<string, unknown>;
+
+interface Option {
+  id: string;
+  content: RichTextNode[];
+}
+
+interface Statement {
+  id: string;
+  content: RichTextNode[];
+}
+
+interface DragItem {
+  id: string;
+  content: RichTextNode[];
+}
+
+interface DragSlot {
+  id: string;
+  label?: RichTextNode[];
+}
+
+interface FillBlank {
+  id: string;
+  displayFormat?: string;
+  unit?: string;
+  min?: number;
+  max?: number;
+}
+
+export function QuestionRenderer({
+  question,
+  answer,
+  onAnswer,
+}: {
+  question: SessionQuestion;
+  answer?: Answer;
+  onAnswer: (answer: Answer) => void;
+}) {
+  const payload = question.content.payload;
+  const options = (payload.options ?? []) as Option[];
+  const statements = (payload.statements ?? []) as Statement[];
+  const items = (payload.items ?? []) as DragItem[];
+  const slots = (payload.slots ?? []) as DragSlot[];
+  const blanks = (payload.blanks ?? []) as FillBlank[];
+
+  const fillAnswer = (answer?.blanks ?? []) as Array<{
+    blankId: string;
+    value: number | string;
+  }>;
+
+  const setBlank = (blankId: string, value: string) => {
+    const next = fillAnswer.filter((item) => item.blankId !== blankId);
+    if (value !== '') next.push({ blankId, value });
+    onAnswer({ blanks: next });
+  };
+
+  return (
+    <article>
+      <div className="text-[15px] leading-8 text-neutral-900">
+        <RichText
+          nodes={question.content.stem}
+          renderBlank={(blankId) => {
+            const blank = blanks.find((item) => item.id === blankId);
+            const value =
+              fillAnswer.find((item) => item.blankId === blankId)?.value ?? '';
+            return (
+              <span className="inline-flex items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={String(value)}
+                  onChange={(event) => setBlank(blankId, event.target.value)}
+                  className="h-8 w-28 border-0 border-b-2 border-blue-400 bg-transparent px-2 text-center outline-none focus:border-blue-600"
+                  aria-label={`Ô trả lời ${blankId}`}
+                />
+                {blank?.unit && (
+                  <span className="text-sm text-neutral-500">{blank.unit}</span>
+                )}
+              </span>
+            );
+          }}
+        />
+      </div>
+
+      {question.type === 'SINGLE_CHOICE' && (
+        <div className="mt-5 space-y-3">
+          {options.map((option) => (
+            <AnswerOption
+              key={option.id}
+              selected={answer?.selectedOptionId === option.id}
+              onClick={() => onAnswer({ selectedOptionId: option.id })}
+              content={option.content}
+            />
+          ))}
+        </div>
+      )}
+
+      {question.type === 'MULTIPLE_CHOICE' && (
+        <div className="mt-5 space-y-3">
+          {options.map((option) => {
+            const selectedIds =
+              (answer?.selectedOptionIds as string[] | undefined) ?? [];
+            const selected = selectedIds.includes(option.id);
+            return (
+              <AnswerOption
+                key={option.id}
+                selected={selected}
+                square
+                onClick={() =>
+                  onAnswer({
+                    selectedOptionIds: selected
+                      ? selectedIds.filter((id) => id !== option.id)
+                      : [...selectedIds, option.id],
+                  })
+                }
+                content={option.content}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {question.type === 'TRUE_FALSE_MATRIX' && (
+        <div className="mt-5 overflow-hidden rounded-lg border border-neutral-200">
+          <div className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] bg-neutral-50 text-center text-sm font-semibold">
+            <span />
+            <span className="p-3">Đúng</span>
+            <span className="p-3">Sai</span>
+          </div>
+          {statements.map((statement) => {
+            const values =
+              (answer?.answers as Array<{
+                statementId: string;
+                value: boolean;
+              }> | undefined) ?? [];
+            const current = values.find(
+              (item) => item.statementId === statement.id,
+            )?.value;
+            const setValue = (value: boolean) =>
+              onAnswer({
+                answers: [
+                  ...values.filter(
+                    (item) => item.statementId !== statement.id,
+                  ),
+                  { statementId: statement.id, value },
+                ],
+              });
+            return (
+              <div
+                key={statement.id}
+                className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] border-t border-neutral-200"
+              >
+                <div className="p-3 text-sm leading-6">
+                  <RichText nodes={statement.content} />
+                </div>
+                <MatrixChoice
+                  selected={current === true}
+                  onClick={() => setValue(true)}
+                  label={`${statement.id} đúng`}
+                />
+                <MatrixChoice
+                  selected={current === false}
+                  onClick={() => setValue(false)}
+                  label={`${statement.id} sai`}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {question.type === 'DRAG_DROP' && (
+        <div className="mt-5 space-y-3">
+          {slots.map((slot) => {
+            const values =
+              (answer?.slots as Array<{
+                slotId: string;
+                itemId: string;
+              }> | undefined) ?? [];
+            const selected =
+              values.find((item) => item.slotId === slot.id)?.itemId ?? '';
+            return (
+              <label
+                key={slot.id}
+                className="grid gap-2 rounded-lg border border-neutral-200 p-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-center"
+              >
+                <span className="text-sm font-semibold text-neutral-700">
+                  <RichText nodes={slot.label ?? []} />
+                </span>
+                <select
+                  value={selected}
+                  onChange={(event) =>
+                    onAnswer({
+                      slots: [
+                        ...values.filter((item) => item.slotId !== slot.id),
+                        { slotId: slot.id, itemId: event.target.value },
+                      ],
+                    })
+                  }
+                  className="input"
+                >
+                  <option value="">Chọn đáp án</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {plainText(item.content)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function AnswerOption({
+  selected,
+  square,
+  onClick,
+  content,
+}: {
+  selected: boolean;
+  square?: boolean;
+  onClick: () => void;
+  content: RichTextNode[];
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left text-sm leading-6 transition ${
+        selected
+          ? 'border-blue-400 bg-blue-50 text-blue-950'
+          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
+      }`}
+    >
+      <span
+        className={`mt-0.5 h-5 w-5 shrink-0 border-2 ${
+          square ? 'rounded-md' : 'rounded-full'
+        } ${
+          selected
+            ? 'border-blue-600 bg-blue-600 shadow-[inset_0_0_0_4px_white]'
+            : 'border-neutral-300'
+        }`}
+      />
+      <span>
+        <RichText nodes={content} />
+      </span>
+    </button>
+  );
+}
+
+function MatrixChoice({
+  selected,
+  onClick,
+  label,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="flex items-center justify-center border-l border-neutral-200"
+    >
+      <span
+        className={`h-7 w-7 rounded-full ${
+          selected
+            ? 'bg-blue-600 shadow-[inset_0_0_0_6px_white] ring-2 ring-blue-600'
+            : 'bg-neutral-200'
+        }`}
+      />
+    </button>
+  );
+}
+
+function plainText(nodes: RichTextNode[]) {
+  return nodes
+    .map((node) => ('content' in node ? node.content : ''))
+    .join(' ')
+    .trim();
+}

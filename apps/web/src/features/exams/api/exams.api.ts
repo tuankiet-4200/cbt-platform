@@ -31,6 +31,13 @@ export interface UserExam {
     endTime: string;
     submittedAt?: string | null;
   } | null;
+  latestAttempt?: {
+    id: string;
+    status: UserExamSessionStatus;
+    currentSection: 'MATH' | 'READING' | 'SCIENCE' | null;
+    startedAt: string;
+    completedAt?: string | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

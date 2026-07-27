@@ -1,5 +1,5 @@
-import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import {
   ArrowLeft,
@@ -13,14 +13,20 @@ import {
   Sigma,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { createOrResumeAttempt } from '@/features/exam/api/sessions.api';
 import { getAvailableExam } from '../api/exams.api';
 
 export default function ExamDetailPage() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const examQuery = useQuery({
     queryKey: ['user', 'exams', id],
     queryFn: () => getAvailableExam(id),
     enabled: Boolean(id),
+  });
+  const startMutation = useMutation({
+    mutationFn: () => createOrResumeAttempt(id),
+    onSuccess: (attempt) => navigate(`/exam/attempt/${attempt.id}`),
   });
 
   if (examQuery.isLoading) {
@@ -49,7 +55,7 @@ export default function ExamDetailPage() {
   }
 
   const exam = examQuery.data;
-  const isInProgress = exam.latestSession?.status === 'IN_PROGRESS';
+  const isInProgress = exam.latestAttempt?.status === 'IN_PROGRESS';
 
   return (
     <div className="space-y-6">
@@ -137,17 +143,25 @@ export default function ExamDetailPage() {
               ? 'Tiếp tục session hiện tại để không mất tiến độ đã lưu.'
               : 'Chức năng bắt đầu và đồng bộ bài làm sẽ được kích hoạt cùng Session Engine.'}
           </p>
-          {isInProgress && exam.latestSession ? (
-            <Link to={`/exam/${exam.latestSession.id}`} className="btn btn-primary btn-lg mt-5 w-full">
+          {isInProgress && exam.latestAttempt ? (
+            <Link to={`/exam/attempt/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
               Tiếp tục làm bài
             </Link>
           ) : (
-            <button type="button" className="btn btn-primary btn-lg mt-5 w-full" disabled>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg mt-5 w-full"
+              disabled={startMutation.isPending}
+              onClick={() => startMutation.mutate()}
+            >
+              {startMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Bắt đầu làm bài
             </button>
           )}
-          {!isInProgress && (
-            <p className="mt-3 text-center text-xs text-neutral-400">Sẽ khả dụng trong Sprint 3.1</p>
+          {startMutation.isError && (
+            <p className="mt-3 text-center text-xs text-danger-600">
+              {getApiErrorMessage(startMutation.error, 'Không thể tạo lượt thi.')}
+            </p>
           )}
         </aside>
       </section>
