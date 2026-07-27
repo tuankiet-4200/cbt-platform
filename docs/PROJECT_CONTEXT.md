@@ -22,10 +22,10 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Sprint 3.1 section-scoped session engine completed)
+> **Last updated:** 2026-07-27 (Sprint 3.2 grading, renderers, proctoring, and result review completed)
 
 ### Active Sprint
-**Sprint 3.2 (Tuần 11–12) — Question Renderers & Proctoring**
+**Sprint 4.1 (Tuần 13–14) — Result Engine & Personal Analytics**
 Status: ⬜ READY TO START
 
 ### Sprint Progress Overview
@@ -37,8 +37,8 @@ Status: ⬜ READY TO START
 | 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
 | 2.2 | Exam Assembly & Access Code System | ✅ COMPLETE | 100% |
 | 3.1 | Exam Session Engine & Write Path | ✅ COMPLETE | 100% |
-| **3.2** | **Question Renderers & Proctoring** | ⬜ Ready | 0% |
-| 4.1 | Result Engine & Personal Analytics | ⬜ Pending | — |
+| 3.2 | Question Renderers & Proctoring | ✅ COMPLETE | 100% |
+| **4.1** | **Result Engine & Personal Analytics** | ⬜ Ready | 0% |
 | 4.2 | IRT Integration & Advanced Features | ⬜ Pending | — |
 | 5.1 | Performance & Security Hardening | ⬜ Pending | — |
 | 5.2 | Final Polish, UAT & Launch | ⬜ Pending | — |
@@ -260,17 +260,45 @@ Status: ⬜ READY TO START
 
 ---
 
-## 🎯 Next Up: Sprint 3.2 Tasks
+## ✅ Sprint 3.2 — What Was Completed
 
 ### Backend — Sprint 3.2
-1. [ ] Implement aggregate grading worker for all five question types with all-or-nothing multi-slot rules
-2. [ ] Persist `ExamResult`, per-section scores, and graded `SessionAnswer` details
-3. [ ] Add proctoring event ingestion and admin event timeline APIs
+1. [x] Added BullMQ `grade-attempt` worker with exponential retry and dead-letter queue
+2. [x] Implemented all five grading rules; multi-slot types are all-or-nothing and FILL_NUMBER uses exact parsed numeric equality
+3. [x] Persisted aggregate `ExamResult`, `sectionScores`, tag breakdown, duration, and graded `SessionAnswer` details
+4. [x] Updated Redis leaderboard after successful grading
+5. [x] Added batched proctoring event ingestion and admin session event timeline API
+6. [x] Added authenticated result and post-grading answer-review APIs; correct answers and solutions remain unavailable before grading
 
 ### Frontend — Sprint 3.2
-1. [ ] Refine all five question renderers, including native drag-and-drop interaction
-2. [ ] Persist tab-switch, blur, copy, and fullscreen-exit proctoring events
-3. [ ] Add result and answer-review screens backed by aggregate attempt results
+1. [x] Completed all five question renderers with RichText/KaTeX support and native `@dnd-kit` drag-and-drop with touch sensor
+2. [x] Added per-question review flags and navigator flagged state
+3. [x] Added `useProctoringMonitor` for tab switch, blur, copy, and fullscreen-exit events with 10-second batching/retry
+4. [x] Added aggregate result page with section score cards, correctness summary, duration, and tag progress
+5. [x] Added answer-review page with correct/wrong/skipped filters, passage layout, correct answers, solutions, and timing
+6. [x] Final section completion now routes to `/results/:attemptId`; exam library/detail link to the latest graded result
+
+### Quality — Sprint 3.2
+- [x] Grading unit tests cover all five question types and pass (9/9 total API tests)
+- [x] API and Web lint, typecheck, and production builds pass
+- [x] Smoke grading persisted `ExamResult` with 100 assembled questions and the expected 1 wrong / 99 skipped breakdown
+- [x] Review smoke returned 40 MATH questions, 2 READING bundles, and 8 SCIENCE bundles with post-grading answers
+- [x] Proctoring smoke recorded two student events and returned the ordered timeline to an admin
+- [x] Redis leaderboard and PostgreSQL aggregate result were verified directly
+
+---
+
+## 🎯 Next Up: Sprint 4.1 Tasks
+
+### Backend — Sprint 4.1
+1. [ ] Add personal exam history, weakness analysis, and time-analysis APIs
+2. [ ] Add public exam leaderboard endpoint over the existing Redis sorted set
+3. [ ] Add pagination/lazy loading for large answer-review payloads
+
+### Frontend — Sprint 4.1
+1. [ ] Add personal analytics dashboard with progress and strength/weakness insights
+2. [ ] Add radar/bar chart visualizations to the result experience
+3. [ ] Add leaderboard and attempt history views
 
 ---
 
@@ -341,8 +369,8 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
-| NestJS API | — | 3000 | ✅ Working — full section lifecycle, Redis recovery, BullMQ flush, and idempotent submit smoke-tested |
-| Vite frontend | — | 5173 | ✅ Working — section exam experience builds successfully |
+| NestJS API | — | 3000 | ✅ Working — grading/result/review/proctoring smoke-tested with PostgreSQL and Redis |
+| Vite frontend | — | 5173 | ✅ Working — exam renderers, result, and review production builds pass |
 
 ```bash
 # Start dev environment
