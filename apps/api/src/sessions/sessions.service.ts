@@ -17,7 +17,10 @@ import {
 import { Job, Queue, Worker } from 'bullmq';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
-import { SyncAnswersDto } from './dto/session.dto';
+import {
+  RecordProctoringEventsDto,
+  SyncAnswersDto,
+} from './dto/session.dto';
 
 const SECTION_ORDER = [
   ExamSectionType.MATH,
@@ -471,6 +474,47 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return this.getTransition(session.attemptId);
+  }
+
+  async recordProctoringEvents(
+    sessionId: string,
+    userId: string,
+    dto: RecordProctoringEventsDto,
+  ) {
+    await this.getOwnedSession(sessionId, userId);
+    const result = await this.prisma.proctoringEvent.createMany({
+      data: dto.events.map((event) => ({
+        sessionId,
+        eventType: event.eventType,
+        occurredAt: new Date(event.occurredAt),
+        metadata: event.metadata as Prisma.InputJsonValue | undefined,
+      })),
+    });
+    return { ok: true, recorded: result.count };
+  }
+
+  async getProctoringEvents(sessionId: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        sectionType: true,
+        status: true,
+        startTime: true,
+        endTime: true,
+        submittedAt: true,
+        user: {
+          select: { id: true, email: true, displayName: true },
+        },
+        exam: { select: { id: true, title: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    const events = await this.prisma.proctoringEvent.findMany({
+      where: { sessionId },
+      orderBy: { occurredAt: 'asc' },
+    });
+    return { session, events };
   }
 
   private async processPersistenceJob(job: Job<PersistenceJob>) {

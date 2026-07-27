@@ -11,7 +11,11 @@ import {
 import { User } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { CreateExamAttemptDto, SyncAnswersDto } from './dto/session.dto';
+import {
+  CreateExamAttemptDto,
+  RecordProctoringEventsDto,
+  SyncAnswersDto,
+} from './dto/session.dto';
 import { SessionsService } from './sessions.service';
 
 @UseGuards(JwtAuthGuard)
@@ -72,6 +76,19 @@ export class SessionsController {
     @CurrentUser() user: User,
   ) {
     return this.sessionsService.submitSection(sessionId, user.id);
+  }
+
+  @Post(':sessionId/events')
+  recordProctoringEvents(
+    @Param('sessionId') sessionId: string,
+    @Body() dto: RecordProctoringEventsDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.sessionsService.recordProctoringEvents(
+      sessionId,
+      user.id,
+      dto,
+    );
   }
 
   @Get(':sessionId')

@@ -6,7 +6,10 @@ import {
   IsInt,
   IsNotEmpty,
   IsObject,
+  IsOptional,
   IsString,
+  IsIn,
+  IsISO8601,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -41,4 +44,32 @@ export class SyncAnswersDto {
   @IsInt()
   @Min(0)
   currentIndex: number;
+}
+
+export const PROCTORING_EVENT_TYPES = [
+  'TAB_SWITCH',
+  'FULLSCREEN_EXIT',
+  'COPY_ATTEMPT',
+  'SESSION_BLUR',
+] as const;
+
+export class ProctoringEventDto {
+  @IsIn(PROCTORING_EVENT_TYPES)
+  eventType: (typeof PROCTORING_EVENT_TYPES)[number];
+
+  @IsISO8601()
+  occurredAt: string;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown>;
+}
+
+export class RecordProctoringEventsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => ProctoringEventDto)
+  events: ProctoringEventDto[];
 }
