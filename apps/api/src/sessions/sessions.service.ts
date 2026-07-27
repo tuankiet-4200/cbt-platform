@@ -32,6 +32,7 @@ const DEFAULT_SECTION_DURATION: Record<ExamSectionType, number> = {
 };
 
 const SESSION_QUEUE = 'session-persistence';
+const GRADING_QUEUE = 'grading-queue';
 
 type SectionSummary = {
   sectionType: ExamSectionType;
@@ -47,6 +48,7 @@ type PersistenceJob = {
 export class SessionsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SessionsService.name);
   private queue?: Queue;
+  private gradingQueue?: Queue;
   private worker?: Worker;
 
   constructor(
@@ -72,6 +74,9 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     this.queue = new Queue(SESSION_QUEUE, {
       connection,
     });
+    this.gradingQueue = new Queue(GRADING_QUEUE, {
+      connection,
+    });
     this.worker = new Worker(
       SESSION_QUEUE,
       async (job: Job<PersistenceJob>) => this.processPersistenceJob(job),
@@ -89,6 +94,7 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.worker?.close();
+    await this.gradingQueue?.close();
     await this.queue?.close();
   }
 
@@ -449,6 +455,20 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
             },
       });
     });
+
+    if (!nextSection) {
+      await this.gradingQueue?.add(
+        'grade-attempt',
+        { attemptId: session.attemptId },
+        {
+          jobId: `grade-attempt-${session.attemptId}`,
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 2_000 },
+          removeOnComplete: 1_000,
+          removeOnFail: 1_000,
+        },
+      );
+    }
 
     return this.getTransition(session.attemptId);
   }
