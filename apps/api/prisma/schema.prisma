@@ -25,56 +25,56 @@ enum UserRole {
 
 /// Lifecycle of a community-contributed PDF/DOCX submission
 enum ContributionStatus {
-  PENDING    // Uploaded by community member, awaiting admin review
-  REVIEWING  // Admin is actively reviewing / entering questions
-  APPROVED   // Admin has entered all questions; contributor credited
-  REJECTED   // Rejected (duplicate, illegible, off-topic, etc.)
+  PENDING // Uploaded by community member, awaiting admin review
+  REVIEWING // Admin is actively reviewing / entering questions
+  APPROVED // Admin has entered all questions; contributor credited
+  REJECTED // Rejected (duplicate, illegible, off-topic, etc.)
 }
 
 /// Lifecycle status of a question / passage bundle in the question bank
 enum QuestionStatus {
-  DRAFT          // Being created, not yet submitted for review
+  DRAFT // Being created, not yet submitted for review
   PENDING_REVIEW // Submitted by contributor, awaiting Admin review
-  PUBLISHED      // Approved and available for exam generation
-  ARCHIVED       // Retired, no longer used in new exams
+  PUBLISHED // Approved and available for exam generation
+  ARCHIVED // Retired, no longer used in new exams
 }
 
 /// Question format — determines which renderer component to use on FE
 enum QuestionType {
-  SINGLE_CHOICE     // Radio buttons — 1 correct answer from N options
-  MULTIPLE_CHOICE   // Checkboxes — ALL correct options must be selected (all-or-nothing)
+  SINGLE_CHOICE // Radio buttons — 1 correct answer from N options
+  MULTIPLE_CHOICE // Checkboxes — ALL correct options must be selected (all-or-nothing)
   TRUE_FALSE_MATRIX // Table with statements — Đúng/Sai per row (all-or-nothing)
-  DRAG_DROP         // Drag items into target slots (all-or-nothing)
-  FILL_NUMBER       // Numeric input blanks — exact match, all blanks must be correct (all-or-nothing)
+  DRAG_DROP // Drag items into target slots (all-or-nothing)
+  FILL_NUMBER // Numeric input blanks — exact match, all blanks must be correct (all-or-nothing)
 }
 
 /// TSA Exam section type — determines layout and score grouping
 enum ExamSectionType {
-  MATH     // Toán học — individual standalone questions, single-column layout
-  READING  // Đọc hiểu — PassageBundle of exactly 10 questions, 2-column layout
-  SCIENCE  // Khoa học (Lý/Hoá/Sinh) — PassageBundle of exactly 5 questions, 2-column layout
+  MATH // Toán học — individual standalone questions, single-column layout
+  READING // Đọc hiểu — PassageBundle of exactly 10 questions, 2-column layout
+  SCIENCE // Khoa học (Lý/Hoá/Sinh) — PassageBundle of exactly 5 questions, 2-column layout
 }
 
 /// Cognitive level based on Bloom's Taxonomy (adapted for Vietnamese curriculum)
 enum CognitiveLevel {
-  RECOGNITION       // Nhận biết
-  COMPREHENSION     // Thông hiểu
-  APPLICATION       // Vận dụng
-  HIGH_APPLICATION  // Vận dụng cao
+  RECOGNITION // Nhận biết
+  COMPREHENSION // Thông hiểu
+  APPLICATION // Vận dụng
+  HIGH_APPLICATION // Vận dụng cao
 }
 
 /// Status of an exam session
 enum SessionStatus {
   IN_PROGRESS // Currently being taken
-  SUBMITTED   // Submitted by user (awaiting grading)
-  GRADED      // Grading complete
-  ABANDONED   // Session expired or abandoned
+  SUBMITTED // Submitted by user (awaiting grading)
+  GRADED // Grading complete
+  ABANDONED // Session expired or abandoned
 }
 
 /// Exam access type
 enum ExamAccessType {
-  PUBLIC   // Auto-granted to all registered users (default exam)
-  LOCKED   // Requires a valid AccessCode to unlock
+  PUBLIC // Auto-granted to all registered users (default exam)
+  LOCKED // Requires a valid AccessCode to unlock
 }
 
 /// Lifecycle of reusable exam blueprint templates
@@ -102,6 +102,7 @@ model User {
   // ── Relations ─────────────────────────────────────────────────────────────
   refreshTokens         RefreshToken[]
   examAccesses          ExamAccess[]
+  examAttempts          ExamAttempt[]
   sessions              ExamSession[]
   authoredQuestions     Question[]               @relation("QuestionAuthor")
   reviewedQuestions     Question[]               @relation("QuestionReviewer")
@@ -150,23 +151,23 @@ model RefreshToken {
 ///
 /// The contributor does NOT need to know LaTeX — they just upload the original source.
 model ContributionSubmission {
-  id          String             @id @default(uuid())
-  submitterId String             @map("submitter_id")
+  id          String @id @default(uuid())
+  submitterId String @map("submitter_id")
 
   /// Human-readable title for admin to identify the submission
-  title       String             // e.g., "Đề TSA 2025 - Bách Khoa"
-  description String?            // Optional context from the contributor
+  title       String // e.g., "Đề TSA 2025 - Bách Khoa"
+  description String? // Optional context from the contributor
 
   /// Cloud storage URL of the uploaded file (S3 / GCS presigned or permanent URL)
-  fileUrl     String             @map("file_url")
+  fileUrl String @map("file_url")
 
   /// 'PDF' | 'DOCX'
-  fileType    String             @map("file_type")
+  fileType String @map("file_type")
 
-  status      ContributionStatus @default(PENDING)
+  status ContributionStatus @default(PENDING)
 
   /// Admin's feedback shown to the contributor (reason for rejection, etc.)
-  adminNote   String?            @map("admin_note")
+  adminNote String? @map("admin_note")
 
   reviewedById String?   @map("reviewed_by_id")
   reviewedAt   DateTime? @map("reviewed_at")
@@ -174,14 +175,14 @@ model ContributionSubmission {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  submitter   User           @relation("ContributionSubmitter", fields: [submitterId], references: [id])
-  reviewedBy  User?          @relation("ContributionReviewer", fields: [reviewedById], references: [id])
+  submitter  User  @relation("ContributionSubmitter", fields: [submitterId], references: [id])
+  reviewedBy User? @relation("ContributionReviewer", fields: [reviewedById], references: [id])
 
   /// Questions entered by admin from this submission
   questions Question[]
 
   /// Passage bundles entered by admin from this submission
-  bundles   PassageBundle[]
+  bundles PassageBundle[]
 
   @@index([submitterId])
   @@index([status])
@@ -202,8 +203,8 @@ model Tag {
   depth       Int             @default(0) // 0=Subject, 1=Chapter, 2=Topic, 3=SubTopic
   orderIndex  Int             @default(0) @map("order_index")
 
-  parent    Tag?          @relation("TagHierarchy", fields: [parentId], references: [id])
-  children  Tag[]         @relation("TagHierarchy")
+  parent    Tag?               @relation("TagHierarchy", fields: [parentId], references: [id])
+  children  Tag[]              @relation("TagHierarchy")
   questions QuestionTag[]
   bundles   PassageBundleTag[]
 
@@ -224,8 +225,8 @@ model Tag {
 /// For community-contributed questions, admin sets authorId = contributor's userId.
 /// For admin-created questions, authorId = admin's own userId.
 model Question {
-  id    String         @id @default(uuid())
-  type  QuestionType
+  id     String         @id @default(uuid())
+  type   QuestionType
   status QuestionStatus @default(DRAFT)
   level  CognitiveLevel @default(RECOGNITION)
 
@@ -252,11 +253,11 @@ model Question {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  author         User                       @relation("QuestionAuthor", fields: [authorId], references: [id])
-  reviewedBy     User?                      @relation("QuestionReviewer", fields: [reviewedById], references: [id])
-  contribution   ContributionSubmission?    @relation(fields: [contributionId], references: [id])
+  author         User                    @relation("QuestionAuthor", fields: [authorId], references: [id])
+  reviewedBy     User?                   @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+  contribution   ContributionSubmission? @relation(fields: [contributionId], references: [id])
   tags           QuestionTag[]
-  bundleQuestion PassageBundleQuestion?     // null = standalone MATH question
+  bundleQuestion PassageBundleQuestion? // null = standalone MATH question
   mathExamItems  ExamMathQuestion[]
   sessionAnswers SessionAnswer[]
 
@@ -339,9 +340,9 @@ model PassageBundle {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  author       User                     @relation("BundleAuthor", fields: [authorId], references: [id])
-  reviewedBy   User?                    @relation("BundleReviewer", fields: [reviewedById], references: [id])
-  contribution ContributionSubmission?  @relation(fields: [contributionId], references: [id])
+  author       User                    @relation("BundleAuthor", fields: [authorId], references: [id])
+  reviewedBy   User?                   @relation("BundleReviewer", fields: [reviewedById], references: [id])
+  contribution ContributionSubmission? @relation(fields: [contributionId], references: [id])
   tags         PassageBundleTag[]
   questions    PassageBundleQuestion[]
   examItems    ExamPassageBundle[]
@@ -360,8 +361,8 @@ model PassageBundle {
 model PassageBundleQuestion {
   bundleId      String @map("bundle_id")
   questionId    String @unique @map("question_id") // A question belongs to AT MOST 1 bundle
-  orderInBundle Int    @map("order_in_bundle")     // 0-based display order in right column
-  points        Float  @default(1.0)               // Points for this question (all-or-nothing per question type rules)
+  orderInBundle Int    @map("order_in_bundle") // 0-based display order in right column
+  points        Float  @default(1.0) // Points for this question (all-or-nothing per question type rules)
 
   bundle   PassageBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
   question Question      @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -381,18 +382,18 @@ model PassageBundleQuestion {
 /// Exams snapshot blueprintJson at creation/generation time so published exams
 /// remain auditable even if the source blueprint template changes later.
 model ExamBlueprint {
-  id          String              @id @default(uuid())
-  name        String
-  description String?
-  durationMins Int                @default(150) @map("duration_mins")
-  status      ExamBlueprintStatus @default(DRAFT)
-  blueprintJson Json              @map("blueprint_json") @db.JsonB
+  id            String              @id @default(uuid())
+  name          String
+  description   String?
+  durationMins  Int                 @default(150) @map("duration_mins")
+  status        ExamBlueprintStatus @default(DRAFT)
+  blueprintJson Json                @map("blueprint_json") @db.JsonB
 
-  createdById String? @map("created_by_id")
+  createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  createdBy User? @relation("ExamBlueprintCreator", fields: [createdById], references: [id])
+  createdBy User?  @relation("ExamBlueprintCreator", fields: [createdById], references: [id])
   exams     Exam[]
 
   @@index([status])
@@ -406,28 +407,29 @@ model ExamBlueprint {
 ///   1. ExamMathQuestion records  — individual MATH questions
 ///   2. ExamPassageBundle records — whole PassageBundles for READING/SCIENCE
 model Exam {
-  id           String         @id @default(uuid())
-  title        String
-  description  String?
-  instructions String?        // Displayed before exam starts (Markdown)
-  durationMins Int            @map("duration_mins")
-  totalPoints  Float          @default(0) @map("total_points")
-  accessType   ExamAccessType @default(LOCKED)
-  isPublished  Boolean        @default(false) @map("is_published")
-  blueprintId   String?        @map("blueprint_id")
-  blueprintJson Json?         @map("blueprint_json") @db.JsonB
-  generationSeed String?      @map("generation_seed")
-  generatedAt    DateTime?    @map("generated_at")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id             String         @id @default(uuid())
+  title          String
+  description    String?
+  instructions   String? // Displayed before exam starts (Markdown)
+  durationMins   Int            @map("duration_mins")
+  totalPoints    Float          @default(0) @map("total_points")
+  accessType     ExamAccessType @default(LOCKED)
+  isPublished    Boolean        @default(false) @map("is_published")
+  blueprintId    String?        @map("blueprint_id")
+  blueprintJson  Json?          @map("blueprint_json") @db.JsonB
+  generationSeed String?        @map("generation_seed")
+  generatedAt    DateTime?      @map("generated_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
-  blueprint      ExamBlueprint? @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
-  mathQuestions   ExamMathQuestion[]
-  passageBundles  ExamPassageBundle[]
-  accessCodes     AccessCode[]
-  accesses        ExamAccess[]
-  sessions        ExamSession[]
+  blueprint      ExamBlueprint?      @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
+  mathQuestions  ExamMathQuestion[]
+  passageBundles ExamPassageBundle[]
+  accessCodes    AccessCode[]
+  accesses       ExamAccess[]
+  attempts       ExamAttempt[]
+  sessions       ExamSession[]
 
   @@index([blueprintId])
   @@map("exams")
@@ -472,8 +474,8 @@ model ExamPassageBundle {
   exam          Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
   passageBundle PassageBundle @relation(fields: [passageBundleId], references: [id])
 
-  @@unique([examId, passageBundleId])                  // Same bundle can't appear twice in an exam
-  @@unique([examId, sectionType, orderInSection])      // Ordering is unique per section
+  @@unique([examId, passageBundleId]) // Same bundle can't appear twice in an exam
+  @@unique([examId, sectionType, orderInSection]) // Ordering is unique per section
   @@index([examId])
   @@index([examId, sectionType])
   @@map("exam_passage_bundles")
@@ -484,7 +486,7 @@ model AccessCode {
   id          String    @id @default(uuid())
   code        String    @unique // 8-char alphanumeric uppercase
   examId      String    @map("exam_id")
-  maxUses     Int?      @map("max_uses")    // null = unlimited
+  maxUses     Int?      @map("max_uses") // null = unlimited
   usedCount   Int       @default(0) @map("used_count")
   expiresAt   DateTime? @map("expires_at") // null = never expires
   isActive    Boolean   @default(true) @map("is_active")
@@ -522,25 +524,53 @@ model ExamAccess {
 // EXAM SESSION (Test-Taking Engine)
 // =============================================================================
 
-/// An individual exam attempt by a user
+/// Aggregate root for one user's complete run through an exam.
+/// Only active attempts carry activeKey; completed attempts set it to null.
+model ExamAttempt {
+  id             String           @id @default(uuid())
+  userId         String           @map("user_id")
+  examId         String           @map("exam_id")
+  status         SessionStatus    @default(IN_PROGRESS)
+  currentSection ExamSectionType? @map("current_section")
+  activeKey      String?          @unique @map("active_key")
+  startedAt      DateTime         @default(now()) @map("started_at")
+  completedAt    DateTime?        @map("completed_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  user     User          @relation(fields: [userId], references: [id])
+  exam     Exam          @relation(fields: [examId], references: [id])
+  sessions ExamSession[]
+  result   ExamResult?
+
+  @@index([userId, examId])
+  @@index([status])
+  @@map("exam_attempts")
+}
+
+/// One independently timed section inside an ExamAttempt.
 model ExamSession {
-  id          String        @id @default(uuid())
-  userId      String        @map("user_id")
-  examId      String        @map("exam_id")
-  status      SessionStatus @default(IN_PROGRESS)
-  startTime   DateTime      @default(now()) @map("start_time")
-  endTime     DateTime      @map("end_time")     // startTime + exam.durationMins
-  submittedAt DateTime?     @map("submitted_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id           String          @id @default(uuid())
+  attemptId    String          @map("attempt_id")
+  userId       String          @map("user_id")
+  examId       String          @map("exam_id")
+  sectionType  ExamSectionType @map("section_type")
+  durationMins Int             @map("duration_mins")
+  status       SessionStatus   @default(IN_PROGRESS)
+  startTime    DateTime        @default(now()) @map("start_time")
+  endTime      DateTime        @map("end_time") // startTime + exam.durationMins
+  submittedAt  DateTime?       @map("submitted_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
 
   // ── Relations ─────────────────────────────────────────────────────────────
+  attempt          ExamAttempt       @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   user             User              @relation(fields: [userId], references: [id])
   exam             Exam              @relation(fields: [examId], references: [id])
   answers          SessionAnswer[]
-  result           ExamResult?
   proctoringEvents ProctoringEvent[]
 
+  @@unique([attemptId, sectionType])
   @@index([userId, examId])
   @@index([status])
   @@map("exam_sessions")
@@ -565,7 +595,7 @@ model SessionAnswer {
   /// FILL_NUMBER:       { blanks: { blankId: string, value: number }[] }
   answerJson Json? @map("answer_json") @db.JsonB
 
-  isCorrect    Boolean? @map("is_correct")   // null until graded
+  isCorrect    Boolean? @map("is_correct") // null until graded
   pointsEarned Float?   @map("points_earned")
   timeSpentMs  Int?     @map("time_spent_ms")
   attemptCount Int      @default(1) @map("attempt_count")
@@ -579,10 +609,10 @@ model SessionAnswer {
   @@map("session_answers")
 }
 
-/// Final computed result for a session (populated by grading worker)
+/// Final aggregate result for a complete exam attempt.
 model ExamResult {
   id           String @id @default(uuid())
-  sessionId    String @unique @map("session_id")
+  attemptId    String @unique @map("attempt_id")
   totalScore   Float  @map("total_score")
   maxScore     Float  @map("max_score")
   percentScore Float  @map("percent_score") // totalScore / maxScore * 100
@@ -601,7 +631,7 @@ model ExamResult {
 
   completedAt DateTime @default(now()) @map("completed_at")
 
-  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attempt ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@map("exam_results")
 }
