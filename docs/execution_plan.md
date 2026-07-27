@@ -68,18 +68,18 @@
   // FILL_NUMBER dùng blanks[] array — KHÔNG phải correctValue đơn lẻ
   // Không có tolerance — exact numeric match
   ```
-- [ ] **IRT Params Schema & Defaults:**
+- [x] **IRT Params Schema & Defaults:**
   ```typescript
   interface IrtParams { a: number; b: number; c: number; }
   const DEFAULT_IRT: IrtParams = { a: 1.0, b: 0.0, c: 0.25 }; // Auto-applied nếu không truyền
   ```
-- [ ] **Question CRUD API (Admin-only):**
+- [x] **Question CRUD API (Admin-only):**
   - `POST /api/v1/admin/questions` — tạo standalone MATH question (hoặc câu cho PassageBundle)
   - `GET /api/v1/admin/questions` — list với filter
   - `PATCH /api/v1/admin/questions/:id`
   - `DELETE /api/v1/admin/questions/:id`
   - `PATCH /api/v1/admin/questions/:id/status` → `DRAFT → PENDING_REVIEW → PUBLISHED → ARCHIVED`
-- [ ] **PassageBundle CRUD API (Admin-only):**
+- [x] **PassageBundle CRUD API (Admin-only):**
   - `POST /api/v1/admin/passage-bundles` — tạo bundle + upload passage text + link questions
   - `GET /api/v1/admin/passage-bundles` — list với filter `sectionType`, `status`
   - `PATCH /api/v1/admin/passage-bundles/:id`
@@ -92,9 +92,11 @@
 - [x] **File Upload:** `POST /api/v1/admin/upload` → Upload ảnh lên Supabase Storage bucket `images`, trả về public URL để nhúng vào `contentJson`. Contribution files upload vào private bucket `contributions`, truy cập qua signed URL.
 
 #### Frontend Deliverables
-- [ ] **Auth flows:** Trang Login, Register (React Hook Form + Zod). Zustand `authStore` lưu user info + token. TanStack Query `useAuth` hooks.
-- [ ] **Protected routes:** Middleware check JWT, redirect về `/login`. Admin routes check `role === 'ADMIN'`.
-- [ ] **Axios interceptor:** Tự động attach `Authorization: Bearer <token>`, gọi `/auth/refresh` khi nhận 401, retry request gốc.
+- [x] **Auth flows:** Trang Login, Register (React Hook Form + Zod). Zustand `authStore` lưu user info + token. TanStack Query `useAuth` hooks.
+- [x] **Protected routes:** Middleware check JWT, redirect về `/login`. Admin routes check `role === 'ADMIN'`.
+- [x] **Axios interceptor:** Tự động attach `Authorization: Bearer <token>`, gọi `/auth/refresh` khi nhận 401, retry request gốc.
+
+> **Audit 2026-07-27:** Các mục Auth Module, Question Content Validation và Contribution Submission API vẫn để mở vì đã có implementation nhưng chưa đạt toàn bộ contract: refresh-token reuse chưa revoke token family, validation JSON chưa khớp chặt toàn bộ optional fields của spec, và contribution status transition chưa được cưỡng chế đúng chuỗi trạng thái.
 
 #### ⚠️ Rủi ro Sprint 1.2
 > **R2 — Rich Text Format:** ✅ ĐÃ QUYẾT ĐỊNH — Dùng **structured `RichTextNode[]` JSON** (không phải Markdown string). Đây là quyết định cố định, không thay đổi. Chi tiết xem [QuestionContentSpec.md](./QuestionContentSpec.md).
@@ -140,22 +142,24 @@
 ### Sprint 2.2 (Tuần 7–8) — Exam Assembly & Access Code System
 
 #### Backend Deliverables
-- [ ] **Exam Management API (Admin):**
+- [x] **Exam Management API (Admin):**
   - `POST /api/v1/admin/exams` → Tạo đề thi với metadata.
   - `POST /api/v1/admin/exams/:id/math-questions` → Thêm MATH question vào đề qua `ExamMathQuestion` (orderInSection, points).
   - `POST /api/v1/admin/exams/:id/passage-bundles` → Thêm PassageBundle vào đề qua `ExamPassageBundle` (sectionType, orderInSection). **Không thể thêm câu hỏi lẻ từ bundle.**
   - `GET /api/v1/admin/exams/:id/preview` → Preview toàn bộ đề: section breakdown (MATH/READING/SCIENCE), tổng câu, tổng điểm, thời gian dự kiến.
   - `PATCH /api/v1/admin/exams/:id/publish` → Publish đề (chỉ published exam mới được thi).
-- [ ] **Access Code System:**
+- [x] **Access Code System:**
   - `POST /api/v1/admin/access-codes` → Tạo code với `examId`, `maxUses`, `expiresAt`. Mã 8 ký tự alphanumeric uppercase.
   - `POST /api/v1/exams/unlock` → User nhập code → atomic check-and-increment `usedCount` → insert `ExamAccess`.
   - Auto-grant default exam (PUBLIC) khi User được tạo.
-- [ ] **User Exam List API:** `GET /api/v1/exams` → Danh sách đề thi user đã unlock (JOIN `ExamAccess` + `ExamPassageBundle`/`ExamMathQuestion` count).
+- [x] **User Exam List API:** `GET /api/v1/exams` → Danh sách đề thi user đã unlock (JOIN `ExamAccess` + `ExamPassageBundle`/`ExamMathQuestion` count).
 
 #### Frontend Deliverables
-- [ ] **Exam Builder UI (Admin):** Drag-and-drop sắp xếp (dùng @dnd-kit). Phân 3 section (MATH / READING / SCIENCE). Search & add từ question bank. Add PassageBundle nguyên khối (không thể add câu lẻ READING/SCIENCE).
-- [ ] **Access Code Management (Admin):** Tạo, list, copy, deactivate codes. Hiển thị usage stats (usedCount/maxUses).
-- [ ] **User Exam Library Page:** Grid/List các đề thi đã unlock. Card: title, duration, số câu, trạng thái. Ô nhập mã để unlock đề mới.
+- [x] **Exam Builder UI (Admin):** Drag-and-drop sắp xếp (dùng @dnd-kit). Phân 3 section (MATH / READING / SCIENCE). Search & add từ question bank. Add PassageBundle nguyên khối (không thể add câu lẻ READING/SCIENCE).
+- [x] **Access Code Management (Admin):** Tạo, list, copy, deactivate codes. Hiển thị usage stats (usedCount/maxUses).
+- [x] **User Exam Library Page:** Grid/List các đề thi đã unlock. Card: title, duration, số câu, trạng thái. Ô nhập mã để unlock đề mới.
+
+> **Audit 2026-07-27:** Assembly, access code và user library đều hoạt động, nhưng tính bất biến của đề đã publish chưa hoàn chỉnh: nội dung `Question`/`PassageBundle` vẫn có thể bị sửa từ question bank và grading/review đang đọc dữ liệu live thay vì snapshot của lượt thi.
 
 #### ⚠️ Rủi ro Sprint 2.2
 > **R5 — Access Code Race Condition:** `maxUses` phải check + increment atomically. **Giải pháp:** `UPDATE access_codes SET used_count = used_count + 1 WHERE id = $1 AND used_count < max_uses RETURNING *` trong một transaction. Nếu 0 rows returned → code đã hết lượt.
