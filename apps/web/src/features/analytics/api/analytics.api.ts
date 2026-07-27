@@ -1,5 +1,4 @@
 import apiClient from '@/lib/api-client';
-import type { ExamSectionType } from '@/features/exam/api/sessions.api';
 import type { SectionScore } from '@/features/results/api/results.api';
 
 interface ApiEnvelope<T> {
@@ -35,34 +34,6 @@ export interface ExamHistory {
   };
 }
 
-export interface TagInsight {
-  tagId: string;
-  tagName: string;
-  correct: number;
-  total: number;
-  accuracy: number;
-}
-
-export interface WeaknessAnalysis {
-  attemptsAnalyzed: number;
-  tags: TagInsight[];
-  weaknesses: TagInsight[];
-  strengths: TagInsight[];
-}
-
-export interface TimeAnalysis {
-  totalAnswered: number;
-  averageTimeSecs: number;
-  sections: Array<{
-    section: ExamSectionType;
-    answered: number;
-    accuracy: number;
-    averageTimeSecs: number;
-    expectedTimeSecs: number;
-    paceRatio: number;
-  }>;
-}
-
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
@@ -83,20 +54,6 @@ export async function getExamHistory(examId: string, page = 1) {
     { params: { page, limit: 10 } },
   );
   return response.data;
-}
-
-export async function getWeaknesses() {
-  const response = await apiClient.get<ApiEnvelope<WeaknessAnalysis>>(
-    '/analytics/me/weaknesses',
-  );
-  return response.data.data;
-}
-
-export async function getTimeAnalysis() {
-  const response = await apiClient.get<ApiEnvelope<TimeAnalysis>>(
-    '/analytics/me/time-analysis',
-  );
-  return response.data.data;
 }
 
 export async function getLeaderboard(examId: string) {

@@ -10,7 +10,6 @@ interface RootLayoutProps {
 
 const userNavItems = [
   { to: '/exams',     label: 'Đề thi',      icon: BookOpen },
-  { to: '/analytics', label: 'Phân tích',   icon: BarChart3 },
   { to: '/profile',   label: 'Tài khoản',   icon: User },
 ];
 
@@ -23,7 +22,6 @@ const adminNavItems = [
   { to: '/admin/exams',        label: 'Đề thi',     icon: GraduationCap },
   { to: '/admin/users',        label: 'Người dùng', icon: User },
   { to: '/admin/access-codes', label: 'Mã truy cập', icon: Shield },
-  { to: '/admin/analytics',    label: 'Analytics', icon: BarChart3 },
 ];
 
 export function RootLayout({ isAdmin = false }: RootLayoutProps) {

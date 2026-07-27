@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowRight,
@@ -5,10 +6,13 @@ import {
   CheckCircle2,
   Clock3,
   FlaskConical,
+  History,
   Loader2,
+  Medal,
   RotateCcw,
   Sigma,
   Target,
+  Trophy,
   XCircle,
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -16,6 +20,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   PolarAngleAxis,
   PolarGrid,
   Radar,
@@ -25,6 +31,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import {
+  getExamHistory,
+  getLeaderboard,
+  type ExamHistory,
+  type LeaderboardEntry,
+} from '@/features/analytics/api/analytics.api';
 import { getExamResult, type SectionScore } from '../api/results.api';
 
 const SECTION_META = {
@@ -163,6 +175,11 @@ export default function ResultPage() {
         </article>
       </section>
 
+      <ExamAttemptInsights
+        examId={result.exam.id}
+        currentAttemptId={attemptId}
+      />
+
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <article className="card p-6">
           <div className="flex items-center gap-2">
@@ -212,6 +229,295 @@ export default function ResultPage() {
           </Link>
         </aside>
       </section>
+    </div>
+  );
+}
+
+function ExamAttemptInsights({
+  examId,
+  currentAttemptId,
+}: {
+  examId: string;
+  currentAttemptId: string;
+}) {
+  const [page, setPage] = useState(1);
+  const historyQuery = useQuery({
+    queryKey: ['analytics', 'history', examId, page],
+    queryFn: () => getExamHistory(examId, page),
+  });
+  const progressQuery = useQuery({
+    queryKey: ['analytics', 'history', examId, 1],
+    queryFn: () => getExamHistory(examId, 1),
+  });
+  const leaderboardQuery = useQuery({
+    queryKey: ['leaderboard', examId],
+    queryFn: () => getLeaderboard(examId),
+  });
+  const history = historyQuery.data;
+  const progressData = [...(progressQuery.data?.data ?? [])]
+    .reverse()
+    .map((attempt) => ({
+      name: `Lần ${attempt.attemptNumber}`,
+      score: Number(attempt.result.percentScore.toFixed(1)),
+    }));
+
+  return (
+    <section className="space-y-5">
+      <article className="card p-6">
+        <div className="flex items-center gap-2">
+          <Target className="h-5 w-5 text-primary-600" />
+          <div>
+            <h2 className="font-bold text-neutral-900">
+              Tiến bộ qua các lần thi
+            </h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              So sánh tối đa 10 lần làm gần nhất của riêng đề thi này
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 h-72">
+          {progressQuery.isLoading ? (
+            <ChartLoading />
+          ) : progressData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={progressData} margin={{ left: -20, right: 14 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(value) => [
+                    `${Number(value).toFixed(1)}%`,
+                    'Điểm',
+                  ]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#dc2626"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#dc2626' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartEmpty message="Chưa có dữ liệu lịch sử cho đề thi này." />
+          )}
+        </div>
+      </article>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
+        <AttemptHistory
+          history={history}
+          loading={historyQuery.isLoading}
+          currentAttemptId={currentAttemptId}
+          page={page}
+          onPageChange={setPage}
+        />
+        <ExamLeaderboard
+          entries={leaderboardQuery.data?.entries ?? []}
+          currentRank={leaderboardQuery.data?.currentUser?.rank}
+          loading={leaderboardQuery.isLoading}
+        />
+      </div>
+    </section>
+  );
+}
+
+function AttemptHistory({
+  history,
+  loading,
+  currentAttemptId,
+  page,
+  onPageChange,
+}: {
+  history?: ExamHistory;
+  loading: boolean;
+  currentAttemptId: string;
+  page: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <article className="card overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-neutral-100 p-6">
+        <History className="h-5 w-5 text-primary-600" />
+        <h2 className="font-bold text-neutral-900">Lịch sử làm bài</h2>
+      </div>
+      {loading ? (
+        <div className="p-8"><ChartLoading /></div>
+      ) : history?.data.length ? (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-neutral-50 text-xs uppercase text-neutral-500">
+                <tr>
+                  <th className="px-6 py-3">Lần thi</th>
+                  <th className="px-4 py-3">Ngày</th>
+                  <th className="px-4 py-3">Kết quả</th>
+                  <th className="px-6 py-3 text-right">Điểm</th>
+                  <th className="px-6 py-3 text-right">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {history.data.map((attempt) => (
+                  <tr
+                    key={attempt.id}
+                    className={
+                      attempt.id === currentAttemptId ? 'bg-primary-50/70' : ''
+                    }
+                  >
+                    <td className="px-6 py-4 font-semibold">
+                      #{attempt.attemptNumber}
+                      {attempt.id === currentAttemptId && (
+                        <span className="ml-2 text-xs text-primary-700">
+                          Đang xem
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-neutral-500">
+                      {new Date(attempt.result.completedAt).toLocaleDateString(
+                        'vi-VN',
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-neutral-500">
+                      {attempt.result.correctCount} đúng ·{' '}
+                      {attempt.result.wrongCount} sai
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-primary-700">
+                      {attempt.result.percentScore.toFixed(1)}%
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {attempt.id === currentAttemptId ? (
+                        <span className="text-xs font-semibold text-neutral-400">
+                          Hiện tại
+                        </span>
+                      ) : (
+                        <Link
+                          to={`/results/${attempt.id}`}
+                          className="text-xs font-semibold text-primary-700 hover:underline"
+                        >
+                          Xem kết quả
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {history.meta.totalPages > 1 && (
+            <div className="flex items-center justify-end gap-2 border-t border-neutral-100 p-4">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page <= 1}
+                onClick={() => onPageChange(page - 1)}
+              >
+                Trước
+              </button>
+              <span className="px-2 text-xs font-semibold text-neutral-500">
+                {page}/{history.meta.totalPages}
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={page >= history.meta.totalPages}
+                onClick={() => onPageChange(page + 1)}
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="p-8">
+          <ChartEmpty message="Chưa có lượt thi nào." />
+        </div>
+      )}
+    </article>
+  );
+}
+
+function ExamLeaderboard({
+  entries,
+  currentRank,
+  loading,
+}: {
+  entries: LeaderboardEntry[];
+  currentRank?: number;
+  loading: boolean;
+}) {
+  return (
+    <article className="card p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-amber-500" />
+          <h2 className="font-bold text-neutral-900">Bảng xếp hạng</h2>
+        </div>
+        {currentRank && (
+          <span className="badge badge-primary">Hạng #{currentRank}</span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-neutral-500">
+        Xếp hạng theo điểm cao nhất của mỗi học viên
+      </p>
+      <div className="mt-5 space-y-2">
+        {loading ? (
+          <ChartLoading />
+        ) : entries.length ? (
+          entries.slice(0, 10).map((entry) => (
+            <div
+              key={entry.userId}
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
+                entry.isCurrentUser
+                  ? 'bg-primary-50 ring-1 ring-primary-100'
+                  : 'bg-neutral-50'
+              }`}
+            >
+              <span className="flex w-7 justify-center">
+                {entry.rank <= 3 ? (
+                  <Medal
+                    className={`h-5 w-5 ${
+                      entry.rank === 1
+                        ? 'text-amber-500'
+                        : 'text-neutral-400'
+                    }`}
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-neutral-400">
+                    {entry.rank}
+                  </span>
+                )}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {entry.displayName}
+                {entry.isCurrentUser ? ' (Bạn)' : ''}
+              </span>
+              <strong className="text-sm text-primary-700">
+                {entry.percentScore.toFixed(1)}%
+              </strong>
+            </div>
+          ))
+        ) : (
+          <ChartEmpty message="Chưa có dữ liệu xếp hạng." />
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ChartLoading() {
+  return (
+    <div className="flex h-full min-h-24 items-center justify-center gap-2 text-sm text-neutral-400">
+      <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+      Đang tải dữ liệu...
+    </div>
+  );
+}
+
+function ChartEmpty({ message }: { message: string }) {
+  return (
+    <div className="flex h-full min-h-24 items-center justify-center text-center text-sm text-neutral-400">
+      {message}
     </div>
   );
 }
