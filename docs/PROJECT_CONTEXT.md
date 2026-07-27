@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Added direct unlimited retake action to the user exam library)
+> **Last updated:** 2026-07-27 (Moved progress, attempt history, and leaderboard into per-exam results; retired standalone analytics UI)
 
 ### Active Sprint
 **Sprint 4.2 (Tuần 15–16) — IRT Integration & Advanced Features**
@@ -303,6 +303,7 @@ Status: ⬜ READY TO START
 3. [x] Added section tabs and lazy pagination to answer review
 4. [x] Preserved per-question review flags across sequential sections for the post-exam flagged filter
 5. [x] Added a direct `Thi lại` action beside the latest result on every completed exam card; retakes remain unlimited and reuse the idempotent create-or-resume flow
+6. [x] Retired the standalone user/admin analytics page and navigation; progress, attempt history, and leaderboard now live in the result page for the selected exam, while strength/weakness and pacing insights are intentionally omitted from UI
 
 ### Quality — Sprint 4.1
 - [x] API unit tests pass (11/11), including analytics aggregation and leaderboard hydration
@@ -398,7 +399,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
 | NestJS API | — | 3000 | ✅ Working — analytics/leaderboard and section-paginated review smoke-tested with PostgreSQL and Redis |
-| Vite frontend | — | 5173 | ✅ Working — analytics dashboard, result charts, and lazy review production builds pass |
+| Vite frontend | — | 5173 | ✅ Working — per-exam progress/history/leaderboard, result charts, and lazy review production builds pass |
 
 ```bash
 # Start dev environment
