@@ -49,7 +49,7 @@ export default function AdminExamBlueprintsPage() {
     queryFn: listExamBlueprints,
   });
 
-  const blueprints = blueprintsQuery.data ?? [];
+  const blueprints = useMemo(() => blueprintsQuery.data ?? [], [blueprintsQuery.data]);
   const activeCount = useMemo(() => blueprints.filter((blueprint) => blueprint.status === 'ACTIVE').length, [blueprints]);
   const mathTagsQuery = useQuery({ queryKey: ['admin', 'tags', 'MATH'], queryFn: () => listTags({ sectionType: 'MATH' }) });
   const readingTagsQuery = useQuery({ queryKey: ['admin', 'tags', 'READING'], queryFn: () => listTags({ sectionType: 'READING' }) });

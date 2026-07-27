@@ -133,6 +133,42 @@ const DEFAULT_BLUEPRINT: ExamBlueprint = {
 export class ExamsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listAvailableExams(userId: string) {
+    const exams = await this.prisma.exam.findMany({
+      where: {
+        isPublished: true,
+        OR: [
+          { accessType: ExamAccessType.PUBLIC },
+          { accesses: { some: { userId } } },
+        ],
+      },
+      orderBy: [
+        { updatedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      include: this.userExamInclude(userId),
+    });
+
+    return exams.map((exam) => this.toUserExam(exam));
+  }
+
+  async getAvailableExam(id: string, userId: string) {
+    const exam = await this.prisma.exam.findFirst({
+      where: {
+        id,
+        isPublished: true,
+        OR: [
+          { accessType: ExamAccessType.PUBLIC },
+          { accesses: { some: { userId } } },
+        ],
+      },
+      include: this.userExamInclude(userId),
+    });
+
+    if (!exam) throw new NotFoundException('Exam not found or not available');
+    return this.toUserExam(exam, true);
+  }
+
   async listExams() {
     const exams = await this.prisma.exam.findMany({
       orderBy: { updatedAt: 'desc' },
@@ -193,6 +229,129 @@ export class ExamsService {
         accessCodes: exam._count.accessCodes,
       },
     }));
+  }
+
+  private userExamInclude(userId: string) {
+    return {
+      _count: {
+        select: {
+          mathQuestions: true,
+        },
+      },
+      passageBundles: {
+        select: {
+          sectionType: true,
+          passageBundle: {
+            select: {
+              questions: {
+                select: {
+                  questionId: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      accesses: {
+        where: { userId },
+        take: 1,
+        select: {
+          grantedAt: true,
+          accessCodeId: true,
+        },
+      },
+      sessions: {
+        where: { userId },
+        orderBy: { createdAt: 'desc' as const },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          startTime: true,
+          endTime: true,
+          submittedAt: true,
+        },
+      },
+    };
+  }
+
+  private toUserExam(
+    exam: {
+      id: string;
+      title: string;
+      description: string | null;
+      instructions: string | null;
+      durationMins: number;
+      totalPoints: number;
+      accessType: ExamAccessType;
+      createdAt: Date;
+      updatedAt: Date;
+      _count: { mathQuestions: number };
+      passageBundles: Array<{
+        sectionType: ExamSectionType;
+        passageBundle: {
+          questions: Array<{ questionId: string }>;
+        };
+      }>;
+      accesses: Array<{
+        grantedAt: Date;
+        accessCodeId: string | null;
+      }>;
+      sessions: Array<{
+        id: string;
+        status: string;
+        startTime: Date;
+        endTime: Date;
+        submittedAt: Date | null;
+      }>;
+    },
+    includeInstructions = false,
+  ) {
+    const readingBundles = exam.passageBundles.filter(
+      (item) => item.sectionType === ExamSectionType.READING,
+    );
+    const scienceBundles = exam.passageBundles.filter(
+      (item) => item.sectionType === ExamSectionType.SCIENCE,
+    );
+    const readingQuestions = readingBundles.reduce(
+      (sum, item) => sum + item.passageBundle.questions.length,
+      0,
+    );
+    const scienceQuestions = scienceBundles.reduce(
+      (sum, item) => sum + item.passageBundle.questions.length,
+      0,
+    );
+    const access = exam.accesses[0];
+
+    return {
+      id: exam.id,
+      title: exam.title,
+      description: exam.description,
+      ...(includeInstructions ? { instructions: exam.instructions } : {}),
+      durationMins: exam.durationMins,
+      totalPoints: exam.totalPoints,
+      accessType: exam.accessType,
+      access: {
+        source:
+          exam.accessType === ExamAccessType.PUBLIC
+            ? 'PUBLIC'
+            : access?.accessCodeId
+              ? 'ACCESS_CODE'
+              : 'GRANTED',
+        grantedAt: access?.grantedAt ?? null,
+      },
+      counts: {
+        mathQuestions: exam._count.mathQuestions,
+        readingBundles: readingBundles.length,
+        readingQuestions,
+        scienceBundles: scienceBundles.length,
+        scienceQuestions,
+        totalQuestions: exam._count.mathQuestions + readingQuestions + scienceQuestions,
+      },
+      latestSession: exam.sessions[0] ?? null,
+      createdAt: exam.createdAt,
+      updatedAt: exam.updatedAt,
+    };
   }
 
   async listExamBlueprints() {
@@ -1468,18 +1627,6 @@ export class ExamsService {
 function parseSectionType(value: unknown): SectionType {
   if (value === 'MATH' || value === 'READING' || value === 'SCIENCE') return value;
   throw new BadRequestException(`Invalid sectionType: ${String(value)}`);
-}
-
-function parseTagRules(value: unknown): TagRule[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => {
-    if (!isRecord(item)) throw new BadRequestException('Invalid tag rule');
-    return {
-      tagId: typeof item.tagId === 'string' ? item.tagId : undefined,
-      tagSlug: typeof item.tagSlug === 'string' ? item.tagSlug : undefined,
-      count: numberOrUndefined(item.count),
-    };
-  });
 }
 
 function parseChildTagRules(value: unknown): ChildTagRule[] {

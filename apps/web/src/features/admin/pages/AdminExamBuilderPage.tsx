@@ -91,7 +91,7 @@ export default function AdminExamBuilderPage() {
     if (!builder) return;
     setTitleDraft(builder.title);
     setDescriptionDraft(builder.description ?? '');
-  }, [builder?.id]);
+  }, [builder]);
 
   const refreshBuilder = (nextBuilder: Awaited<ReturnType<typeof getExamBuilder>>) => {
     queryClient.setQueryData(['admin', 'exam-builder', examId], nextBuilder);

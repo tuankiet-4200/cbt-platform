@@ -29,7 +29,7 @@ export default function AdminExamsPage() {
     queryFn: listExams,
   });
 
-  const exams = examsQuery.data ?? [];
+  const exams = useMemo(() => examsQuery.data ?? [], [examsQuery.data]);
   const filteredExams = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return exams.filter((exam) => {

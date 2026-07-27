@@ -1,11 +1,219 @@
-/** TODO: Implement in Sprint 1.2+ */
+import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  FlaskConical,
+  GraduationCap,
+  KeyRound,
+  Loader2,
+  Sigma,
+} from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { getAvailableExam } from '../api/exams.api';
+
 export default function ExamDetailPage() {
-  return (
-    <div className="flex items-center justify-center min-h-64">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-neutral-900">Chi tiết đề thi</h1>
-        <p className="text-neutral-500 text-sm">🚧 Đang phát triển — Sprint 1.2+</p>
+  const { id = '' } = useParams();
+  const examQuery = useQuery({
+    queryKey: ['user', 'exams', id],
+    queryFn: () => getAvailableExam(id),
+    enabled: Boolean(id),
+  });
+
+  if (examQuery.isLoading) {
+    return (
+      <div className="flex min-h-80 items-center justify-center gap-2 text-sm text-neutral-500">
+        <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+        Đang tải thông tin đề thi...
       </div>
+    );
+  }
+
+  if (examQuery.isError || !examQuery.data) {
+    return (
+      <div className="card flex min-h-80 flex-col items-center justify-center px-6 text-center">
+        <BookOpen className="h-10 w-10 text-neutral-400" />
+        <h1 className="mt-4 text-xl font-bold text-neutral-900">Không thể mở đề thi</h1>
+        <p className="mt-2 max-w-md text-sm text-neutral-500">
+          {getApiErrorMessage(examQuery.error, 'Đề chưa được phát hành hoặc tài khoản của bạn chưa có quyền truy cập.')}
+        </p>
+        <Link to="/exams" className="btn btn-secondary btn-md mt-5">
+          <ArrowLeft className="h-4 w-4" />
+          Quay lại thư viện
+        </Link>
+      </div>
+    );
+  }
+
+  const exam = examQuery.data;
+  const isInProgress = exam.latestSession?.status === 'IN_PROGRESS';
+
+  return (
+    <div className="space-y-6">
+      <Link to="/exams" className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-500 hover:text-primary-700">
+        <ArrowLeft className="h-4 w-4" />
+        Thư viện đề thi
+      </Link>
+
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-950 via-neutral-900 to-primary-950 px-6 py-8 text-white shadow-xl md:px-10">
+        <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary-500/20 blur-3xl" />
+        <div className="relative">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-primary-100">
+              {exam.accessType === 'PUBLIC' ? 'Đề công khai' : 'Đề đã mở khóa'}
+            </span>
+            {isInProgress && <span className="rounded-full bg-warning-500/20 px-3 py-1 text-xs font-semibold text-warning-100">Đang làm bài</span>}
+          </div>
+          <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight md:text-4xl">{exam.title}</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300 md:text-base">
+            {exam.description || 'Đề thi mô phỏng đầy đủ ba phần theo cấu trúc TSA HUST.'}
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <OverviewPill icon={Clock3} value={`${exam.durationMins} phút`} />
+            <OverviewPill icon={GraduationCap} value={`${exam.counts.totalQuestions} câu hỏi`} />
+            <OverviewPill icon={CheckCircle2} value={`${exam.totalPoints} điểm`} />
+            <OverviewPill
+              icon={exam.accessType === 'PUBLIC' ? BookOpen : KeyRound}
+              value={exam.accessType === 'PUBLIC' ? 'Truy cập tự do' : 'Đã xác thực quyền'}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-3">
+        <SectionCard
+          icon={Sigma}
+          label="Phần 1"
+          title="Tư duy Toán học"
+          description="Câu hỏi độc lập, tập trung vào khả năng lập luận và giải quyết vấn đề."
+          questions={exam.counts.mathQuestions}
+          tone="primary"
+        />
+        <SectionCard
+          icon={BookOpen}
+          label={`${exam.counts.readingBundles} bài đọc`}
+          title="Tư duy Đọc hiểu"
+          description="Đọc văn bản, phân tích thông tin và trả lời câu hỏi theo từng bài."
+          questions={exam.counts.readingQuestions}
+          tone="accent"
+        />
+        <SectionCard
+          icon={FlaskConical}
+          label={`${exam.counts.scienceBundles} chủ đề`}
+          title="Tư duy Khoa học"
+          description="Phân tích dữ liệu và vận dụng kiến thức khoa học trong ngữ cảnh thực tế."
+          questions={exam.counts.scienceQuestions}
+          tone="success"
+        />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <article className="card p-6">
+          <h2 className="text-lg font-bold text-neutral-900">Hướng dẫn làm bài</h2>
+          {exam.instructions ? (
+            <div className="prose prose-sm mt-4 max-w-none text-neutral-600">
+              <ReactMarkdown>{exam.instructions}</ReactMarkdown>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-neutral-600">
+              <Instruction>Tổng thời gian làm bài là {exam.durationMins} phút.</Instruction>
+              <Instruction>Đọc kỹ yêu cầu và kiểm tra câu trả lời trước khi chuyển phần.</Instruction>
+              <Instruction>Thời gian được tính theo máy chủ và không dừng khi tải lại trang.</Instruction>
+              <Instruction>Chỉ nộp bài khi bạn đã kiểm tra đầy đủ cả ba phần thi.</Instruction>
+            </ul>
+          )}
+        </article>
+
+        <aside className="card p-6">
+          <p className="text-sm font-semibold text-primary-700">Trạng thái</p>
+          <h2 className="mt-2 text-xl font-bold text-neutral-900">
+            {isInProgress ? 'Bạn có bài thi đang làm' : 'Đề thi đã sẵn sàng'}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-500">
+            {isInProgress
+              ? 'Tiếp tục session hiện tại để không mất tiến độ đã lưu.'
+              : 'Chức năng bắt đầu và đồng bộ bài làm sẽ được kích hoạt cùng Session Engine.'}
+          </p>
+          {isInProgress && exam.latestSession ? (
+            <Link to={`/exam/${exam.latestSession.id}`} className="btn btn-primary btn-lg mt-5 w-full">
+              Tiếp tục làm bài
+            </Link>
+          ) : (
+            <button type="button" className="btn btn-primary btn-lg mt-5 w-full" disabled>
+              Bắt đầu làm bài
+            </button>
+          )}
+          {!isInProgress && (
+            <p className="mt-3 text-center text-xs text-neutral-400">Sẽ khả dụng trong Sprint 3.1</p>
+          )}
+        </aside>
+      </section>
     </div>
   );
+}
+
+function OverviewPill({ icon: Icon, value }: { icon: typeof Clock3; value: string }) {
+  return (
+    <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3.5 py-2 text-sm text-neutral-200">
+      <Icon className="h-4 w-4 text-primary-300" />
+      {value}
+    </span>
+  );
+}
+
+function SectionCard({
+  icon: Icon,
+  label,
+  title,
+  description,
+  questions,
+  tone,
+}: {
+  icon: typeof Sigma;
+  label: string;
+  title: string;
+  description: string;
+  questions: number;
+  tone: 'primary' | 'accent' | 'success';
+}) {
+  const tones = {
+    primary: 'bg-primary-50 text-primary-700',
+    accent: 'bg-accent-50 text-accent-700',
+    success: 'bg-success-50 text-success-700',
+  };
+
+  return (
+    <article className="card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tones[tone]}`}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="text-2xl font-extrabold text-neutral-900">{questions}</span>
+      </div>
+      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</p>
+      <h2 className="mt-1 font-bold text-neutral-900">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-neutral-500">{description}</p>
+    </article>
+  );
+}
+
+function Instruction({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-success-600" />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (isAxiosError<{ message?: string | string[] }>(error)) {
+    const message = error.response?.data?.message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (message) return message;
+  }
+  return fallback;
 }
