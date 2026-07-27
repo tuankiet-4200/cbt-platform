@@ -221,7 +221,7 @@
 ### Sprint 3.2 (Tuần 11–12) — Question Renderers & Proctoring
 
 #### Backend Deliverables
-- [ ] **Grading Worker (BullMQ queue: `grading-queue`, job: `grade-session`):**
+- [x] **Grading Worker (BullMQ queue: `grading-queue`, job: `grade-attempt`):**
   - Grading logic theo type — **all-or-nothing cho multi-slot, theo [QuestionContentSpec.md](./QuestionContentSpec.md):**
     - `SINGLE_CHOICE`: `answer.selectedOptionId === correctOption.id`
     - `MULTIPLE_CHOICE`: `sort(answer.selectedOptionIds) deepEqual sort(correctOptionIds)` — **all-or-nothing**
@@ -231,11 +231,11 @@
   - Tính `sectionScores[]` (MATH/READING/SCIENCE) — lưu vào `ExamResult.sectionScores` JSONB.
   - Lưu `ExamResult` (totalScore, maxScore, percentScore, correctCount, wrongCount, skippedCount, durationSecs).
   - Lưu chi tiết `SessionAnswer` (isCorrect, pointsEarned, timeSpentMs).
-- [ ] **Proctoring Event API:** `POST /api/v1/sessions/:id/events` → Nhận events `TAB_SWITCH | FULLSCREEN_EXIT | COPY_ATTEMPT | SESSION_BLUR`. Lưu vào `proctoring_events`. **Không chặn luồng thi.**
-- [ ] **Admin Proctoring API:** `GET /api/v1/admin/sessions/:id/events` → Timeline events.
+- [x] **Proctoring Event API:** `POST /api/v1/sessions/:id/events` → Nhận events `TAB_SWITCH | FULLSCREEN_EXIT | COPY_ATTEMPT | SESSION_BLUR`. Lưu vào `proctoring_events`. **Không chặn luồng thi.**
+- [x] **Admin Proctoring API:** `GET /api/v1/admin/sessions/:id/events` → Timeline events.
 
 #### Frontend Deliverables
-- [ ] **Question Renderer System:**
+- [x] **Question Renderer System:**
   - `<QuestionRenderer type={q.type} content={q.content} />` — Dispatcher.
   - `<SingleChoiceQuestion/>`: Radio buttons, LaTeX support.
   - `<MultipleChoiceQuestion/>`: Checkboxes (tất cả phải chọn đúng).
@@ -244,13 +244,13 @@
   - `<FillNumberQuestion/>`: Render `blank` nodes trong stem thành `<input type="number">`. Map `blankId` → input.
   - `<PassageBundleView/>`: 2-column layout — passage text (trái) + câu hỏi (phải).
   - `<MathRenderer/>` wrap react-katex toàn cục.
-- [ ] **Exam Interface Layout:**
+- [x] **Exam Interface Layout:**
   - Top bar: tên đề, countdown, nút Nộp bài.
   - Left panel: Question navigator — grid số câu, màu: xám (chưa làm), xanh (đã làm), vàng (đánh dấu). Tab section MATH/READING/SCIENCE.
   - Center: QuestionRenderer hoặc PassageBundleView.
   - Bottom: Previous / Next, Đánh dấu xem lại.
-- [ ] **Proctoring Module:** `useProctoringMonitor` hook — fullscreen request, `visibilitychange`, `fullscreenchange`. Batch gửi events mỗi 10s. Warning modal khi vi phạm.
-- [ ] **Submit Flow:** Confirmation modal (số câu đã làm/tổng, phân theo section). Loading. Redirect `/results/:sessionId`.
+- [x] **Proctoring Module:** `useProctoringMonitor` hook — fullscreen request, `visibilitychange`, `fullscreenchange`. Batch gửi events mỗi 10s. Warning modal khi vi phạm.
+- [x] **Submit Flow:** Confirmation modal (số câu đã làm/tổng theo section). Loading. Redirect `/results/:attemptId`.
 
 #### ⚠️ Rủi ro Sprint 3.2
 > **R9 — Grading Worker Failure:** BullMQ retry exponential backoff (3 lần). Dead-letter queue. Alert khi fail.
