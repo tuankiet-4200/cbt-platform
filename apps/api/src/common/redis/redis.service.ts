@@ -103,7 +103,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Add to sorted set (leaderboard) */
-  async zadd(key: string, score: number, member: string): Promise<void> {
+  async zadd(
+    key: string,
+    score: number,
+    member: string,
+    onlyIfGreater = false,
+  ): Promise<void> {
+    if (onlyIfGreater) {
+      await this.client.zadd(key, 'GT', score, member);
+      return;
+    }
     await this.client.zadd(key, score, member);
   }
 
@@ -118,6 +127,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /** Get rank of member in sorted set (0-indexed, highest first) */
   async zrevrank(key: string, member: string): Promise<number | null> {
     return this.client.zrevrank(key, member);
+  }
+
+  async zscore(key: string, member: string): Promise<number | null> {
+    const score = await this.client.zscore(key, member);
+    return score === null ? null : Number(score);
   }
 
   async ping(): Promise<string> {

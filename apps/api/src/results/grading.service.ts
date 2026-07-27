@@ -247,6 +247,7 @@ export class GradingService implements OnModuleInit, OnModuleDestroy {
       `leaderboard:${attempt.examId}`,
       percentScore,
       attempt.userId,
+      true,
     );
     return result;
   }
