@@ -293,7 +293,16 @@
 
 ---
 
-### Sprint 4.2 (Tuần 15–16) — IRT Integration & Advanced Features
+### Phase 4.1 Completion Backlog
+
+- [x] **Admin User Management:** Danh sách phân trang, tìm kiếm/lọc, activity counts, đổi role, khóa/mở khóa; chặn admin tự khóa hoặc tự đổi role.
+- [x] **User Account:** Xem thống kê tài khoản, cập nhật tên hiển thị, đổi mật khẩu hiện tại và thu hồi toàn bộ refresh token.
+
+> **Scope freeze:** Theo quyết định sản phẩm ngày 2026-07-27, dự án tạm dừng ở Phase 4.1. Sprint 4.2 và toàn bộ Tháng 5 được giữ làm backlog, **không triển khai cho đến khi có yêu cầu mới**.
+
+---
+
+### Sprint 4.2 (Tuần 15–16) — IRT Integration & Advanced Features — ⏸ DEFERRED
 
 #### Backend Deliverables
 - [ ] **IRT Analytics Service:** Sau 100 submissions/câu, chạy job tính lại `b` từ empirical data.
