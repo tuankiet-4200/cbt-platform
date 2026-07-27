@@ -169,9 +169,11 @@
 ### Sprint 3.1 (Tuần 9–10) — Exam Session Engine & Write Path
 
 #### Backend Deliverables
+- [ ] **Section-scoped lifecycle architecture:** One `ExamAttempt` aggregates sequential MATH, READING, and SCIENCE `ExamSession` records. Each section has its own server-authoritative timer (defaults: 60/30/60 minutes) and transition state. See [section-session-architecture.md](./section-session-architecture.md).
 - [ ] **Session Lifecycle API:**
-  - `POST /api/v1/sessions` → Tạo session cho `(userId, examId)`. Check access. Resume nếu đã có `IN_PROGRESS`. Lưu `startTime`, tính `endTime = startTime + durationMins * 60s`.
-  - `GET /api/v1/sessions/:id` → Session metadata + exam payload theo cấu trúc:
+  - `POST /api/v1/sessions` → Tạo/resume `ExamAttempt` cho `(userId, examId)`. Check access và chỉ cho phép một active attempt.
+  - `POST /api/v1/sessions/attempts/:attemptId/start` → Tạo/resume section session hiện tại; lưu `startTime`, tính `endTime` từ thời lượng riêng của section.
+  - `GET /api/v1/sessions/:id` → Section session metadata + safe section payload:
     ```typescript
     interface ExamPayload {
       math: { question: QuestionContent; orderInSection: number; points: number }[];
@@ -180,7 +182,7 @@
     }
     // KHÔNG trả về đáp án đúng (isCorrect, correctValue, correctItemId...)
     ```
-  - `PATCH /api/v1/sessions/:id/submit` → Đặt `status = SUBMITTED`, `submittedAt = NOW()`. Đẩy grading job vào BullMQ `grading-queue`.
+  - `PATCH /api/v1/sessions/:id/submit` → Flush answer, đặt section `SUBMITTED`, chuyển attempt sang section tiếp theo; section cuối đẩy aggregate grading job.
 - [ ] **Answer Sync API (Redis Buffer):**
   - `POST /api/v1/sessions/:id/sync` → Nhận batch `[{questionId, answerJson, timeSpentMs}]`. Ghi `HSET session:{id}:answers {questionId} {json}`. Trả về `{ok: true}` ngay (không chờ DB).
   - Header: `X-Idempotency-Key` — cache trong Redis 24h.
@@ -196,7 +198,7 @@
     timing: Record<string, number>;  // questionId → ms spent
     currentSection: 'MATH' | 'READING' | 'SCIENCE';
     currentIndex: number;
-    globalTimeRemaining: number;     // ms, computed from server endTime
+    sectionTimeRemaining: number;    // ms, computed from current section server endTime
     questionStartTime: number;       // Date.now() khi chuyển câu
     status: 'idle' | 'in-progress' | 'submitted';
   }
@@ -204,10 +206,11 @@
   - Persist toàn bộ vào `localStorage` — key `exam_session_{sessionId}`.
   - Rehydrate khi reload.
 - [ ] **Sync Service:** `useSyncService` hook — debounce 3s, batch `POST /api/v1/sessions/:id/sync`. Offline queue với `navigator.onLine` event.
-- [ ] **Timer:** `<GlobalCountdown/>` — đổi màu đỏ khi < 5 phút. Tính từ server `endTime - Date.now()` (không decrement thuần túy).
+- [ ] **Timer:** `<SectionCountdown/>` — đổi màu đỏ khi < 5 phút. Tính từ section server `endTime - Date.now()` (không decrement thuần túy).
+- [ ] **Section transition:** Confirmation before each section plus completion summary and explicit continuation to the next section, matching the approved TSA reference.
 
 #### ⚠️ Rủi ro Sprint 3.1
-> **R6 — Double Submission:** Idempotency key + `@@unique([userId, examId])` trên `ExamSession` + nút submit disabled sau click đầu.
+> **R6 — Double Submission / Concurrent Attempt:** Idempotency key + nullable unique `ExamAttempt.activeKey` + `@@unique([attemptId, sectionType])` trên `ExamSession` + nút submit disabled sau click đầu.
 
 > **R7 — Redis Memory:** Pipeline writes. TTL 24h cho session keys. Monitor với `INFO memory`.
 
