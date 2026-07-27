@@ -4,6 +4,8 @@ import { isAxiosError } from 'axios';
 import {
   Ban,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Search,
   ShieldCheck,
@@ -214,18 +216,24 @@ export default function AdminUsersPage() {
               </span>
               <div className="flex gap-2">
                 <button
-                  className="btn btn-secondary"
+                  type="button"
+                  aria-label="Trang trước"
+                  title="Trang trước"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-600 shadow-sm transition-colors hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-300 disabled:shadow-none"
                   disabled={page <= 1}
                   onClick={() => setPage((value) => value - 1)}
                 >
-                  Trước
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
-                  className="btn btn-secondary"
+                  type="button"
+                  aria-label="Trang sau"
+                  title="Trang sau"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-600 shadow-sm transition-colors hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-300 disabled:shadow-none"
                   disabled={page >= data.meta.totalPages}
                   onClick={() => setPage((value) => value + 1)}
                 >
-                  Sau
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </div>

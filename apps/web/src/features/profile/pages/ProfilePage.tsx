@@ -206,7 +206,7 @@ export default function ProfilePage() {
               profileMutation.isPending ||
               displayName.trim() === profile.displayName
             }
-            className="btn btn-primary mt-6"
+            className="mt-6 inline-flex h-10 min-w-36 items-center justify-center gap-2 rounded-md bg-primary-600 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-primary-300 disabled:shadow-none"
           >
             {profileMutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -256,7 +256,7 @@ export default function ProfilePage() {
               !newPassword ||
               !confirmPassword
             }
-            className="btn btn-secondary mt-6"
+            className="mt-6 inline-flex h-10 min-w-36 items-center justify-center gap-2 rounded-md border border-neutral-300 bg-white px-5 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-400 disabled:shadow-none"
           >
             {(passwordMutation.isPending || logoutMutation.isPending) && (
               <Loader2 className="h-4 w-4 animate-spin" />
