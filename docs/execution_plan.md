@@ -286,7 +286,7 @@
   - PassageBundle questions hiển thị trong 2-column layout với passage.
   - Click expand: full content, đáp án đúng, lời giải (RichTextNode rendered), timeSpentMs.
   - Filter: Chỉ sai / chỉ đánh dấu / chỉ bỏ.
-- [x] **Personal Analytics Dashboard:** Progress chart, điểm mạnh/yếu, "Cần cải thiện" section, lịch sử thi và leaderboard.
+- [x] **Per-exam Result Insights:** Progress chart, lịch sử làm bài và leaderboard được đặt trực tiếp trong `/results/:attemptId` theo đúng đề thi. Trang/menu analytics cá nhân độc lập đã được gỡ; strength/weakness và time-analysis không hiển thị trên UI.
 
 #### ⚠️ Rủi ro Sprint 4.1
 > **R11 — Large Result Payload (đã xử lý):** Review tải theo section; MATH phân trang câu hỏi, READING/SCIENCE phân trang theo PassageBundle nguyên tử. Server-side compression đã enable trong `main.ts`.
