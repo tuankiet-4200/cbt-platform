@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Moved progress, attempt history, and leaderboard into per-exam results; retired standalone analytics UI)
+> **Last updated:** 2026-07-27 (Phase 4.1 scope frozen; admin user management and user account settings completed)
 
 ### Active Sprint
-**Sprint 4.2 (Tuần 15–16) — IRT Integration & Advanced Features**
-Status: ⬜ READY TO START
+**Post–Sprint 4.1 Completion Audit**
+Status: 🔄 IN PROGRESS — finish incomplete Phase 1–4.1 modules only
 
 ### Sprint Progress Overview
 
@@ -39,9 +39,9 @@ Status: ⬜ READY TO START
 | 3.1 | Exam Session Engine & Write Path | ✅ COMPLETE | 100% |
 | 3.2 | Question Renderers & Proctoring | ✅ COMPLETE | 100% |
 | 4.1 | Result Engine & Personal Analytics | ✅ COMPLETE | 100% |
-| **4.2** | **IRT Integration & Advanced Features** | ⬜ Ready | 0% |
-| 5.1 | Performance & Security Hardening | ⬜ Pending | — |
-| 5.2 | Final Polish, UAT & Launch | ⬜ Pending | — |
+| 4.2 | IRT Integration & Advanced Features | ⏸ DEFERRED | 0% |
+| 5.1 | Performance & Security Hardening | ⏸ DEFERRED | — |
+| 5.2 | Final Polish, UAT & Launch | ⏸ DEFERRED | — |
 
 ---
 
@@ -315,19 +315,32 @@ Status: ⬜ READY TO START
 
 ---
 
-## 🎯 Next Up: Sprint 4.2 Tasks
+## ✅ Phase 4.1 Completion Fixes
 
-### Backend — Sprint 4.2
-1. [ ] Add IRT item statistics and post-100-submission recalibration job
-2. [ ] Add admin exam item-analysis API
-3. [ ] Add grading-result and access-code expiry notification jobs
-4. [ ] Add contribution reward access grant workflow
+### Admin User Management
+1. [x] Added paginated/searchable/filterable admin users API and management table
+2. [x] Added user activity counts, role management, and account lock/unlock
+3. [x] Prevented an admin from deactivating or changing the role of their own account
+4. [x] Revoked active refresh tokens immediately when an account is locked
 
-### Frontend — Sprint 4.2
-1. [ ] Add polling leaderboard page with current-user highlight
-2. [ ] Add admin item-analysis dashboard
-3. [ ] Complete user contribution upload/status timeline
-4. [ ] Complete user settings and unlocked-exam history
+### User Account
+1. [x] Added personal profile API and account overview with attempt/access/contribution counts
+2. [x] Added display-name update and synchronized the authenticated user store
+3. [x] Added current-password verification, secure password replacement, refresh-token revocation, and forced re-login
+
+### Quality
+- [x] API test suite passes (14/14)
+- [x] API and Web lint, typecheck, and production builds pass
+- [x] Local smoke verified student profile read/update, admin user filtering, and self-deactivation guard
+- [x] No database schema change or migration was required
+
+---
+
+## 🎯 Next Up: Phase 4.1 Completion Audit
+
+1. [ ] Review any remaining incomplete Phase 1–4.1 behavior reported during UI acceptance
+2. [ ] Fix confirmed gaps without starting IRT, notifications, or other Phase 4.2 work
+3. [ ] Keep Sprint 4.2, 5.1, and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -398,8 +411,8 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
-| NestJS API | — | 3000 | ✅ Working — analytics/leaderboard and section-paginated review smoke-tested with PostgreSQL and Redis |
-| Vite frontend | — | 5173 | ✅ Working — per-exam progress/history/leaderboard, result charts, and lazy review production builds pass |
+| NestJS API | — | 3000 | ✅ Working — profile/admin-users APIs and guards smoke-tested with PostgreSQL |
+| Vite frontend | — | 5173 | ✅ Working — admin user management, account settings, and all Phase 4.1 pages build successfully |
 
 ```bash
 # Start dev environment
