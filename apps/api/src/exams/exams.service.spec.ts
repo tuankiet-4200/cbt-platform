@@ -137,6 +137,6 @@ function examFixture(overrides: {
       })),
     ],
     accesses: overrides.accesses,
-    sessions: [],
+    attempts: [],
   };
 }

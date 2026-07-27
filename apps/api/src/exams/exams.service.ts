@@ -260,16 +260,28 @@ export class ExamsService {
           accessCodeId: true,
         },
       },
-      sessions: {
+      attempts: {
         where: { userId },
         orderBy: { createdAt: 'desc' as const },
         take: 1,
         select: {
           id: true,
           status: true,
-          startTime: true,
-          endTime: true,
-          submittedAt: true,
+          currentSection: true,
+          startedAt: true,
+          completedAt: true,
+          sessions: {
+            orderBy: { createdAt: 'desc' as const },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+              sectionType: true,
+              startTime: true,
+              endTime: true,
+              submittedAt: true,
+            },
+          },
         },
       },
     };
@@ -297,12 +309,20 @@ export class ExamsService {
         grantedAt: Date;
         accessCodeId: string | null;
       }>;
-      sessions: Array<{
+      attempts: Array<{
         id: string;
         status: string;
-        startTime: Date;
-        endTime: Date;
-        submittedAt: Date | null;
+        currentSection: ExamSectionType | null;
+        startedAt: Date;
+        completedAt: Date | null;
+        sessions: Array<{
+          id: string;
+          status: string;
+          sectionType: ExamSectionType;
+          startTime: Date;
+          endTime: Date;
+          submittedAt: Date | null;
+        }>;
       }>;
     },
     includeInstructions = false,
@@ -348,7 +368,16 @@ export class ExamsService {
         scienceQuestions,
         totalQuestions: exam._count.mathQuestions + readingQuestions + scienceQuestions,
       },
-      latestSession: exam.sessions[0] ?? null,
+      latestAttempt: exam.attempts[0]
+        ? {
+            id: exam.attempts[0].id,
+            status: exam.attempts[0].status,
+            currentSection: exam.attempts[0].currentSection,
+            startedAt: exam.attempts[0].startedAt,
+            completedAt: exam.attempts[0].completedAt,
+          }
+        : null,
+      latestSession: exam.attempts[0]?.sessions[0] ?? null,
       createdAt: exam.createdAt,
       updatedAt: exam.updatedAt,
     };
