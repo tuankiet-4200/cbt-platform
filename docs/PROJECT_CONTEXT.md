@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Sprint 4.1 result analytics, leaderboard, charts, and paginated review completed)
+> **Last updated:** 2026-07-27 (Added direct unlimited retake action to the user exam library)
 
 ### Active Sprint
 **Sprint 4.2 (Tuần 15–16) — IRT Integration & Advanced Features**
@@ -302,6 +302,7 @@ Status: ⬜ READY TO START
 2. [x] Added section radar and tag bar charts to aggregate results
 3. [x] Added section tabs and lazy pagination to answer review
 4. [x] Preserved per-question review flags across sequential sections for the post-exam flagged filter
+5. [x] Added a direct `Thi lại` action beside the latest result on every completed exam card; retakes remain unlimited and reuse the idempotent create-or-resume flow
 
 ### Quality — Sprint 4.1
 - [x] API unit tests pass (11/11), including analytics aggregation and leaderboard hydration
