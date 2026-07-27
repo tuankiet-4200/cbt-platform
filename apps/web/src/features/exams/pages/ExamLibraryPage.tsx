@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
@@ -6,31 +6,23 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  Clock3,
-  GraduationCap,
   KeyRound,
   Loader2,
-  Search,
   Sparkles,
   Trophy,
 } from 'lucide-react';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/features/auth/store/auth.store';
-import { cn } from '@/lib/utils';
 import {
   listAvailableExams,
   unlockExam,
   type UserExam,
 } from '../api/exams.api';
 
-type AccessFilter = 'ALL' | 'PUBLIC' | 'UNLOCKED';
-
 export default function ExamLibraryPage() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [accessFilter, setAccessFilter] = useState<AccessFilter>('ALL');
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [unlockSuccess, setUnlockSuccess] = useState<string | null>(null);
 
@@ -57,21 +49,7 @@ export default function ExamLibraryPage() {
     },
   });
 
-  const exams = useMemo(() => examsQuery.data ?? [], [examsQuery.data]);
-  const filteredExams = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLocaleLowerCase('vi-VN');
-    return exams.filter((exam) => {
-      const matchesSearch =
-        !normalizedSearch ||
-        exam.title.toLocaleLowerCase('vi-VN').includes(normalizedSearch) ||
-        exam.description?.toLocaleLowerCase('vi-VN').includes(normalizedSearch);
-      const matchesAccess =
-        accessFilter === 'ALL' ||
-        (accessFilter === 'PUBLIC' && exam.accessType === 'PUBLIC') ||
-        (accessFilter === 'UNLOCKED' && exam.accessType === 'LOCKED');
-      return matchesSearch && matchesAccess;
-    });
-  }, [accessFilter, exams, searchTerm]);
+  const exams = examsQuery.data ?? [];
 
   const handleUnlock = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -158,51 +136,23 @@ export default function ExamLibraryPage() {
         </div>
       </section>
 
-      <section>
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-primary-700">Thư viện của bạn</p>
-            <h2 className="mt-1 text-2xl font-bold text-neutral-900">Chọn đề để luyện tập</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Đề công khai và các đề bạn đã mở khóa sẽ xuất hiện tại đây.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="relative block sm:w-64">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-              <input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                className="input h-10 pl-9"
-                placeholder="Tìm kiếm đề thi"
-              />
-            </label>
-            <div className="grid grid-cols-3 rounded-lg border border-neutral-200 bg-white p-1">
-              {([
-                ['ALL', 'Tất cả'],
-                ['PUBLIC', 'Công khai'],
-                ['UNLOCKED', 'Đã mở'],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setAccessFilter(value)}
-                  className={cn(
-                    'h-8 rounded-md px-3 text-xs font-semibold transition',
-                    accessFilter === value
-                      ? 'bg-primary-600 text-white'
-                      : 'text-neutral-600 hover:bg-neutral-100',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+      <section className="pb-4">
+        <header className="flex flex-col gap-4 border-b border-neutral-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-semibold text-neutral-900">
+            Bài thi Đánh giá tư duy - TSA
+          </h2>
+          <button
+            type="button"
+            onClick={() => examsQuery.refetch()}
+            disabled={examsQuery.isFetching}
+            className="h-9 rounded-md border border-neutral-300 bg-white px-8 text-sm font-medium text-primary-600 transition hover:border-primary-300 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-64"
+          >
+            {examsQuery.isFetching ? 'Đang tải kỳ thi...' : 'Xem tất cả kỳ thi'}
+          </button>
         </header>
 
         {examsQuery.isError && (
-          <div className="mt-5 rounded-xl border border-danger-100 bg-danger-50 px-4 py-4 text-sm text-danger-700">
+          <div className="mt-4 rounded-lg border border-danger-100 bg-danger-50 px-4 py-4 text-sm text-danger-700">
             {getApiErrorMessage(examsQuery.error, 'Không tải được danh sách đề thi.')}
             <button
               type="button"
@@ -215,29 +165,25 @@ export default function ExamLibraryPage() {
         )}
 
         {examsQuery.isLoading && (
-          <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }, (_, index) => <SkeletonCard key={index} className="h-72" />)}
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: 4 }, (_, index) => <SkeletonCard key={index} className="h-64" />)}
           </div>
         )}
 
-        {!examsQuery.isLoading && !examsQuery.isError && filteredExams.length > 0 && (
-          <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredExams.map((exam) => <ExamCard key={exam.id} exam={exam} />)}
+        {!examsQuery.isLoading && !examsQuery.isError && exams.length > 0 && (
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {exams.map((exam) => <ExamCard key={exam.id} exam={exam} />)}
           </div>
         )}
 
-        {!examsQuery.isLoading && !examsQuery.isError && filteredExams.length === 0 && (
-          <div className="card mt-5 flex min-h-72 flex-col items-center justify-center px-6 text-center">
+        {!examsQuery.isLoading && !examsQuery.isError && exams.length === 0 && (
+          <div className="card mt-4 flex min-h-64 flex-col items-center justify-center px-6 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500">
               <BookOpen className="h-7 w-7" />
             </span>
-            <h3 className="mt-4 font-bold text-neutral-900">
-              {exams.length === 0 ? 'Chưa có đề thi khả dụng' : 'Không tìm thấy đề phù hợp'}
-            </h3>
+            <h3 className="mt-4 font-bold text-neutral-900">Chưa có đề thi khả dụng</h3>
             <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
-              {exams.length === 0
-                ? 'Nhập mã truy cập phía trên để mở khóa đề mới, hoặc quay lại khi có đề công khai được phát hành.'
-                : 'Thử thay đổi từ khóa hoặc bộ lọc quyền truy cập.'}
+              Nhập mã truy cập phía trên để mở khóa đề mới, hoặc quay lại khi có đề công khai được phát hành.
             </p>
           </div>
         )}
@@ -248,50 +194,75 @@ export default function ExamLibraryPage() {
 
 function ExamCard({ exam }: { exam: UserExam }) {
   const isInProgress = exam.latestSession?.status === 'IN_PROGRESS';
+  const isCompleted = exam.latestSession?.status === 'GRADED';
 
   return (
-    <article className="group relative flex min-h-72 flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:border-primary-200 hover:shadow-soft">
-      <div className="h-1.5 bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500" />
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-3">
-          <span className={cn('badge', exam.accessType === 'PUBLIC' ? 'badge-success' : 'badge-primary')}>
-            {exam.accessType === 'PUBLIC' ? 'Công khai' : 'Đã mở khóa'}
-          </span>
-          {isInProgress && <span className="badge badge-warning">Đang làm</span>}
-        </div>
-        <h3 className="mt-4 text-lg font-bold leading-snug text-neutral-900 transition group-hover:text-primary-700">
+    <article className="overflow-hidden rounded-lg border border-neutral-100 bg-white shadow-soft">
+      <header className="border-b border-neutral-100 px-6 py-5">
+        <h3 className="text-base font-semibold leading-snug text-neutral-900">
           {exam.title}
         </h3>
-        <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-500">
-          {exam.description || 'Đề thi mô phỏng TSA với đầy đủ ba phần Toán, Đọc hiểu và Khoa học.'}
-        </p>
+      </header>
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <SectionCount label="Toán" value={exam.counts.mathQuestions} tone="primary" />
-          <SectionCount label="Đọc hiểu" value={exam.counts.readingQuestions} tone="accent" />
-          <SectionCount label="Khoa học" value={exam.counts.scienceQuestions} tone="success" />
-        </div>
-
-        <div className="mt-5 flex items-center justify-between border-t border-neutral-100 pt-4 text-sm text-neutral-500">
-          <span className="flex items-center gap-1.5">
-            <Clock3 className="h-4 w-4" />
-            {exam.durationMins} phút
+      <dl className="space-y-3 px-6 py-5 text-sm">
+        <ExamInfoRow label="Hình thức thi">
+          <span className="rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-500">
+            Thi trực tuyến
           </span>
-          <span className="flex items-center gap-1.5">
-            <GraduationCap className="h-4 w-4" />
-            {exam.counts.totalQuestions} câu
+        </ExamInfoRow>
+        <ExamInfoRow label="Thời lượng">
+          <span className="font-medium text-neutral-900">{exam.durationMins} phút</span>
+        </ExamInfoRow>
+        <ExamInfoRow label="Cấu trúc">
+          <span className="font-medium text-neutral-900">
+            {exam.counts.totalQuestions} câu · 3 phần thi
           </span>
-        </div>
+        </ExamInfoRow>
+        <ExamInfoRow label="Tổng điểm">
+          <span className="font-semibold text-neutral-900">{exam.totalPoints} điểm</span>
+        </ExamInfoRow>
+      </dl>
 
-        <Link
-          to={`/exams/${exam.id}`}
-          className="btn btn-secondary btn-md mt-4 w-full group-hover:border-primary-300 group-hover:text-primary-700"
-        >
-          Xem thông tin đề
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
+      <footer className="flex min-h-16 items-center justify-between gap-4 border-t border-neutral-100 px-6 py-4">
+        <span className="text-sm font-medium text-primary-600">
+          {isCompleted
+            ? 'Đã hoàn thành'
+            : exam.accessType === 'PUBLIC'
+              ? 'Đề công khai'
+              : 'Đã mở khóa'}
+        </span>
+        {isInProgress && exam.latestSession ? (
+          <Link
+            to={`/exam/${exam.latestSession.id}`}
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-5 text-sm font-semibold text-white transition hover:bg-success-700"
+          >
+            Tiếp tục làm bài
+          </Link>
+        ) : (
+          <Link
+            to={`/exams/${exam.id}`}
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-5 text-sm font-semibold text-white transition hover:bg-success-700"
+          >
+            Xem thông tin
+          </Link>
+        )}
+      </footer>
     </article>
+  );
+}
+
+function ExamInfoRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-4">
+      <dt className="text-neutral-500">{label}:</dt>
+      <dd className="flex justify-end text-right">{children}</dd>
+    </div>
   );
 }
 
@@ -310,29 +281,6 @@ function HeroMetric({
       <strong className="text-white">{value}</strong>
       {label}
     </span>
-  );
-}
-
-function SectionCount({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: 'primary' | 'accent' | 'success';
-}) {
-  const toneClasses = {
-    primary: 'bg-primary-50 text-primary-700',
-    accent: 'bg-accent-50 text-accent-700',
-    success: 'bg-success-50 text-success-700',
-  };
-
-  return (
-    <div className={cn('rounded-xl px-2 py-3 text-center', toneClasses[tone])}>
-      <p className="text-lg font-extrabold">{value}</p>
-      <p className="mt-0.5 text-[0.68rem] font-semibold">{label}</p>
-    </div>
   );
 }
 
