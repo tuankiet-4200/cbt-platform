@@ -22,10 +22,10 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Sprint 3.2 grading, renderers, proctoring, and result review completed)
+> **Last updated:** 2026-07-27 (Sprint 4.1 result analytics, leaderboard, charts, and paginated review completed)
 
 ### Active Sprint
-**Sprint 4.1 (Tuần 13–14) — Result Engine & Personal Analytics**
+**Sprint 4.2 (Tuần 15–16) — IRT Integration & Advanced Features**
 Status: ⬜ READY TO START
 
 ### Sprint Progress Overview
@@ -38,8 +38,8 @@ Status: ⬜ READY TO START
 | 2.2 | Exam Assembly & Access Code System | ✅ COMPLETE | 100% |
 | 3.1 | Exam Session Engine & Write Path | ✅ COMPLETE | 100% |
 | 3.2 | Question Renderers & Proctoring | ✅ COMPLETE | 100% |
-| **4.1** | **Result Engine & Personal Analytics** | ⬜ Ready | 0% |
-| 4.2 | IRT Integration & Advanced Features | ⬜ Pending | — |
+| 4.1 | Result Engine & Personal Analytics | ✅ COMPLETE | 100% |
+| **4.2** | **IRT Integration & Advanced Features** | ⬜ Ready | 0% |
 | 5.1 | Performance & Security Hardening | ⬜ Pending | — |
 | 5.2 | Final Polish, UAT & Launch | ⬜ Pending | — |
 
@@ -288,17 +288,44 @@ Status: ⬜ READY TO START
 
 ---
 
-## 🎯 Next Up: Sprint 4.1 Tasks
+## ✅ Sprint 4.1 — What Was Completed
 
 ### Backend — Sprint 4.1
-1. [ ] Add personal exam history, weakness analysis, and time-analysis APIs
-2. [ ] Add public exam leaderboard endpoint over the existing Redis sorted set
-3. [ ] Add pagination/lazy loading for large answer-review payloads
+1. [x] Added paginated personal exam history with aggregate score, correctness, duration, and section breakdown
+2. [x] Added weakness/strength aggregation over the latest 50 result tag breakdowns
+3. [x] Added per-section actual-versus-expected question time analysis
+4. [x] Added authenticated top-100 Redis leaderboard with current-user rank and best-score-only updates
+5. [x] Changed answer review to section-scoped pagination while preserving READING/SCIENCE PassageBundle atomicity
 
 ### Frontend — Sprint 4.1
-1. [ ] Add personal analytics dashboard with progress and strength/weakness insights
-2. [ ] Add radar/bar chart visualizations to the result experience
-3. [ ] Add leaderboard and attempt history views
+1. [x] Added personal analytics dashboard with progress, strengths, weaknesses, timing, history, and leaderboard views
+2. [x] Added section radar and tag bar charts to aggregate results
+3. [x] Added section tabs and lazy pagination to answer review
+4. [x] Preserved per-question review flags across sequential sections for the post-exam flagged filter
+
+### Quality — Sprint 4.1
+- [x] API unit tests pass (11/11), including analytics aggregation and leaderboard hydration
+- [x] API and Web lint, typecheck, and production builds pass
+- [x] Local smoke verified history/weakness/time/leaderboard endpoints
+- [x] Review smoke verified MATH 10-question pages, READING 10-question atomic bundles, and SCIENCE 5-question atomic bundles
+- [x] Corrected the API production start entrypoint from `dist/main` to `dist/src/main`
+- [x] No database schema change or migration was required
+
+---
+
+## 🎯 Next Up: Sprint 4.2 Tasks
+
+### Backend — Sprint 4.2
+1. [ ] Add IRT item statistics and post-100-submission recalibration job
+2. [ ] Add admin exam item-analysis API
+3. [ ] Add grading-result and access-code expiry notification jobs
+4. [ ] Add contribution reward access grant workflow
+
+### Frontend — Sprint 4.2
+1. [ ] Add polling leaderboard page with current-user highlight
+2. [ ] Add admin item-analysis dashboard
+3. [ ] Complete user contribution upload/status timeline
+4. [ ] Complete user settings and unlocked-exam history
 
 ---
 
@@ -369,8 +396,8 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
-| NestJS API | — | 3000 | ✅ Working — grading/result/review/proctoring smoke-tested with PostgreSQL and Redis |
-| Vite frontend | — | 5173 | ✅ Working — exam renderers, result, and review production builds pass |
+| NestJS API | — | 3000 | ✅ Working — analytics/leaderboard and section-paginated review smoke-tested with PostgreSQL and Redis |
+| Vite frontend | — | 5173 | ✅ Working — analytics dashboard, result charts, and lazy review production builds pass |
 
 ```bash
 # Start dev environment
