@@ -12,6 +12,19 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { getExamResult, type SectionScore } from '../api/results.api';
 
 const SECTION_META = {
@@ -87,6 +100,67 @@ export default function ResultPage() {
         {result.sectionScores.map((section) => (
           <SectionResultCard key={section.section} section={section} />
         ))}
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="card p-6">
+          <h2 className="font-bold text-neutral-900">Năng lực theo phần thi</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Tỷ lệ điểm đạt được trên từng trục năng lực TSA
+          </p>
+          <div className="mt-4 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart
+                data={result.sectionScores.map((section) => ({
+                  section: SECTION_META[section.section].label,
+                  percent: section.maxScore
+                    ? Number(((section.score / section.maxScore) * 100).toFixed(1))
+                    : 0,
+                }))}
+              >
+                <PolarGrid stroke="#e5e7eb" />
+                <PolarAngleAxis dataKey="section" tick={{ fontSize: 12, fill: '#525252' }} />
+                <Radar
+                  dataKey="percent"
+                  stroke="#dc2626"
+                  fill="#dc2626"
+                  fillOpacity={0.22}
+                />
+                <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Kết quả']} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className="card p-6">
+          <h2 className="font-bold text-neutral-900">Kết quả theo chủ đề</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Tỷ lệ trả lời đúng ở các nhóm kiến thức xuất hiện trong đề
+          </p>
+          <div className="mt-4 h-72">
+            {result.tagBreakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={result.tagBreakdown.slice(0, 8).map((tag) => ({
+                    name: tag.tagName,
+                    accuracy: tag.total ? Number(((tag.correct / tag.total) * 100).toFixed(1)) : 0,
+                  }))}
+                  margin={{ left: -18, right: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Độ chính xác']} />
+                  <Bar dataKey="accuracy" fill="#2563eb" radius={[7, 7, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-neutral-400">
+                Chưa có dữ liệu chủ đề
+              </div>
+            )}
+          </div>
+        </article>
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">

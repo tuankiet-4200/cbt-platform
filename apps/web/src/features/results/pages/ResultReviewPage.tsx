@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { RichText } from '@/features/exam/components/RichText';
+import type { ExamSectionType } from '@/features/exam/api/sessions.api';
 import {
   getAnswerReview,
   type ReviewBundle,
@@ -20,35 +21,45 @@ import {
 
 type Filter = 'ALL' | 'WRONG' | 'SKIPPED' | 'CORRECT';
 
+const SECTIONS: Array<{ value: ExamSectionType; label: string }> = [
+  { value: 'MATH', label: 'Tư duy Toán học' },
+  { value: 'READING', label: 'Tư duy Đọc hiểu' },
+  { value: 'SCIENCE', label: 'Khoa học' },
+];
+
 export default function ResultReviewPage() {
   const { attemptId = '' } = useParams();
   const [filter, setFilter] = useState<Filter>('ALL');
+  const [section, setSection] = useState<ExamSectionType>('MATH');
+  const [page, setPage] = useState(1);
+  const limit = section === 'MATH' ? 10 : 1;
   const reviewQuery = useQuery({
-    queryKey: ['answer-review', attemptId],
-    queryFn: () => getAnswerReview(attemptId),
+    queryKey: ['answer-review', attemptId, section, page, limit],
+    queryFn: () => getAnswerReview(attemptId, section, page, limit),
     enabled: Boolean(attemptId),
+    placeholderData: (previous) => previous,
   });
 
-  const groups = useMemo(() => {
+  const visibleBundles = useMemo(() => {
     if (!reviewQuery.data) return [];
-    return [
-      {
-        section: 'MATH',
-        label: 'Tư duy Toán học',
-        bundles: [{ id: 'math', title: null, content: [], order: 0, questions: reviewQuery.data.sections.MATH.questions }],
-      },
-      {
-        section: 'READING',
-        label: 'Tư duy Đọc hiểu',
-        bundles: reviewQuery.data.sections.READING.bundles,
-      },
-      {
-        section: 'SCIENCE',
-        label: 'Khoa học và giải quyết vấn đề',
-        bundles: reviewQuery.data.sections.SCIENCE.bundles,
-      },
-    ];
-  }, [reviewQuery.data]);
+    const bundles = section === 'MATH'
+      ? [{
+          id: 'math',
+          title: null,
+          content: [],
+          order: 0,
+          questions: reviewQuery.data.questions,
+        }]
+      : reviewQuery.data.bundles;
+    return bundles
+      .map((bundle) => ({
+        ...bundle,
+        questions: bundle.questions.filter((question) =>
+          matchesFilter(question, filter),
+        ),
+      }))
+      .filter((bundle) => bundle.questions.length > 0);
+  }, [filter, reviewQuery.data, section]);
 
   if (reviewQuery.isLoading) {
     return (
@@ -104,29 +115,80 @@ export default function ResultReviewPage() {
             ))}
           </div>
         </div>
+        <div className="mt-5 flex flex-wrap gap-2 border-t border-neutral-100 pt-4">
+          {SECTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => {
+                setSection(item.value);
+                setPage(1);
+                setFilter('ALL');
+              }}
+              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                section === item.value
+                  ? 'bg-neutral-900 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </header>
 
-      {groups.map((group) => {
-        const visible = group.bundles
-          .map((bundle) => ({
-            ...bundle,
-            questions: bundle.questions.filter((question) =>
-              matchesFilter(question, filter),
-            ),
-          }))
-          .filter((bundle) => bundle.questions.length > 0);
-        if (visible.length === 0) return null;
-        return (
-          <section key={group.section}>
-            <h2 className="mb-3 text-lg font-bold text-neutral-900">{group.label}</h2>
-            <div className="space-y-4">
-              {visible.map((bundle) => (
-                <ReviewGroup key={bundle.id} bundle={bundle} />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-neutral-900">
+            {SECTIONS.find((item) => item.value === section)?.label}
+          </h2>
+          <span className="text-xs font-medium text-neutral-500">
+            {reviewQuery.data.meta.unit === 'BUNDLE' ? 'Bài đọc' : 'Trang'}{' '}
+            {reviewQuery.data.meta.page}/{Math.max(1, reviewQuery.data.meta.totalPages)}
+          </span>
+        </div>
+        {reviewQuery.isFetching && (
+          <div className="mb-3 flex items-center gap-2 text-xs text-neutral-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Đang tải phần tiếp theo...
+          </div>
+        )}
+        {visibleBundles.length > 0 ? (
+          <div className="space-y-4">
+            {visibleBundles.map((bundle) => (
+              <ReviewGroup key={bundle.id} bundle={bundle} />
+            ))}
+          </div>
+        ) : (
+          <div className="card p-10 text-center text-sm text-neutral-500">
+            Không có câu hỏi phù hợp bộ lọc trong trang này.
+          </div>
+        )}
+      </section>
+
+      {reviewQuery.data.meta.totalPages > 1 && (
+        <nav className="card flex items-center justify-between p-4">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={page <= 1 || reviewQuery.isFetching}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+          >
+            Trang trước
+          </button>
+          <span className="text-sm font-semibold text-neutral-600">
+            {page} / {reviewQuery.data.meta.totalPages}
+          </span>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={page >= reviewQuery.data.meta.totalPages || reviewQuery.isFetching}
+            onClick={() => setPage((value) => value + 1)}
+          >
+            Trang sau
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

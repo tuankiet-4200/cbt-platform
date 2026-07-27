@@ -73,10 +73,15 @@ export interface AnswerReview {
     title: string;
     totalPoints: number;
   };
-  sections: {
-    MATH: { questions: ReviewQuestion[] };
-    READING: { bundles: ReviewBundle[] };
-    SCIENCE: { bundles: ReviewBundle[] };
+  section: ExamSectionType;
+  questions: ReviewQuestion[];
+  bundles: ReviewBundle[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    unit: 'QUESTION' | 'BUNDLE';
   };
 }
 
@@ -91,9 +96,15 @@ export async function getExamResult(attemptId: string) {
   return response.data.data;
 }
 
-export async function getAnswerReview(attemptId: string) {
+export async function getAnswerReview(
+  attemptId: string,
+  section: ExamSectionType,
+  page: number,
+  limit: number,
+) {
   const response = await apiClient.get<ApiEnvelope<AnswerReview>>(
     `/results/${attemptId}/answers`,
+    { params: { section, page, limit } },
   );
   return response.data.data;
 }
