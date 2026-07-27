@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import {
@@ -8,11 +8,13 @@ import {
   CheckCircle2,
   KeyRound,
   Loader2,
+  RotateCcw,
   Sparkles,
   Trophy,
 } from 'lucide-react';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { createOrResumeAttempt } from '@/features/exam/api/sessions.api';
 import {
   listAvailableExams,
   unlockExam,
@@ -193,8 +195,13 @@ export default function ExamLibraryPage() {
 }
 
 function ExamCard({ exam }: { exam: UserExam }) {
+  const navigate = useNavigate();
   const isInProgress = exam.latestAttempt?.status === 'IN_PROGRESS';
   const isCompleted = ['SUBMITTED', 'GRADED'].includes(exam.latestAttempt?.status ?? '');
+  const retakeMutation = useMutation({
+    mutationFn: () => createOrResumeAttempt(exam.id),
+    onSuccess: (attempt) => navigate(`/exam/attempt/${attempt.id}`),
+  });
 
   return (
     <article className="overflow-hidden rounded-lg border border-neutral-100 bg-white shadow-soft">
@@ -239,12 +246,27 @@ function ExamCard({ exam }: { exam: UserExam }) {
             Tiếp tục làm bài
           </Link>
         ) : isCompleted && exam.latestAttempt ? (
-          <Link
-            to={`/results/${exam.latestAttempt.id}`}
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-5 text-sm font-semibold text-white transition hover:bg-success-700"
-          >
-            Xem kết quả
-          </Link>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Link
+              to={`/results/${exam.latestAttempt.id}`}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:border-neutral-400 hover:bg-neutral-50"
+            >
+              Xem kết quả
+            </Link>
+            <button
+              type="button"
+              disabled={retakeMutation.isPending}
+              onClick={() => retakeMutation.mutate()}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-success-600 px-4 text-sm font-semibold text-white transition hover:bg-success-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {retakeMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              Thi lại
+            </button>
+          </div>
         ) : (
           <Link
             to={`/exams/${exam.id}`}
@@ -254,6 +276,14 @@ function ExamCard({ exam }: { exam: UserExam }) {
           </Link>
         )}
       </footer>
+      {retakeMutation.isError && (
+        <p className="border-t border-danger-100 bg-danger-50 px-6 py-3 text-right text-xs text-danger-700">
+          {getApiErrorMessage(
+            retakeMutation.error,
+            'Không thể tạo lượt thi mới. Vui lòng thử lại.',
+          )}
+        </p>
+      )}
     </article>
   );
 }
