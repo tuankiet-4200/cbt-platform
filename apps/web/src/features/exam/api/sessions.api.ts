@@ -113,6 +113,18 @@ export interface SectionTransition {
   answeredCount: number;
 }
 
+export type ProctoringEventType =
+  | 'TAB_SWITCH'
+  | 'FULLSCREEN_EXIT'
+  | 'COPY_ATTEMPT'
+  | 'SESSION_BLUR';
+
+export interface ProctoringEventInput {
+  eventType: ProctoringEventType;
+  occurredAt: string;
+  metadata?: Record<string, unknown>;
+}
+
 interface ApiEnvelope<T> {
   data: T;
 }
@@ -176,5 +188,15 @@ export async function submitSection(sessionId: string) {
   const response = await apiClient.patch<ApiEnvelope<SectionTransition>>(
     `/sessions/${sessionId}/submit`,
   );
+  return response.data.data;
+}
+
+export async function recordProctoringEvents(
+  sessionId: string,
+  events: ProctoringEventInput[],
+) {
+  const response = await apiClient.post<
+    ApiEnvelope<{ ok: boolean; recorded: number }>
+  >(`/sessions/${sessionId}/events`, { events });
   return response.data.data;
 }

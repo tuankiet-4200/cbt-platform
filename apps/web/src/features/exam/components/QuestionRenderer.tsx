@@ -1,4 +1,5 @@
 import { RichText } from './RichText';
+import { DragDropQuestion } from './DragDropQuestion';
 import type { RichTextNode, SessionQuestion } from '../api/sessions.api';
 
 type Answer = Record<string, unknown>;
@@ -174,46 +175,17 @@ export function QuestionRenderer({
       )}
 
       {question.type === 'DRAG_DROP' && (
-        <div className="mt-5 space-y-3">
-          {slots.map((slot) => {
-            const values =
-              (answer?.slots as Array<{
-                slotId: string;
-                itemId: string;
-              }> | undefined) ?? [];
-            const selected =
-              values.find((item) => item.slotId === slot.id)?.itemId ?? '';
-            return (
-              <label
-                key={slot.id}
-                className="grid gap-2 rounded-lg border border-neutral-200 p-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-center"
-              >
-                <span className="text-sm font-semibold text-neutral-700">
-                  <RichText nodes={slot.label ?? []} />
-                </span>
-                <select
-                  value={selected}
-                  onChange={(event) =>
-                    onAnswer({
-                      slots: [
-                        ...values.filter((item) => item.slotId !== slot.id),
-                        { slotId: slot.id, itemId: event.target.value },
-                      ],
-                    })
-                  }
-                  className="input"
-                >
-                  <option value="">Chọn đáp án</option>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {plainText(item.content)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          })}
-        </div>
+        <DragDropQuestion
+          items={items}
+          slots={slots}
+          value={
+            (answer?.slots as Array<{
+              slotId: string;
+              itemId: string;
+            }> | undefined) ?? []
+          }
+          onChange={(value) => onAnswer({ slots: value })}
+        />
       )}
     </article>
   );
@@ -281,11 +253,4 @@ function MatrixChoice({
       />
     </button>
   );
-}
-
-function plainText(nodes: RichTextNode[]) {
-  return nodes
-    .map((node) => ('content' in node ? node.content : ''))
-    .join(' ')
-    .trim();
 }

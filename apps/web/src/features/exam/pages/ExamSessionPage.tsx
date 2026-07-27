@@ -31,6 +31,7 @@ import {
   type SessionQuestion,
 } from '../api/sessions.api';
 import { useExamSessionStore } from '../store/exam-session.store';
+import { useProctoringMonitor } from '../hooks/useProctoringMonitor';
 
 const SECTION_LABELS: Record<ExamSectionType, string> = {
   MATH: 'Tư duy Toán học',
@@ -144,7 +145,7 @@ export default function ExamSessionPage() {
         completed
         nextSection={null}
         answeredCount={0}
-        onContinue={() => navigate('/exams')}
+        onContinue={() => navigate(`/results/${attemptId}`)}
       />
     );
   }
@@ -158,7 +159,7 @@ export default function ExamSessionPage() {
         answeredCount={transition.answeredCount}
         onContinue={async () => {
           if (transition.completed) {
-            navigate('/exams');
+            navigate(`/results/${transition.attemptId}`);
             return;
           }
           setTransition(null);
@@ -267,6 +268,9 @@ function ActiveExam({
   const dirtyQuestionIds = useExamSessionStore(
     (state) => state.dirtyQuestionIds,
   );
+  const flaggedQuestionIds = useExamSessionStore(
+    (state) => state.flaggedQuestionIds,
+  );
   const connected = useExamSessionStore((state) => state.connected);
   const setAnswer = useExamSessionStore((state) => state.setAnswer);
   const setCurrentIndex = useExamSessionStore(
@@ -274,10 +278,16 @@ function ActiveExam({
   );
   const addTime = useExamSessionStore((state) => state.addTime);
   const markSynced = useExamSessionStore((state) => state.markSynced);
+  const toggleFlag = useExamSessionStore((state) => state.toggleFlag);
   const setConnected = useExamSessionStore((state) => state.setConnected);
   const clearStore = useExamSessionStore((state) => state.clear);
   const questionStartedAt = useRef(Date.now());
   const autoSubmitted = useRef(false);
+  useProctoringMonitor({
+    sessionId: payload.id,
+    currentIndex,
+    enabled: payload.status === 'IN_PROGRESS',
+  });
 
   const flattened = useMemo(() => flattenQuestions(payload), [payload]);
   const safeIndex = Math.min(currentIndex, Math.max(0, flattened.length - 1));
@@ -511,6 +521,7 @@ function ActiveExam({
           total={flattened.length}
           currentIndex={safeIndex}
           answers={answers}
+          flaggedQuestionIds={flaggedQuestionIds}
           questions={flattened.map((item) => item.question)}
           connected={connected}
           onGoTo={(index) => {
@@ -543,6 +554,19 @@ function ActiveExam({
           </button>
         </div>
         <div className="hidden items-center gap-5 text-sm text-neutral-600 sm:flex">
+          <button
+            type="button"
+            onClick={() => toggleFlag(active.question.id)}
+            className={`rounded-md border px-3 py-2 text-xs font-semibold ${
+              flaggedQuestionIds.includes(active.question.id)
+                ? 'border-warning-300 bg-warning-50 text-warning-700'
+                : 'border-neutral-200 text-neutral-500'
+            }`}
+          >
+            {flaggedQuestionIds.includes(active.question.id)
+              ? 'Đã đánh dấu'
+              : 'Đánh dấu xem lại'}
+          </button>
           <span>Thời gian làm câu hiện tại</span>
           <span className="font-mono text-xl text-[#17386d]">
             {formatDuration(timing[active.question.id] ?? 0)}
@@ -628,6 +652,7 @@ function ExamSidebar({
   total,
   currentIndex,
   answers,
+  flaggedQuestionIds,
   questions,
   connected,
   onGoTo,
@@ -642,6 +667,7 @@ function ExamSidebar({
   total: number;
   currentIndex: number;
   answers: Record<string, Record<string, unknown>>;
+  flaggedQuestionIds: string[];
   questions: SessionQuestion[];
   connected: boolean;
   onGoTo: (index: number) => void;
@@ -704,6 +730,9 @@ function ExamSidebar({
             <span className="rounded-full bg-blue-500 px-2 py-1 text-white">
               {answeredCount}
             </span>
+            <span className="rounded-full bg-warning-400 px-2 py-1 text-white">
+              {flaggedQuestionIds.length}
+            </span>
           </div>
           <div className="mt-4 grid grid-cols-8 gap-3">
             {questions.map((question, index) => {
@@ -716,6 +745,8 @@ function ExamSidebar({
                   className={`flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition ${
                     index === currentIndex
                       ? 'bg-[#0e2b59] text-white'
+                      : flaggedQuestionIds.includes(question.id)
+                        ? 'bg-warning-400 text-white'
                       : answered
                         ? 'bg-blue-500 text-white'
                         : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'

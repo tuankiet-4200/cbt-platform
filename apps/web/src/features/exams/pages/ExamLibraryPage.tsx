@@ -238,6 +238,13 @@ function ExamCard({ exam }: { exam: UserExam }) {
           >
             Tiếp tục làm bài
           </Link>
+        ) : isCompleted && exam.latestAttempt ? (
+          <Link
+            to={`/results/${exam.latestAttempt.id}`}
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-5 text-sm font-semibold text-white transition hover:bg-success-700"
+          >
+            Xem kết quả
+          </Link>
         ) : (
           <Link
             to={`/exams/${exam.id}`}

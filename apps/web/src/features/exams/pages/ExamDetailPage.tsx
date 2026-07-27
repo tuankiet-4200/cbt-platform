@@ -56,6 +56,9 @@ export default function ExamDetailPage() {
 
   const exam = examQuery.data;
   const isInProgress = exam.latestAttempt?.status === 'IN_PROGRESS';
+  const isCompleted = ['SUBMITTED', 'GRADED'].includes(
+    exam.latestAttempt?.status ?? '',
+  );
 
   return (
     <div className="space-y-6">
@@ -147,6 +150,20 @@ export default function ExamDetailPage() {
             <Link to={`/exam/attempt/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
               Tiếp tục làm bài
             </Link>
+          ) : isCompleted && exam.latestAttempt ? (
+            <>
+              <Link to={`/results/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
+                Xem kết quả gần nhất
+              </Link>
+              <button
+                type="button"
+                className="btn btn-secondary btn-md mt-3 w-full"
+                disabled={startMutation.isPending}
+                onClick={() => startMutation.mutate()}
+              >
+                Làm lại đề thi
+              </button>
+            </>
           ) : (
             <button
               type="button"

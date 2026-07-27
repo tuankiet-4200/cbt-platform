@@ -8,6 +8,7 @@ interface PersistedSessionState {
   timing: Record<string, number>;
   currentIndex: number;
   dirtyQuestionIds: string[];
+  flaggedQuestionIds: string[];
 }
 
 interface ExamSessionState extends PersistedSessionState {
@@ -26,6 +27,7 @@ interface ExamSessionState extends PersistedSessionState {
   setCurrentIndex: (index: number) => void;
   addTime: (questionId: string, milliseconds: number) => void;
   markSynced: (questionIds: string[]) => void;
+  toggleFlag: (questionId: string) => void;
   setConnected: (connected: boolean) => void;
   clear: () => void;
 }
@@ -37,6 +39,7 @@ const emptyState = {
   timing: {},
   currentIndex: 0,
   dirtyQuestionIds: [],
+  flaggedQuestionIds: [],
   connected: navigator.onLine,
 };
 
@@ -62,6 +65,7 @@ function persistCurrent(get: () => ExamSessionState) {
     timing: state.timing,
     currentIndex: state.currentIndex,
     dirtyQuestionIds: state.dirtyQuestionIds,
+    flaggedQuestionIds: state.flaggedQuestionIds,
   };
   localStorage.setItem(storageKey(state.sessionId), JSON.stringify(persisted));
 }
@@ -77,6 +81,7 @@ export const useExamSessionStore = create<ExamSessionState>((set, get) => ({
       timing: { ...recovered.timing, ...local?.timing },
       currentIndex: local?.currentIndex ?? recovered.currentIndex,
       dirtyQuestionIds: local?.dirtyQuestionIds ?? [],
+      flaggedQuestionIds: local?.flaggedQuestionIds ?? [],
     });
     persistCurrent(get);
   },
@@ -112,6 +117,14 @@ export const useExamSessionStore = create<ExamSessionState>((set, get) => ({
       dirtyQuestionIds: state.dirtyQuestionIds.filter(
         (questionId) => !questionIds.includes(questionId),
       ),
+    }));
+    persistCurrent(get);
+  },
+  toggleFlag: (questionId) => {
+    set((state) => ({
+      flaggedQuestionIds: state.flaggedQuestionIds.includes(questionId)
+        ? state.flaggedQuestionIds.filter((id) => id !== questionId)
+        : [...state.flaggedQuestionIds, questionId],
     }));
     persistCurrent(get);
   },
