@@ -22,23 +22,23 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Phase 4.1 scope frozen; admin user management and user account settings completed)
+> **Last updated:** 2026-07-27 (Phase 1–4.1 implementation audit completed; remediation backlog identified)
 
 ### Active Sprint
 **Post–Sprint 4.1 Completion Audit**
-Status: 🔄 IN PROGRESS — finish incomplete Phase 1–4.1 modules only
+Status: ⚠️ REMEDIATION REQUIRED — core flows work, but audit gaps remain before Phase 4.1 can be certified complete
 
 ### Sprint Progress Overview
 
 | Sprint | Name | Status | Completion |
 |--------|------|--------|-----------|
-| 1.1 | Project Bootstrap & Infrastructure Core | ✅ COMPLETE | 100% |
-| 1.2 | Authentication & Question Content Model | ✅ COMPLETE | 100% |
-| 2.1 | Admin Question Bank Management | ✅ COMPLETE | 100% |
-| 2.2 | Exam Assembly & Access Code System | ✅ COMPLETE | 100% |
-| 3.1 | Exam Session Engine & Write Path | ✅ COMPLETE | 100% |
-| 3.2 | Question Renderers & Proctoring | ✅ COMPLETE | 100% |
-| 4.1 | Result Engine & Personal Analytics | ✅ COMPLETE | 100% |
+| 1.1 | Project Bootstrap & Infrastructure Core | ⚠️ AUDITED | 95% |
+| 1.2 | Authentication & Question Content Model | ⚠️ PARTIAL | 85% |
+| 2.1 | Admin Question Bank Management | ⚠️ AUDITED | 95% |
+| 2.2 | Exam Assembly & Access Code System | ⚠️ PARTIAL | 90% |
+| 3.1 | Exam Session Engine & Write Path | ⚠️ PARTIAL | 95% |
+| 3.2 | Question Renderers & Proctoring | ⚠️ PARTIAL | 90% |
+| 4.1 | Result Engine & Personal Analytics | ⚠️ PARTIAL | 90% |
 | 4.2 | IRT Integration & Advanced Features | ⏸ DEFERRED | 0% |
 | 5.1 | Performance & Security Hardening | ⏸ DEFERRED | — |
 | 5.2 | Final Polish, UAT & Launch | ⏸ DEFERRED | — |
@@ -332,15 +332,46 @@ Status: 🔄 IN PROGRESS — finish incomplete Phase 1–4.1 modules only
 - [x] API test suite passes (14/14)
 - [x] API and Web lint, typecheck, and production builds pass
 - [x] Local smoke verified student profile read/update, admin user filtering, and self-deactivation guard
+- [x] Refined account form actions and replaced admin user pagination labels with compact accessible chevrons
 - [x] No database schema change or migration was required
 
 ---
 
-## 🎯 Next Up: Phase 4.1 Completion Audit
+## ⚠️ Phase 1–4.1 Audit Findings (2026-07-27)
 
-1. [ ] Review any remaining incomplete Phase 1–4.1 behavior reported during UI acceptance
-2. [ ] Fix confirmed gaps without starting IRT, notifications, or other Phase 4.2 work
-3. [ ] Keep Sprint 4.2, 5.1, and 5.2 deferred until explicitly resumed
+### High Priority
+1. [ ] Implement refresh-token family/reuse detection: live verification returned `401` for the reused token but its successor still refreshed successfully (`201`), so reuse does not revoke all user sessions as documented.
+2. [ ] Preserve published-attempt content: question and passage content can still be edited after exam publication, while grading and answer review read live question-bank JSON. Add an immutable exam/attempt snapshot or prohibit mutations that would alter published/historical attempts.
+
+### Medium Priority
+3. [ ] Make offline timeout recovery deterministic: the client marks auto-submit as attempted before an offline sync failure and does not retry the transition after reconnect; the server timeout job submits the section but the current UI can remain stuck.
+4. [ ] Apply answer-review filters across the whole selected section, not only the currently loaded page/bundle.
+5. [ ] Standardize `orderInBundle` as zero-based end-to-end; admin create/edit currently writes `index + 1` while seed/schema/result rendering use zero-based assumptions.
+6. [ ] Complete `QuestionContentSpec` validation for optional enums/fields and exact blank mapping; honor `displayOrder: "shuffle"` in the renderer.
+7. [ ] Enforce contribution transitions `PENDING → REVIEWING → APPROVED | REJECTED` instead of accepting arbitrary non-PENDING target states.
+8. [ ] Remove the registration phone field or persist it; the API currently accepts but discards it.
+
+### Verification and Tooling
+9. [ ] Add automated coverage for auth rotation/reuse, question/bundle CRUD and validation, access-code concurrency, exam builder/publish, result authorization/pagination, and contribution workflow.
+10. [ ] Add frontend component/e2e tests for the complete register → unlock → section sessions → submit → result/review flow.
+11. [ ] Add the API production build to CI; the current workflow typechecks API and builds Web only.
+
+### Audit Evidence
+- [x] PostgreSQL and Redis healthy; Prisma schema valid; all 7 migrations applied with no drift
+- [x] API and Web live on localhost and health endpoint returned database/Redis healthy
+- [x] 14/14 API unit tests, both lint jobs, both typechecks, and both production builds passed
+- [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
+- [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
+
+---
+
+## 🎯 Next Up: Phase 4.1 Remediation
+
+1. [ ] Fix the two high-priority correctness/security findings first
+2. [ ] Fix section timeout recovery, global review filtering, and bundle ordering
+3. [ ] Close remaining validation/workflow gaps and add regression tests
+4. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+5. [ ] Keep Sprint 4.2, 5.1, and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -411,8 +442,8 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |
-| NestJS API | — | 3000 | ✅ Working — profile/admin-users APIs and guards smoke-tested with PostgreSQL |
-| Vite frontend | — | 5173 | ✅ Working — admin user management, account settings, and all Phase 4.1 pages build successfully |
+| NestJS API | — | 3000 | ✅ Working — health and Phase 1–4.1 read flows smoke-tested against PostgreSQL/Redis |
+| Vite frontend | — | 5173 | ✅ Working — localhost responds and all Phase 4.1 pages build successfully |
 
 ```bash
 # Start dev environment
