@@ -22,7 +22,7 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Sprint 2.2 complete — user exam library and unlock flow)
+> **Last updated:** 2026-07-27 (user exam list redesigned from supplied mockup)
 
 ### Active Sprint
 **Sprint 3.1 (Tuần 9–10) — Exam Session Engine & Write Path**
@@ -218,9 +218,10 @@ Status: ⬜ READY TO START
 3. [x] Access Code Management UI
    - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
 4. [x] User Exam Library unlock flow
-   - `/exams` now provides a student-facing exam library with search, access filters, section counts, progress status, loading/error/empty states, and a polished TSA-themed responsive layout.
+   - `/exams` now provides a student-facing exam library with real exam metadata, progress status, loading/error/empty states, and a polished TSA-themed responsive layout.
    - Added normalized 8-character access code entry wired to `POST /api/v1/exams/unlock`, including success/error feedback and automatic library refresh.
    - `/exams/:id` now shows safe exam metadata, section structure, instructions, access state, and a Sprint 3.1-ready start/resume area.
+   - Exam list was refined from the approved visual reference into a two-column information-card layout with a compact exam header, real metadata rows, access status, and green action controls; the unlock banner remains unchanged.
 
 ### Quality & Tooling — Sprint 2.2 Closeout
 - [x] API unit tests pass (3/3)
