@@ -28,7 +28,11 @@ export class SessionsController {
     @Body() dto: CreateExamAttemptDto,
     @CurrentUser() user: User,
   ) {
-    return this.sessionsService.createOrResumeAttempt(user.id, dto.examId);
+    return this.sessionsService.createOrResumeAttempt(
+      user.id,
+      dto.examId,
+      dto.sectionTypes,
+    );
   }
 
   @Get('attempts/:attemptId')

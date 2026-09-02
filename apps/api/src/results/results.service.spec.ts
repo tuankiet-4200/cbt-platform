@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ExamSectionType, SessionStatus } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { GradingService } from './grading.service';
@@ -53,6 +57,36 @@ describe('ResultsService authorization and pagination', () => {
       }),
     ).rejects.toThrow(
       new ConflictException('Exam attempt is still in progress'),
+    );
+    expect(mathFindMany).not.toHaveBeenCalled();
+  });
+
+  it('does not expose answers from a section excluded from the attempt', async () => {
+    attemptFindFirst.mockResolvedValue({
+      id: 'attempt-1',
+      examId: 'exam-1',
+      status: SessionStatus.GRADED,
+      selectedSections: [ExamSectionType.MATH],
+      exam: {
+        id: 'exam-1',
+        title: 'Exam',
+        totalPoints: 10,
+        _count: { mathQuestions: 10 },
+        passageBundles: [{ sectionType: ExamSectionType.SCIENCE }],
+      },
+      result: { id: 'result-1' },
+    });
+
+    await expect(
+      service.getAnswerReview('attempt-1', 'user-1', {
+        section: ExamSectionType.SCIENCE,
+        page: 1,
+        limit: 100,
+      }),
+    ).rejects.toThrow(
+      new BadRequestException(
+        'Section SCIENCE was not included in this attempt',
+      ),
     );
     expect(mathFindMany).not.toHaveBeenCalled();
   });

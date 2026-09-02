@@ -101,9 +101,17 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     await this.queue?.close();
   }
 
-  async createOrResumeAttempt(userId: string, examId: string) {
+  async createOrResumeAttempt(
+    userId: string,
+    examId: string,
+    requestedSections?: ExamSectionType[],
+  ) {
     const exam = await this.getAuthorizedExam(examId, userId);
-    const sections = await this.getSectionSummaries(exam);
+    const availableSections = await this.getSectionSummaries(exam);
+    const sections = this.selectSectionSummaries(
+      availableSections,
+      requestedSections,
+    );
     const firstSection = sections[0]?.sectionType;
 
     if (!firstSection) {
@@ -123,6 +131,7 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
           examId,
           activeKey,
           currentSection: firstSection,
+          selectedSections: sections.map((section) => section.sectionType),
         },
       });
       return this.getAttempt(attempt.id, userId);
@@ -151,7 +160,11 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       attempt = await this.loadAttempt(attemptId, userId);
     }
 
-    const sections = await this.getSectionSummaries(attempt.exam);
+    const availableSections = await this.getSectionSummaries(attempt.exam);
+    const sections = this.selectSectionSummaries(
+      availableSections,
+      attempt.selectedSections,
+    );
 
     return {
       id: attempt.id,
@@ -162,6 +175,7 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       },
       status: attempt.status,
       currentSection: attempt.currentSection,
+      selectedSections: sections.map((section) => section.sectionType),
       startedAt: attempt.startedAt,
       completedAt: attempt.completedAt,
       sections: sections.map((section) => {
@@ -203,7 +217,10 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       return this.toStartedSession(existing, attempt);
     }
 
-    const sections = await this.getSectionSummaries(attempt.exam);
+    const sections = this.selectSectionSummaries(
+      await this.getSectionSummaries(attempt.exam),
+      attempt.selectedSections,
+    );
     const section = sections.find(
       (item) => item.sectionType === attempt.currentSection,
     );
@@ -429,7 +446,10 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.flushSessionAnswers(sessionId);
-    const sections = await this.getSectionSummaries(session.exam);
+    const sections = this.selectSectionSummaries(
+      await this.getSectionSummaries(session.exam),
+      session.attempt.selectedSections,
+    );
     const currentIndex = sections.findIndex(
       (item) => item.sectionType === session.sectionType,
     );
@@ -691,37 +711,43 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     return SECTION_ORDER.filter((sectionType) => counts[sectionType] > 0).map(
       (sectionType) => ({
         sectionType,
-        durationMins: this.getSectionDuration(
-          exam.blueprintJson,
-          sectionType,
-        ),
+        durationMins: DEFAULT_SECTION_DURATION[sectionType],
         questionCount: counts[sectionType],
       }),
     );
   }
 
-  private getSectionDuration(
-    blueprintJson: Prisma.JsonValue | null,
-    sectionType: ExamSectionType,
+  private selectSectionSummaries(
+    availableSections: SectionSummary[],
+    requestedSections?: ExamSectionType[],
   ) {
-    if (this.isJsonObject(blueprintJson)) {
-      const sections = blueprintJson.sections;
-      if (Array.isArray(sections)) {
-        const section = sections.find(
-          (item) =>
-            this.isJsonObject(item) &&
-            item.sectionType === sectionType,
-        );
-        if (
-          this.isJsonObject(section) &&
-          typeof section.durationMins === 'number' &&
-          section.durationMins > 0
-        ) {
-          return Math.floor(section.durationMins);
-        }
-      }
+    if (!requestedSections?.length) return availableSections;
+
+    if (
+      requestedSections.length !== 1 &&
+      requestedSections.length !== availableSections.length
+    ) {
+      throw new BadRequestException(
+        'Choose either one section or every section in the exam',
+      );
     }
-    return DEFAULT_SECTION_DURATION[sectionType];
+
+    const availableTypes = new Set(
+      availableSections.map((section) => section.sectionType),
+    );
+    const unavailable = requestedSections.find(
+      (sectionType) => !availableTypes.has(sectionType),
+    );
+    if (unavailable) {
+      throw new BadRequestException(
+        `Section ${unavailable} is not available in this exam`,
+      );
+    }
+
+    const requested = new Set(requestedSections);
+    return availableSections.filter((section) =>
+      requested.has(section.sectionType),
+    );
   }
 
   private async getMathPayload(examId: string) {

@@ -129,6 +129,12 @@ const DEFAULT_BLUEPRINT: ExamBlueprint = {
   ],
 };
 
+const SECTION_DURATION_MINS: Record<SectionType, number> = {
+  MATH: 60,
+  READING: 30,
+  SCIENCE: 60,
+};
+
 @Injectable()
 export class ExamsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -268,6 +274,7 @@ export class ExamsService {
           id: true,
           status: true,
           currentSection: true,
+          selectedSections: true,
           startedAt: true,
           completedAt: true,
           sessions: {
@@ -313,6 +320,7 @@ export class ExamsService {
         id: string;
         status: string;
         currentSection: ExamSectionType | null;
+        selectedSections: ExamSectionType[];
         startedAt: Date;
         completedAt: Date | null;
         sessions: Array<{
@@ -373,6 +381,7 @@ export class ExamsService {
             id: exam.attempts[0].id,
             status: exam.attempts[0].status,
             currentSection: exam.attempts[0].currentSection,
+            selectedSections: exam.attempts[0].selectedSections,
             startedAt: exam.attempts[0].startedAt,
             completedAt: exam.attempts[0].completedAt,
           }
@@ -476,18 +485,23 @@ export class ExamsService {
     const blueprintTemplate = dto.blueprintId
       ? await this.getUsableExamBlueprint(dto.blueprintId)
       : null;
-    const blueprint = blueprintTemplate
+    const baseBlueprint = blueprintTemplate
       ? this.normalizeBlueprint(blueprintTemplate.blueprintJson as Record<string, unknown>)
       : dto.blueprintJson
         ? this.normalizeBlueprint(dto.blueprintJson)
         : DEFAULT_BLUEPRINT;
+    const blueprint = dto.sectionTypes
+      ? this.selectBlueprintSections(baseBlueprint, dto.sectionTypes)
+      : baseBlueprint;
 
     return this.prisma.exam.create({
       data: {
         title: dto.title,
         description: dto.description,
         instructions: dto.instructions,
-        durationMins: dto.durationMins ?? blueprint.durationMins ?? 150,
+        durationMins: dto.sectionTypes
+          ? blueprint.durationMins ?? 150
+          : dto.durationMins ?? blueprint.durationMins ?? 150,
         accessType: dto.accessType ?? ExamAccessType.LOCKED,
         blueprintId: blueprintTemplate?.id,
         blueprintJson: blueprint as unknown as Prisma.InputJsonValue,
@@ -986,6 +1000,10 @@ export class ExamsService {
     const source = Object.keys(raw).length === 0 ? DEFAULT_BLUEPRINT : raw;
     const sectionsRaw = Array.isArray(source.sections) ? source.sections : DEFAULT_BLUEPRINT.sections;
 
+    if (sectionsRaw.length === 0) {
+      throw new BadRequestException('Blueprint must contain at least one section');
+    }
+
     const sections = sectionsRaw.map((section): SectionBlueprint => {
       if (!isRecord(section)) throw new BadRequestException('Invalid blueprint section');
       const sectionType = parseSectionType(section.sectionType);
@@ -1004,11 +1022,8 @@ export class ExamsService {
       };
     });
 
-    for (const required of ['MATH', 'READING', 'SCIENCE'] satisfies SectionType[]) {
-      if (!sections.some((section) => section.sectionType === required)) {
-        const defaultSection = DEFAULT_BLUEPRINT.sections.find((item) => item.sectionType === required);
-        if (defaultSection) sections.push(defaultSection);
-      }
+    if (new Set(sections.map((section) => section.sectionType)).size !== sections.length) {
+      throw new BadRequestException('Blueprint sections must be unique');
     }
 
     return {
@@ -1021,6 +1036,38 @@ export class ExamsService {
             maxAttempts: numberOrUndefined(source.randomization.maxAttempts),
           }
         : undefined,
+    };
+  }
+
+  private selectBlueprintSections(
+    blueprint: ExamBlueprint,
+    requestedSections: ExamSectionType[],
+  ): ExamBlueprint {
+    if (
+      requestedSections.length !== 1 &&
+      requestedSections.length !== blueprint.sections.length
+    ) {
+      throw new BadRequestException(
+        'Choose either one section or every section in the exam',
+      );
+    }
+    const selected = (['MATH', 'READING', 'SCIENCE'] satisfies SectionType[])
+      .filter((sectionType) => requestedSections.includes(sectionType as ExamSectionType));
+    const sections = selected.map((sectionType) => {
+      const section = blueprint.sections.find((item) => item.sectionType === sectionType);
+      if (!section) {
+        throw new BadRequestException(`Blueprint does not contain section ${sectionType}`);
+      }
+      return section;
+    });
+
+    return {
+      ...blueprint,
+      durationMins: selected.reduce(
+        (total, sectionType) => total + SECTION_DURATION_MINS[sectionType],
+        0,
+      ),
+      sections,
     };
   }
 

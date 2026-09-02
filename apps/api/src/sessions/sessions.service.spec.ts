@@ -10,14 +10,28 @@ import { SessionsService } from './sessions.service';
 
 describe('SessionsService', () => {
   const examSessionFindFirst = jest.fn();
+  const examFindFirst = jest.fn();
+  const examAttemptFindUnique = jest.fn();
+  const examAttemptFindFirst = jest.fn();
+  const examAttemptCreate = jest.fn();
+  const examMathQuestionCount = jest.fn();
   const examMathQuestionFindMany = jest.fn();
+  const examPassageBundleFindMany = jest.fn();
   const prisma = {
+    exam: { findFirst: examFindFirst },
+    examAttempt: {
+      findUnique: examAttemptFindUnique,
+      findFirst: examAttemptFindFirst,
+      create: examAttemptCreate,
+    },
     examSession: {
       findFirst: examSessionFindFirst,
     },
     examMathQuestion: {
+      count: examMathQuestionCount,
       findMany: examMathQuestionFindMany,
     },
+    examPassageBundle: { findMany: examPassageBundleFindMany },
   } as unknown as PrismaService;
   const redis = {} as RedisService;
   const config = { get: jest.fn() } as unknown as ConfigService;
@@ -89,5 +103,59 @@ describe('SessionsService', () => {
     );
     expect(serialized).not.toContain('isCorrect');
     expect(serialized).not.toContain('solution');
+  });
+
+  it('creates an attempt containing only the requested available section', async () => {
+    const exam = {
+      id: 'exam-1',
+      title: 'TSA Mock',
+      instructions: null,
+      blueprintJson: null,
+    };
+    examFindFirst.mockResolvedValue(exam);
+    examAttemptFindUnique.mockResolvedValue(null);
+    examAttemptCreate.mockResolvedValue({ id: 'attempt-1' });
+    examAttemptFindFirst.mockResolvedValue({
+      id: 'attempt-1',
+      examId: 'exam-1',
+      status: SessionStatus.IN_PROGRESS,
+      currentSection: ExamSectionType.READING,
+      selectedSections: [ExamSectionType.READING],
+      startedAt: new Date(),
+      completedAt: null,
+      sessions: [],
+      exam,
+    });
+    examMathQuestionCount.mockResolvedValue(50);
+    examPassageBundleFindMany.mockResolvedValue([
+      {
+        sectionType: ExamSectionType.READING,
+        passageBundle: { _count: { questions: 20 } },
+      },
+      {
+        sectionType: ExamSectionType.SCIENCE,
+        passageBundle: { _count: { questions: 15 } },
+      },
+    ]);
+
+    const result = await service.createOrResumeAttempt(
+      'user-1',
+      'exam-1',
+      [ExamSectionType.READING],
+    );
+
+    expect(examAttemptCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        currentSection: ExamSectionType.READING,
+        selectedSections: [ExamSectionType.READING],
+      }),
+    });
+    expect(result).toEqual(expect.objectContaining({
+      selectedSections: [ExamSectionType.READING],
+      sections: [expect.objectContaining({
+        sectionType: ExamSectionType.READING,
+        durationMins: 30,
+      })],
+    }));
   });
 });

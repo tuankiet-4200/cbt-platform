@@ -100,11 +100,21 @@ export class GradingService implements OnModuleInit, OnModuleDestroy {
       return attempt.result;
     }
 
-    const items = await this.loadGradableItems(attempt.examId);
+    const availableItems = await this.loadGradableItems(attempt.examId);
+    const availableSections = SECTION_ORDER.filter((section) =>
+      availableItems.some((item) => item.section === section),
+    );
+    const selectedSections = attempt.selectedSections.length > 0
+      ? SECTION_ORDER.filter((section) =>
+          attempt.selectedSections.includes(section),
+        )
+      : availableSections;
+    const selectedSet = new Set(selectedSections);
+    const items = availableItems.filter((item) => selectedSet.has(item.section));
     const sessionsBySection = new Map(
       attempt.sessions.map((session) => [session.sectionType, session]),
     );
-    const sectionScores = SECTION_ORDER.map((section) => ({
+    const sectionScores = selectedSections.map((section) => ({
       section,
       score: 0,
       maxScore: 0,
@@ -243,12 +253,17 @@ export class GradingService implements OnModuleInit, OnModuleDestroy {
       return saved;
     });
 
-    await this.redis.zadd(
-      `leaderboard:${attempt.examId}`,
-      percentScore,
-      attempt.userId,
-      true,
-    );
+    const isFullExamAttempt =
+      selectedSections.length === availableSections.length &&
+      availableSections.every((section) => selectedSet.has(section));
+    if (isFullExamAttempt) {
+      await this.redis.zadd(
+        `leaderboard:${attempt.examId}`,
+        percentScore,
+        attempt.userId,
+        true,
+      );
+    }
     return result;
   }
 

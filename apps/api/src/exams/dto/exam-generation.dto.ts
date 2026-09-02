@@ -6,6 +6,9 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
   Max,
   Min,
 } from 'class-validator';
@@ -42,6 +45,14 @@ export class CreateExamDto {
   @IsOptional()
   @IsString()
   blueprintId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ArrayUnique()
+  @IsEnum(ExamSectionType, { each: true })
+  sectionTypes?: ExamSectionType[];
 }
 
 export class CreateExamBlueprintDto {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -34,9 +35,14 @@ export class ResultsService {
     if (!attempt.result) {
       throw new ConflictException('Exam result is still being processed');
     }
+    const availableSections = this.availableSections(attempt.exam);
     return {
       ...attempt.result,
-      exam: attempt.exam,
+      exam: this.publicExam(attempt.exam),
+      selectedSections: attempt.selectedSections.length > 0
+        ? attempt.selectedSections
+        : availableSections,
+      availableSections,
       startedAt: attempt.startedAt,
       attemptCompletedAt: attempt.completedAt,
     };
@@ -50,6 +56,15 @@ export class ResultsService {
     const attempt = await this.ensureGraded(attemptId, userId);
     if (!attempt.result) {
       throw new ConflictException('Exam result is still being processed');
+    }
+    const availableSections = this.availableSections(attempt.exam);
+    const selectedSections = attempt.selectedSections.length > 0
+      ? attempt.selectedSections
+      : availableSections;
+    if (!selectedSections.includes(query.section)) {
+      throw new BadRequestException(
+        `Section ${query.section} was not included in this attempt`,
+      );
     }
 
     const skip = (query.page - 1) * query.limit;
@@ -72,7 +87,7 @@ export class ResultsService {
       );
       return {
         attemptId,
-        exam: attempt.exam,
+        exam: this.publicExam(attempt.exam),
         section: query.section,
         questions: rows.map((row) =>
           this.toReviewQuestion(
@@ -121,7 +136,7 @@ export class ResultsService {
     const answerMap = await this.loadAnswers(attemptId, questionIds);
     return {
       attemptId,
-      exam: attempt.exam,
+      exam: this.publicExam(attempt.exam),
       section: query.section,
       questions: [],
       bundles: rows.map((row) => ({
@@ -227,7 +242,13 @@ export class ResultsService {
       where: { id: attemptId, userId },
       include: {
         exam: {
-          select: { id: true, title: true, totalPoints: true },
+          select: {
+            id: true,
+            title: true,
+            totalPoints: true,
+            _count: { select: { mathQuestions: true } },
+            passageBundles: { select: { sectionType: true } },
+          },
         },
         result: true,
       },
@@ -242,7 +263,13 @@ export class ResultsService {
         where: { id: attemptId, userId },
         include: {
           exam: {
-            select: { id: true, title: true, totalPoints: true },
+            select: {
+              id: true,
+              title: true,
+              totalPoints: true,
+              _count: { select: { mathQuestions: true } },
+              passageBundles: { select: { sectionType: true } },
+            },
           },
           result: true,
         },
@@ -250,5 +277,28 @@ export class ResultsService {
       if (!attempt) throw new NotFoundException('Exam attempt not found');
     }
     return attempt;
+  }
+
+  private availableSections(exam: {
+    _count: { mathQuestions: number };
+    passageBundles: Array<{ sectionType: ExamSectionType }>;
+  }) {
+    return [
+      ...(exam._count.mathQuestions > 0 ? [ExamSectionType.MATH] : []),
+      ...(exam.passageBundles.some(
+        (bundle) => bundle.sectionType === ExamSectionType.READING,
+      ) ? [ExamSectionType.READING] : []),
+      ...(exam.passageBundles.some(
+        (bundle) => bundle.sectionType === ExamSectionType.SCIENCE,
+      ) ? [ExamSectionType.SCIENCE] : []),
+    ];
+  }
+
+  private publicExam(exam: { id: string; title: string; totalPoints: number }) {
+    return {
+      id: exam.id,
+      title: exam.title,
+      totalPoints: exam.totalPoints,
+    };
   }
 }

@@ -530,16 +530,17 @@ model ExamAccess {
 /// Aggregate root for one user's complete run through an exam.
 /// Only active attempts carry activeKey; completed attempts set it to null.
 model ExamAttempt {
-  id             String           @id @default(uuid())
-  userId         String           @map("user_id")
-  examId         String           @map("exam_id")
-  status         SessionStatus    @default(IN_PROGRESS)
-  currentSection ExamSectionType? @map("current_section")
-  activeKey      String?          @unique @map("active_key")
-  startedAt      DateTime         @default(now()) @map("started_at")
-  completedAt    DateTime?        @map("completed_at")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
+  id               String            @id @default(uuid())
+  userId           String            @map("user_id")
+  examId           String            @map("exam_id")
+  selectedSections ExamSectionType[] @default([]) @map("selected_sections")
+  status           SessionStatus     @default(IN_PROGRESS)
+  currentSection   ExamSectionType?  @map("current_section")
+  activeKey        String?           @unique @map("active_key")
+  startedAt        DateTime          @default(now()) @map("started_at")
+  completedAt      DateTime?         @map("completed_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   user     User          @relation(fields: [userId], references: [id])
   exam     Exam          @relation(fields: [examId], references: [id])

@@ -44,6 +44,7 @@ export class AnalyticsService {
         take: query.limit,
         select: {
           id: true,
+          selectedSections: true,
           startedAt: true,
           completedAt: true,
           result: {

@@ -12,12 +12,23 @@ import {
   IsISO8601,
   Min,
   ValidateNested,
+  ArrayUnique,
+  IsEnum,
 } from 'class-validator';
+import { ExamSectionType } from '@prisma/client';
 
 export class CreateExamAttemptDto {
   @IsString()
   @IsNotEmpty()
   examId: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ArrayUnique()
+  @IsEnum(ExamSectionType, { each: true })
+  sectionTypes?: ExamSectionType[];
 }
 
 export class SyncAnswerItemDto {

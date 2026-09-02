@@ -6,10 +6,12 @@ import { ExamsService } from './exams.service';
 describe('ExamsService user exam access', () => {
   const findMany = jest.fn();
   const findFirst = jest.fn();
+  const create = jest.fn();
   const prisma = {
     exam: {
       findMany,
       findFirst,
+      create,
     },
   } as unknown as PrismaService;
   const service = new ExamsService(prisma);
@@ -95,6 +97,32 @@ describe('ExamsService user exam access', () => {
     await expect(service.getAvailableExam('hidden-exam', 'user-1'))
       .rejects
       .toThrow(new NotFoundException('Exam not found or not available'));
+  });
+
+  it('creates a single-section exam with the fixed section duration', async () => {
+    create.mockImplementation(({ data }) => data);
+
+    const result = await service.createExam({
+      title: 'Reading practice',
+      sectionTypes: [ExamSectionType.READING],
+      blueprintJson: {
+        version: 1,
+        durationMins: 150,
+        sections: [
+          { sectionType: 'MATH', targetQuestionCount: 50 },
+          { sectionType: 'READING', targetBundleCount: 2, targetQuestionCount: 20 },
+          { sectionType: 'SCIENCE', targetBundleCount: 3, targetQuestionCount: 15 },
+        ],
+      },
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      durationMins: 30,
+      blueprintJson: expect.objectContaining({
+        durationMins: 30,
+        sections: [expect.objectContaining({ sectionType: 'READING' })],
+      }),
+    }));
   });
 });
 
