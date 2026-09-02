@@ -4,14 +4,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, Lock, Mail, Phone, User } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, Mail, User } from 'lucide-react';
 import { useRegisterMutation } from '../api/useAuth';
 
 const schema = z
   .object({
     displayName: z.string().min(2, 'Vui lòng nhập họ tên').max(120),
     email: z.string().email('Email không hợp lệ'),
-    phone: z.string().max(32).optional(),
     password: z.string().min(8, 'Mật khẩu tối thiểu 8 ký tự'),
     confirmPassword: z.string().min(1, 'Vui lòng nhập lại mật khẩu'),
   })
@@ -37,7 +36,6 @@ export default function RegisterPage() {
     defaultValues: {
       displayName: '',
       email: '',
-      phone: '',
       password: '',
       confirmPassword: '',
     },
@@ -72,10 +70,6 @@ export default function RegisterPage() {
 
         <AuthField error={errors.email?.message} icon={<Mail className="h-4 w-4 text-neutral-500" />} label="Email" required>
           <input className="auth-input" type="email" autoComplete="email" placeholder="Điền chính xác email để nhận thông tin" {...register('email')} />
-        </AuthField>
-
-        <AuthField error={errors.phone?.message} icon={<Phone className="h-4 w-4 text-neutral-500" />} label="Số điện thoại">
-          <input className="auth-input" type="tel" autoComplete="tel" placeholder="Số điện thoại liên hệ" {...register('phone')} />
         </AuthField>
 
         <AuthField
