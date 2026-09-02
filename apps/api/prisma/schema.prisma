@@ -118,18 +118,21 @@ model User {
 
 /// JWT Refresh Tokens (enables rotation and revocation)
 model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique // Hashed token stored in DB
-  userId    String   @map("user_id")
-  expiresAt DateTime @map("expires_at")
-  isRevoked Boolean  @default(false) @map("is_revoked")
-  createdAt DateTime @default(now()) @map("created_at")
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
+  id               String    @id @default(uuid())
+  token            String    @unique // Hashed token stored in DB
+  userId           String    @map("user_id")
+  expiresAt        DateTime  @map("expires_at")
+  isRevoked        Boolean   @default(false) @map("is_revoked")
+  revokedAt        DateTime? @map("revoked_at")
+  revocationReason String?   @map("revocation_reason")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  ipAddress        String?   @map("ip_address")
+  userAgent        String?   @map("user_agent")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, isRevoked])
   @@index([token])
   @@map("refresh_tokens")
 }

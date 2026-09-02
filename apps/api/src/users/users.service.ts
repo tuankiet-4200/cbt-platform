@@ -85,6 +85,7 @@ export class UsersService {
       );
     }
     const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    const revokedAt = new Date();
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
@@ -92,7 +93,11 @@ export class UsersService {
       }),
       this.prisma.refreshToken.updateMany({
         where: { userId, isRevoked: false },
-        data: { isRevoked: true },
+        data: {
+          isRevoked: true,
+          revokedAt,
+          revocationReason: 'PASSWORD_CHANGED',
+        },
       }),
     ]);
     return { ok: true, requiresLogin: true };
@@ -161,9 +166,14 @@ export class UsersService {
         select: USER_SELECT,
       });
       if (!dto.isActive) {
+        const revokedAt = new Date();
         await tx.refreshToken.updateMany({
           where: { userId, isRevoked: false },
-          data: { isRevoked: true },
+          data: {
+            isRevoked: true,
+            revokedAt,
+            revocationReason: 'ACCOUNT_DEACTIVATED',
+          },
         });
       }
       return user;

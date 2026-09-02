@@ -12,6 +12,7 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 const REFRESH_TOKEN_DAYS = 7;
+const ROTATION_RACE_GRACE_MS = 5_000;
 const DEFAULT_EXAM_ID = 'default-exam-id-placeholder';
 
 type SafeUser = Pick<User, 'id' | 'email' | 'displayName' | 'role'>;
@@ -108,13 +109,19 @@ export class AuthService {
     }
 
     if (stored.isRevoked) {
+      await this.handleRevokedTokenReuse(stored);
       throw new UnauthorizedException('Refresh token is invalid');
     }
 
     if (stored.expiresAt <= new Date()) {
+      const revokedAt = new Date();
       await this.prisma.refreshToken.updateMany({
         where: { userId: stored.userId, isRevoked: false },
-        data: { isRevoked: true },
+        data: {
+          isRevoked: true,
+          revokedAt,
+          revocationReason: 'EXPIRED',
+        },
       });
       throw new UnauthorizedException('Refresh token is expired');
     }
@@ -126,11 +133,16 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken();
     const refreshTokenHash = this.hashToken(refreshToken);
     const expiresAt = this.refreshExpiry();
+    const revokedAt = new Date();
 
     await this.prisma.$transaction([
       this.prisma.refreshToken.update({
         where: { id: stored.id },
-        data: { isRevoked: true },
+        data: {
+          isRevoked: true,
+          revokedAt,
+          revocationReason: 'ROTATED',
+        },
       }),
       this.prisma.refreshToken.create({
         data: {
@@ -153,9 +165,14 @@ export class AuthService {
 
   async logout(rawToken: string | undefined) {
     if (rawToken) {
+      const revokedAt = new Date();
       await this.prisma.refreshToken.updateMany({
         where: { token: this.hashToken(rawToken), isRevoked: false },
-        data: { isRevoked: true },
+        data: {
+          isRevoked: true,
+          revokedAt,
+          revocationReason: 'LOGOUT',
+        },
       });
     }
     return { ok: true };
@@ -201,6 +218,28 @@ export class AuthService {
 
   private refreshExpiry() {
     return new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  }
+
+  private async handleRevokedTokenReuse(stored: {
+    userId: string;
+    revokedAt: Date | null;
+    revocationReason: string | null;
+  }) {
+    const isConcurrentRotation =
+      stored.revocationReason === 'ROTATED' &&
+      stored.revokedAt !== null &&
+      Date.now() - stored.revokedAt.getTime() <= ROTATION_RACE_GRACE_MS;
+    if (isConcurrentRotation) return;
+
+    const revokedAt = new Date();
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: stored.userId, isRevoked: false },
+      data: {
+        isRevoked: true,
+        revokedAt,
+        revocationReason: 'REUSE_DETECTED',
+      },
+    });
   }
 
   private toSafeUser(user: SafeUser): SafeUser {
