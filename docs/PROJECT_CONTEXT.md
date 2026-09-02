@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-07-27 (Phase 1–4.1 implementation audit completed; remediation backlog identified)
+> **Last updated:** 2026-09-03 (first Phase 4.1 remediation batch verified and committed)
 
 ### Active Sprint
 **Post–Sprint 4.1 Completion Audit**
-Status: ⚠️ REMEDIATION REQUIRED — core flows work, but audit gaps remain before Phase 4.1 can be certified complete
+Status: ⚠️ REMEDIATION IN PROGRESS — the first regression/fix batch is verified, but release-blocking gaps remain before Phase 4.1 can be certified complete
 
 ### Sprint Progress Overview
 
@@ -345,21 +345,21 @@ Status: ⚠️ REMEDIATION REQUIRED — core flows work, but audit gaps remain b
 
 ### Medium Priority
 3. [ ] Make offline timeout recovery deterministic: the client marks auto-submit as attempted before an offline sync failure and does not retry the transition after reconnect; the server timeout job submits the section but the current UI can remain stuck.
-4. [ ] Apply answer-review filters across the whole selected section, not only the currently loaded page/bundle.
-5. [ ] Standardize `orderInBundle` as zero-based end-to-end; admin create/edit currently writes `index + 1` while seed/schema/result rendering use zero-based assumptions.
+4. [x] Apply answer-review filters across the whole selected section, not only the currently loaded page/bundle.
+5. [x] Standardize `orderInBundle` as zero-based end-to-end; admin create/edit and persisted legacy rows now use zero-based ordering.
 6. [ ] Complete `QuestionContentSpec` validation for optional enums/fields and exact blank mapping; honor `displayOrder: "shuffle"` in the renderer.
-7. [ ] Enforce contribution transitions `PENDING → REVIEWING → APPROVED | REJECTED` instead of accepting arbitrary non-PENDING target states.
-8. [ ] Remove the registration phone field or persist it; the API currently accepts but discards it.
+7. [x] Enforce contribution transitions `PENDING → REVIEWING → APPROVED | REJECTED` instead of accepting arbitrary non-PENDING target states.
+8. [x] Remove the unused registration phone field from the API and frontend contract.
 
 ### Verification and Tooling
 9. [ ] Add automated coverage for auth rotation/reuse, question/bundle CRUD and validation, access-code concurrency, exam builder/publish, result authorization/pagination, and contribution workflow.
 10. [ ] Add frontend component/e2e tests for the complete register → unlock → section sessions → submit → result/review flow.
-11. [ ] Add the API production build to CI; the current workflow typechecks API and builds Web only.
+11. [x] Add the API production build and frontend unit tests to CI.
 
 ### Audit Evidence
-- [x] PostgreSQL and Redis healthy; Prisma schema valid; all 7 migrations applied with no drift
-- [x] API and Web live on localhost and health endpoint returned database/Redis healthy
-- [x] 14/14 API unit tests, both lint jobs, both typechecks, and both production builds passed
+- [x] PostgreSQL and Redis healthy; Prisma schema valid; all 9 migrations applied with no drift
+- [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
+- [x] 27/27 API unit tests and 4/4 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -367,9 +367,9 @@ Status: ⚠️ REMEDIATION REQUIRED — core flows work, but audit gaps remain b
 
 ## 🎯 Next Up: Phase 4.1 Remediation
 
-1. [ ] Fix the two high-priority correctness/security findings first
-2. [ ] Fix section timeout recovery, global review filtering, and bundle ordering
-3. [ ] Close remaining validation/workflow gaps and add regression tests
+1. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+2. [ ] Complete section timeout retry for transient online failures
+3. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
 4. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
 5. [ ] Keep Sprint 4.2, 5.1, and 5.2 deferred until explicitly resumed
 
