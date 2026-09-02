@@ -19,8 +19,11 @@ import {
   type ReviewBundle,
   type ReviewQuestion,
 } from '../api/results.api';
-
-type Filter = 'ALL' | 'WRONG' | 'FLAGGED' | 'SKIPPED' | 'CORRECT';
+import {
+  getReviewRequest,
+  matchesReviewFilter,
+  type ReviewFilter,
+} from '../lib/review-filter';
 
 const SECTIONS: Array<{ value: ExamSectionType; label: string }> = [
   { value: 'MATH', label: 'Tư duy Toán học' },
@@ -30,17 +33,22 @@ const SECTIONS: Array<{ value: ExamSectionType; label: string }> = [
 
 export default function ResultReviewPage() {
   const { attemptId = '' } = useParams();
-  const [filter, setFilter] = useState<Filter>('ALL');
+  const [filter, setFilter] = useState<ReviewFilter>('ALL');
   const [section, setSection] = useState<ExamSectionType>('MATH');
   const [page, setPage] = useState(1);
-  const limit = section === 'MATH' ? 10 : 1;
+  const {
+    isFiltering,
+    limit,
+    page: requestPage,
+  } = getReviewRequest(section, filter, page);
   const flaggedQuestionIds = useMemo(
     () => new Set(readAttemptFlaggedQuestionIds(attemptId)),
     [attemptId],
   );
   const reviewQuery = useQuery({
-    queryKey: ['answer-review', attemptId, section, page, limit],
-    queryFn: () => getAnswerReview(attemptId, section, page, limit),
+    queryKey: ['answer-review', attemptId, section, requestPage, limit],
+    queryFn: () =>
+      getAnswerReview(attemptId, section, requestPage, limit),
     enabled: Boolean(attemptId),
     placeholderData: (previous) => previous,
   });
@@ -60,7 +68,7 @@ export default function ResultReviewPage() {
       .map((bundle) => ({
         ...bundle,
         questions: bundle.questions.filter((question) =>
-          matchesFilter(question, filter, flaggedQuestionIds),
+          matchesReviewFilter(question, filter, flaggedQuestionIds),
         ),
       }))
       .filter((bundle) => bundle.questions.length > 0);
@@ -104,11 +112,14 @@ export default function ResultReviewPage() {
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(['ALL', 'WRONG', 'FLAGGED', 'SKIPPED', 'CORRECT'] as Filter[]).map((value) => (
+            {(['ALL', 'WRONG', 'FLAGGED', 'SKIPPED', 'CORRECT'] as ReviewFilter[]).map((value) => (
               <button
                 key={value}
                 type="button"
-                onClick={() => setFilter(value)}
+                onClick={() => {
+                  setFilter(value);
+                  setPage(1);
+                }}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                   filter === value
                     ? 'bg-primary-600 text-white'
@@ -148,8 +159,9 @@ export default function ResultReviewPage() {
             {SECTIONS.find((item) => item.value === section)?.label}
           </h2>
           <span className="text-xs font-medium text-neutral-500">
-            {reviewQuery.data.meta.unit === 'BUNDLE' ? 'Bài đọc' : 'Trang'}{' '}
-            {reviewQuery.data.meta.page}/{Math.max(1, reviewQuery.data.meta.totalPages)}
+            {isFiltering
+              ? `Đang lọc toàn bộ ${SECTIONS.find((item) => item.value === section)?.label}`
+              : `${reviewQuery.data.meta.unit === 'BUNDLE' ? 'Bài đọc' : 'Trang'} ${reviewQuery.data.meta.page}/${Math.max(1, reviewQuery.data.meta.totalPages)}`}
           </span>
         </div>
         {reviewQuery.isFetching && (
@@ -171,7 +183,7 @@ export default function ResultReviewPage() {
         )}
       </section>
 
-      {reviewQuery.data.meta.totalPages > 1 && (
+      {!isFiltering && reviewQuery.data.meta.totalPages > 1 && (
         <nav className="card flex items-center justify-between p-4">
           <button
             type="button"
@@ -332,19 +344,7 @@ function formatAnswer(value: Record<string, unknown>) {
   return JSON.stringify(value);
 }
 
-function matchesFilter(
-  question: ReviewQuestion,
-  filter: Filter,
-  flaggedQuestionIds: Set<string>,
-) {
-  if (filter === 'ALL') return true;
-  if (filter === 'FLAGGED') return flaggedQuestionIds.has(question.id);
-  if (filter === 'SKIPPED') return question.userAnswer === null;
-  if (filter === 'CORRECT') return question.isCorrect === true;
-  return question.userAnswer !== null && question.isCorrect === false;
-}
-
-function filterLabel(filter: Filter) {
+function filterLabel(filter: ReviewFilter) {
   return {
     ALL: 'Tất cả',
     WRONG: 'Chỉ câu sai',

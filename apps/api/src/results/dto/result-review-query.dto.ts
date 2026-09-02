@@ -17,6 +17,6 @@ export class ResultReviewQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(25)
+  @Max(100)
   limit = 10;
 }
