@@ -47,6 +47,7 @@ export interface ExamAttempt {
   };
   status: SessionStatus;
   currentSection: ExamSectionType | null;
+  selectedSections: ExamSectionType[];
   startedAt: string;
   completedAt?: string | null;
   sections: Array<{
@@ -129,9 +130,13 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
-export async function createOrResumeAttempt(examId: string) {
+export async function createOrResumeAttempt(
+  examId: string,
+  sectionTypes?: ExamSectionType[],
+) {
   const response = await apiClient.post<ApiEnvelope<ExamAttempt>>('/sessions', {
     examId,
+    sectionTypes,
   });
   return response.data.data;
 }

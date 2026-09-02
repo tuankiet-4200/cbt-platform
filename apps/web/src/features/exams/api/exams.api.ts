@@ -35,6 +35,7 @@ export interface UserExam {
     id: string;
     status: UserExamSessionStatus;
     currentSection: 'MATH' | 'READING' | 'SCIENCE' | null;
+    selectedSections: Array<'MATH' | 'READING' | 'SCIENCE'>;
     startedAt: string;
     completedAt?: string | null;
   } | null;

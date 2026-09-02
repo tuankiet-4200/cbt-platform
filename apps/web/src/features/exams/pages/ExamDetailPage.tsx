@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createOrResumeAttempt } from '@/features/exam/api/sessions.api';
+import { RetakeOptions } from '@/features/exam/components/RetakeOptions';
+import { getAvailableExamSections } from '@/features/exam/lib/exam-sections';
 import { getAvailableExam } from '../api/exams.api';
 
 export default function ExamDetailPage() {
@@ -59,6 +61,7 @@ export default function ExamDetailPage() {
   const isCompleted = ['SUBMITTED', 'GRADED'].includes(
     exam.latestAttempt?.status ?? '',
   );
+  const availableSections = getAvailableExamSections(exam.counts);
 
   return (
     <div className="space-y-6">
@@ -78,7 +81,7 @@ export default function ExamDetailPage() {
           </div>
           <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight md:text-4xl">{exam.title}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300 md:text-base">
-            {exam.description || 'Đề thi mô phỏng đầy đủ ba phần theo cấu trúc TSA HUST.'}
+            {exam.description || 'Đề thi mô phỏng theo cấu trúc TSA HUST.'}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <OverviewPill icon={Clock3} value={`${exam.durationMins} phút`} />
@@ -92,31 +95,37 @@ export default function ExamDetailPage() {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-3">
-        <SectionCard
+      <section className={`grid gap-5 ${
+        availableSections.length === 3
+          ? 'lg:grid-cols-3'
+          : availableSections.length === 2
+            ? 'lg:grid-cols-2'
+            : ''
+      }`}>
+        {exam.counts.mathQuestions > 0 && <SectionCard
           icon={Sigma}
           label="Phần 1"
           title="Tư duy Toán học"
           description="Câu hỏi độc lập, tập trung vào khả năng lập luận và giải quyết vấn đề."
           questions={exam.counts.mathQuestions}
           tone="primary"
-        />
-        <SectionCard
+        />}
+        {exam.counts.readingQuestions > 0 && <SectionCard
           icon={BookOpen}
           label={`${exam.counts.readingBundles} bài đọc`}
           title="Tư duy Đọc hiểu"
           description="Đọc văn bản, phân tích thông tin và trả lời câu hỏi theo từng bài."
           questions={exam.counts.readingQuestions}
           tone="accent"
-        />
-        <SectionCard
+        />}
+        {exam.counts.scienceQuestions > 0 && <SectionCard
           icon={FlaskConical}
           label={`${exam.counts.scienceBundles} chủ đề`}
           title="Tư duy Khoa học"
           description="Phân tích dữ liệu và vận dụng kiến thức khoa học trong ngữ cảnh thực tế."
           questions={exam.counts.scienceQuestions}
           tone="success"
-        />
+        />}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -131,7 +140,7 @@ export default function ExamDetailPage() {
               <Instruction>Tổng thời gian làm bài là {exam.durationMins} phút.</Instruction>
               <Instruction>Đọc kỹ yêu cầu và kiểm tra câu trả lời trước khi chuyển phần.</Instruction>
               <Instruction>Thời gian được tính theo máy chủ và không dừng khi tải lại trang.</Instruction>
-              <Instruction>Chỉ nộp bài khi bạn đã kiểm tra đầy đủ cả ba phần thi.</Instruction>
+              <Instruction>Chỉ nộp bài khi bạn đã kiểm tra đầy đủ các phần thi đã chọn.</Instruction>
             </ul>
           )}
         </article>
@@ -144,7 +153,7 @@ export default function ExamDetailPage() {
           <p className="mt-2 text-sm leading-6 text-neutral-500">
             {isInProgress
               ? 'Tiếp tục session hiện tại để không mất tiến độ đã lưu.'
-              : 'Chức năng bắt đầu và đồng bộ bài làm sẽ được kích hoạt cùng Session Engine.'}
+              : 'Chọn phạm vi phù hợp và bắt đầu lượt làm bài tiếp theo.'}
           </p>
           {isInProgress && exam.latestAttempt ? (
             <Link to={`/exam/attempt/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
@@ -155,14 +164,15 @@ export default function ExamDetailPage() {
               <Link to={`/results/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
                 Xem kết quả gần nhất
               </Link>
-              <button
-                type="button"
-                className="btn btn-secondary btn-md mt-3 w-full"
-                disabled={startMutation.isPending}
-                onClick={() => startMutation.mutate()}
-              >
-                Làm lại đề thi
-              </button>
+              <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Chọn phạm vi luyện tập
+              </p>
+              <div>
+                <RetakeOptions
+                  examId={exam.id}
+                  availableSections={availableSections}
+                />
+              </div>
             </>
           ) : (
             <button

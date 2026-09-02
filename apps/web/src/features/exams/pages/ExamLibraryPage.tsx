@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import {
@@ -8,13 +8,12 @@ import {
   CheckCircle2,
   KeyRound,
   Loader2,
-  RotateCcw,
   Sparkles,
   Trophy,
 } from 'lucide-react';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/features/auth/store/auth.store';
-import { createOrResumeAttempt } from '@/features/exam/api/sessions.api';
+import { getAvailableExamSections } from '@/features/exam/lib/exam-sections';
 import {
   listAvailableExams,
   unlockExam,
@@ -195,13 +194,9 @@ export default function ExamLibraryPage() {
 }
 
 function ExamCard({ exam }: { exam: UserExam }) {
-  const navigate = useNavigate();
   const isInProgress = exam.latestAttempt?.status === 'IN_PROGRESS';
   const isCompleted = ['SUBMITTED', 'GRADED'].includes(exam.latestAttempt?.status ?? '');
-  const retakeMutation = useMutation({
-    mutationFn: () => createOrResumeAttempt(exam.id),
-    onSuccess: (attempt) => navigate(`/exam/attempt/${attempt.id}`),
-  });
+  const sectionCount = getAvailableExamSections(exam.counts).length;
 
   return (
     <article className="overflow-hidden rounded-lg border border-neutral-100 bg-white shadow-soft">
@@ -222,7 +217,7 @@ function ExamCard({ exam }: { exam: UserExam }) {
         </ExamInfoRow>
         <ExamInfoRow label="Cấu trúc">
           <span className="font-medium text-neutral-900">
-            {exam.counts.totalQuestions} câu · 3 phần thi
+            {exam.counts.totalQuestions} câu · {sectionCount} phần thi
           </span>
         </ExamInfoRow>
         <ExamInfoRow label="Tổng điểm">
@@ -253,19 +248,12 @@ function ExamCard({ exam }: { exam: UserExam }) {
             >
               Xem kết quả
             </Link>
-            <button
-              type="button"
-              disabled={retakeMutation.isPending}
-              onClick={() => retakeMutation.mutate()}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-success-600 px-4 text-sm font-semibold text-white transition hover:bg-success-700 disabled:cursor-not-allowed disabled:opacity-60"
+            <Link
+              to={`/exams/${exam.id}`}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-4 text-sm font-semibold text-white transition hover:bg-success-700"
             >
-              {retakeMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="h-4 w-4" />
-              )}
-              Thi lại
-            </button>
+              Chọn thi lại
+            </Link>
           </div>
         ) : (
           <Link
@@ -276,14 +264,6 @@ function ExamCard({ exam }: { exam: UserExam }) {
           </Link>
         )}
       </footer>
-      {retakeMutation.isError && (
-        <p className="border-t border-danger-100 bg-danger-50 px-6 py-3 text-right text-xs text-danger-700">
-          {getApiErrorMessage(
-            retakeMutation.error,
-            'Không thể tạo lượt thi mới. Vui lòng thử lại.',
-          )}
-        </p>
-      )}
     </article>
   );
 }

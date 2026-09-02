@@ -1,5 +1,6 @@
 import apiClient from '@/lib/api-client';
 import type { SectionScore } from '@/features/results/api/results.api';
+import type { ExamSectionType } from '@/features/exam/api/sessions.api';
 
 interface ApiEnvelope<T> {
   data: T;
@@ -8,6 +9,7 @@ interface ApiEnvelope<T> {
 export interface ExamHistoryEntry {
   id: string;
   attemptNumber: number;
+  selectedSections: ExamSectionType[];
   startedAt: string;
   completedAt?: string | null;
   result: {

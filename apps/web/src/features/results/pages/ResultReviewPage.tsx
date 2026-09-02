@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import type { ExamSectionType } from '@/features/exam/api/sessions.api';
 import { readAttemptFlaggedQuestionIds } from '@/features/exam/store/exam-session.store';
 import {
   getAnswerReview,
+  getExamResult,
   type ReviewBundle,
   type ReviewQuestion,
 } from '../api/results.api';
@@ -34,13 +35,29 @@ const SECTIONS: Array<{ value: ExamSectionType; label: string }> = [
 export default function ResultReviewPage() {
   const { attemptId = '' } = useParams();
   const [filter, setFilter] = useState<ReviewFilter>('ALL');
-  const [section, setSection] = useState<ExamSectionType>('MATH');
+  const [section, setSection] = useState<ExamSectionType | null>(null);
   const [page, setPage] = useState(1);
+  const resultQuery = useQuery({
+    queryKey: ['exam-result', attemptId],
+    queryFn: () => getExamResult(attemptId),
+    enabled: Boolean(attemptId),
+  });
+  const selectedSections = useMemo(
+    () => resultQuery.data?.selectedSections ?? [],
+    [resultQuery.data?.selectedSections],
+  );
+
+  useEffect(() => {
+    if (selectedSections.length > 0 && (!section || !selectedSections.includes(section))) {
+      setSection(selectedSections[0]);
+    }
+  }, [section, selectedSections]);
+
   const {
     isFiltering,
     limit,
     page: requestPage,
-  } = getReviewRequest(section, filter, page);
+  } = getReviewRequest(section ?? 'MATH', filter, page);
   const flaggedQuestionIds = useMemo(
     () => new Set(readAttemptFlaggedQuestionIds(attemptId)),
     [attemptId],
@@ -48,8 +65,8 @@ export default function ResultReviewPage() {
   const reviewQuery = useQuery({
     queryKey: ['answer-review', attemptId, section, requestPage, limit],
     queryFn: () =>
-      getAnswerReview(attemptId, section, requestPage, limit),
-    enabled: Boolean(attemptId),
+      getAnswerReview(attemptId, section ?? 'MATH', requestPage, limit),
+    enabled: Boolean(attemptId && section && selectedSections.includes(section)),
     placeholderData: (previous) => previous,
   });
 
@@ -74,7 +91,7 @@ export default function ResultReviewPage() {
       .filter((bundle) => bundle.questions.length > 0);
   }, [filter, flaggedQuestionIds, reviewQuery.data, section]);
 
-  if (reviewQuery.isLoading) {
+  if (resultQuery.isLoading || !section || reviewQuery.isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center gap-3 text-neutral-500">
         <Loader2 className="h-6 w-6 animate-spin text-primary-600" />
@@ -82,7 +99,7 @@ export default function ResultReviewPage() {
       </div>
     );
   }
-  if (reviewQuery.isError || !reviewQuery.data) {
+  if (resultQuery.isError || reviewQuery.isError || !reviewQuery.data) {
     return (
       <div className="card p-8 text-center">
         <XCircle className="mx-auto h-10 w-10 text-danger-500" />
@@ -132,7 +149,7 @@ export default function ResultReviewPage() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2 border-t border-neutral-100 pt-4">
-          {SECTIONS.map((item) => (
+          {SECTIONS.filter((item) => selectedSections.includes(item.value)).map((item) => (
             <button
               key={item.value}
               type="button"

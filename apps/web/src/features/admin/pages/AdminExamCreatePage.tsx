@@ -16,7 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
 import {
-  checkExamBlueprintTemplateAvailability,
+  checkBlueprintAvailability,
   checkExamAvailability,
   createExam,
   generateExamDraft,
@@ -27,10 +27,16 @@ import {
   type AdminExam,
   type AvailabilityReport,
   type ExamAccessType,
+  type ExamBlueprint,
   type ExamPreview,
   type GenerateResponse,
   type Shortage,
 } from '../api/exams.api';
+import type { ExamSectionType } from '@/features/exam/api/sessions.api';
+import {
+  EXAM_SECTION_DURATION_MINS,
+  EXAM_SECTION_ORDER,
+} from '@/features/exam/lib/exam-sections';
 import { ExamPreviewModal } from './ExamPreviewModal';
 
 export default function AdminExamCreatePage() {
@@ -39,6 +45,7 @@ export default function AdminExamCreatePage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [durationMins, setDurationMins] = useState(150);
+  const [examScope, setExamScope] = useState<'ALL' | ExamSectionType>('ALL');
   const [accessType, setAccessType] = useState<ExamAccessType>('LOCKED');
   const [blueprintId, setBlueprintId] = useState('');
   const [blueprintText, setBlueprintText] = useState('');
@@ -59,23 +66,30 @@ export default function AdminExamCreatePage() {
     [blueprintsQuery.data],
   );
   const selectedBlueprint = usableBlueprints.find((blueprint) => blueprint.id === blueprintId) ?? usableBlueprints[0] ?? null;
+  const scopedBlueprint = useMemo(
+    () => selectedBlueprint
+      ? selectBlueprintScope(selectedBlueprint.blueprintJson, examScope)
+      : null,
+    [examScope, selectedBlueprint],
+  );
 
   useEffect(() => {
-    if (!selectedBlueprint || createdExam) return;
+    if (!selectedBlueprint || !scopedBlueprint || createdExam) return;
     setBlueprintId(selectedBlueprint.id);
-    setDurationMins(selectedBlueprint.durationMins);
-    setBlueprintText(formatJson(selectedBlueprint.blueprintJson));
-  }, [createdExam, selectedBlueprint]);
+    setDurationMins(scopedBlueprint.durationMins ?? selectedBlueprint.durationMins);
+    setBlueprintText(formatJson(scopedBlueprint));
+  }, [createdExam, scopedBlueprint, selectedBlueprint]);
 
   const createMutation = useMutation({
     mutationFn: () => {
-      if (!selectedBlueprint) throw new Error('Chon blueprint truoc khi tao exam.');
+      if (!selectedBlueprint || !scopedBlueprint) throw new Error('Chon blueprint truoc khi tao exam.');
       return createExam({
         title,
         description,
         durationMins,
         accessType,
         blueprintId: selectedBlueprint.id,
+        sectionTypes: scopedBlueprint.sections.map((section) => section.sectionType),
       });
     },
     onSuccess: (exam) => {
@@ -89,8 +103,8 @@ export default function AdminExamCreatePage() {
   const availabilityMutation = useMutation({
     mutationFn: () => {
       if (createdExam) return checkExamAvailability(createdExam.id);
-      if (!selectedBlueprint) throw new Error('Chon blueprint truoc khi check availability.');
-      return checkExamBlueprintTemplateAvailability(selectedBlueprint.id);
+      if (!scopedBlueprint) throw new Error('Chon blueprint truoc khi check availability.');
+      return checkBlueprintAvailability(scopedBlueprint);
     },
     onSuccess: (result) => {
       setAvailability(result);
@@ -155,9 +169,17 @@ export default function AdminExamCreatePage() {
     const nextBlueprint = usableBlueprints.find((blueprint) => blueprint.id === nextBlueprintId);
     setBlueprintId(nextBlueprintId);
     if (nextBlueprint) {
-      setDurationMins(nextBlueprint.durationMins);
-      setBlueprintText(formatJson(nextBlueprint.blueprintJson));
+      const nextScopedBlueprint = selectBlueprintScope(nextBlueprint.blueprintJson, examScope);
+      setDurationMins(nextScopedBlueprint.durationMins ?? nextBlueprint.durationMins);
+      setBlueprintText(formatJson(nextScopedBlueprint));
     }
+    setAvailability(null);
+    setGenerationResult(null);
+    setPreview(null);
+  };
+
+  const applyExamScope = (scope: 'ALL' | ExamSectionType) => {
+    setExamScope(scope);
     setAvailability(null);
     setGenerationResult(null);
     setPreview(null);
@@ -188,10 +210,24 @@ export default function AdminExamCreatePage() {
               <FilePlus2 className="h-4 w-4" />
               Exam metadata
             </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem_10rem]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem_9rem_9rem]">
               <label className="block">
                 <span className="label">Title</span>
                 <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} disabled={Boolean(createdExam)} />
+              </label>
+              <label className="block">
+                <span className="label">Phạm vi bài thi</span>
+                <SelectField
+                  value={examScope}
+                  options={[
+                    { value: 'ALL', label: 'Đầy đủ 3 phần' },
+                    { value: 'MATH', label: 'Chỉ Toán học' },
+                    { value: 'READING', label: 'Chỉ Đọc hiểu' },
+                    { value: 'SCIENCE', label: 'Chỉ Khoa học' },
+                  ]}
+                  disabled={Boolean(createdExam)}
+                  onChange={(value) => applyExamScope(value as 'ALL' | ExamSectionType)}
+                />
               </label>
               <label className="block">
                 <span className="label">Duration</span>
@@ -365,6 +401,29 @@ function StateRow({ label, done }: { label: string; done: boolean }) {
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
+}
+
+function selectBlueprintScope(
+  blueprint: ExamBlueprint,
+  scope: 'ALL' | ExamSectionType,
+): ExamBlueprint {
+  const selectedTypes = scope === 'ALL' ? EXAM_SECTION_ORDER : [scope];
+  const sections = EXAM_SECTION_ORDER
+    .filter((sectionType) => selectedTypes.includes(sectionType))
+    .map((sectionType) =>
+      blueprint.sections.find((section) => section.sectionType === sectionType),
+    )
+    .filter((section): section is ExamBlueprint['sections'][number] => Boolean(section));
+
+  return {
+    ...blueprint,
+    durationMins: sections.reduce(
+      (total, section) =>
+        total + EXAM_SECTION_DURATION_MINS[section.sectionType],
+      0,
+    ),
+    sections,
+  };
 }
 
 function getErrorMessage(error: unknown) {

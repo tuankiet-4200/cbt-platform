@@ -216,6 +216,7 @@ export async function createExam(payload: {
   accessType?: ExamAccessType;
   blueprintJson?: ExamBlueprint;
   blueprintId?: string;
+  sectionTypes?: ExamSectionType[];
 }) {
   const response = await apiClient.post<ApiEnvelope<AdminExam>>('/admin/exams', payload);
   return response.data.data;

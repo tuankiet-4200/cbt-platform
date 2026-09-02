@@ -37,6 +37,10 @@ import {
   type ExamHistory,
   type LeaderboardEntry,
 } from '@/features/analytics/api/analytics.api';
+import { RetakeOptions } from '@/features/exam/components/RetakeOptions';
+import {
+  EXAM_SECTION_LABELS,
+} from '@/features/exam/lib/exam-sections';
 import { getExamResult, type SectionScore } from '../api/results.api';
 
 const SECTION_META = {
@@ -93,6 +97,9 @@ export default function ResultPage() {
             <h1 className="mt-2 text-2xl font-extrabold md:text-3xl">
               {result.exam.title}
             </h1>
+            <p className="mt-2 text-sm font-medium text-primary-100">
+              {formatAttemptScope(result.selectedSections)}
+            </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Metric icon={CheckCircle2} value={`${result.correctCount} câu đúng`} />
               <Metric icon={XCircle} value={`${result.wrongCount} câu sai`} />
@@ -227,6 +234,15 @@ export default function ResultPage() {
           <Link to="/exams" className="btn btn-secondary mt-3 w-full">
             Về thư viện đề thi
           </Link>
+          <div className="my-5 border-t border-neutral-100" />
+          <h2 className="font-bold text-neutral-900">Luyện tập lại</h2>
+          <p className="mb-3 mt-1 text-sm leading-6 text-neutral-500">
+            Chọn làm lại toàn bộ hoặc tập trung vào một phần thi.
+          </p>
+          <RetakeOptions
+            examId={result.exam.id}
+            availableSections={result.availableSections}
+          />
         </aside>
       </section>
     </div>
@@ -379,8 +395,13 @@ function AttemptHistory({
                       )}
                     </td>
                     <td className="px-4 py-4 text-neutral-500">
-                      {attempt.result.correctCount} đúng ·{' '}
-                      {attempt.result.wrongCount} sai
+                      <span className="block">
+                        {attempt.result.correctCount} đúng ·{' '}
+                        {attempt.result.wrongCount} sai
+                      </span>
+                      <span className="mt-1 block text-xs text-neutral-400">
+                        {formatAttemptScope(attempt.selectedSections)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-primary-700">
                       {attempt.result.percentScore.toFixed(1)}%
@@ -576,4 +597,9 @@ function formatDuration(seconds: number) {
   return hours > 0
     ? `${hours} giờ ${minutes} phút`
     : `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
+function formatAttemptScope(sections: SectionScore['section'][]) {
+  if (sections.length > 1) return 'Toàn bộ đề';
+  return sections[0] ? EXAM_SECTION_LABELS[sections[0]] : 'Toàn bộ đề';
 }
