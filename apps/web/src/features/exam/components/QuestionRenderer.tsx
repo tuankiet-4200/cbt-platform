@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { RichText } from './RichText';
 import { DragDropQuestion } from './DragDropQuestion';
 import type { RichTextNode, SessionQuestion } from '../api/sessions.api';
+import { orderQuestionOptions } from '../lib/question-order';
 
 type Answer = Record<string, unknown>;
 
@@ -36,13 +38,23 @@ export function QuestionRenderer({
   question,
   answer,
   onAnswer,
+  shuffleSeed,
 }: {
   question: SessionQuestion;
   answer?: Answer;
   onAnswer: (answer: Answer) => void;
+  shuffleSeed: string;
 }) {
   const payload = question.content.payload;
-  const options = (payload.options ?? []) as Option[];
+  const orderedOptions = useMemo(() => {
+    const options = (payload.options ?? []) as Option[];
+    return orderQuestionOptions(
+      options,
+      payload.displayOrder,
+      shuffleSeed,
+      question.id,
+    );
+  }, [payload.displayOrder, payload.options, question.id, shuffleSeed]);
   const statements = (payload.statements ?? []) as Statement[];
   const items = (payload.items ?? []) as DragItem[];
   const slots = (payload.slots ?? []) as DragSlot[];
@@ -89,7 +101,7 @@ export function QuestionRenderer({
 
       {question.type === 'SINGLE_CHOICE' && (
         <div className="mt-5 space-y-3">
-          {options.map((option) => (
+          {orderedOptions.map((option) => (
             <AnswerOption
               key={option.id}
               selected={answer?.selectedOptionId === option.id}
@@ -102,7 +114,7 @@ export function QuestionRenderer({
 
       {question.type === 'MULTIPLE_CHOICE' && (
         <div className="mt-5 space-y-3">
-          {options.map((option) => {
+          {orderedOptions.map((option) => {
             const selectedIds =
               (answer?.selectedOptionIds as string[] | undefined) ?? [];
             const selected = selectedIds.includes(option.id);

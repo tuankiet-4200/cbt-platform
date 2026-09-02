@@ -352,16 +352,20 @@ function ActiveExam({
   useEffect(() => {
     if (
       remainingMs === 0 &&
+      connected &&
       !autoSubmitted.current &&
       !submitMutation.isPending
     ) {
       autoSubmitted.current = true;
       submitMutation.mutate();
     }
-  }, [remainingMs, submitMutation]);
+  }, [connected, remainingMs, submitMutation]);
 
   useEffect(() => {
-    const handleOnline = () => setConnected(true);
+    const handleOnline = () => {
+      autoSubmitted.current = false;
+      setConnected(true);
+    };
     const handleOffline = () => setConnected(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -491,6 +495,7 @@ function ActiveExam({
                       <QuestionCard
                         number={questionIndex + 1}
                         question={question}
+                        shuffleSeed={payload.attemptId}
                         answer={answers[question.id]}
                         onAnswer={(value) => setAnswer(question.id, value)}
                       />
@@ -504,6 +509,7 @@ function ActiveExam({
               <QuestionCard
                 number={safeIndex + 1}
                 question={active.question}
+                shuffleSeed={payload.attemptId}
                 answer={answers[active.question.id]}
                 onAnswer={(value) => setAnswer(active.question.id, value)}
               />
@@ -618,11 +624,13 @@ function ActiveExam({
 function QuestionCard({
   number,
   question,
+  shuffleSeed,
   answer,
   onAnswer,
 }: {
   number: number;
   question: SessionQuestion;
+  shuffleSeed: string;
   answer?: Record<string, unknown>;
   onAnswer: (answer: Record<string, unknown>) => void;
 }) {
@@ -634,6 +642,7 @@ function QuestionCard({
       <div className="min-w-0 flex-1">
         <QuestionRenderer
           question={question}
+          shuffleSeed={shuffleSeed}
           answer={answer}
           onAnswer={onAnswer}
         />
