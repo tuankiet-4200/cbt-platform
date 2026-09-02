@@ -121,6 +121,15 @@ function validateRichTextNode(value: unknown, path: string) {
 }
 
 function validateChoicePayload(payload: Record<string, unknown>, exactlyOneCorrect: boolean) {
+  if (
+    payload.displayOrder !== undefined &&
+    payload.displayOrder !== 'original' &&
+    payload.displayOrder !== 'shuffle'
+  ) {
+    throw new BadRequestException(
+      'payload.displayOrder must be original or shuffle',
+    );
+  }
   const options = payload.options;
   if (!Array.isArray(options) || options.length < 2 || options.length > 5) {
     throw new BadRequestException('payload.options must contain 2-5 options');
@@ -191,6 +200,7 @@ function validateDragDropPayload(payload: Record<string, unknown>) {
   });
 
   const slotIds = new Set<string>();
+  const correctItemIds = new Set<string>();
   payload.slots.forEach((slot, index) => {
     if (!isRecord(slot)) throw new BadRequestException(`payload.slots[${index}] must be an object`);
     if (typeof slot.id !== 'string' || slot.id.length === 0) {
@@ -202,6 +212,12 @@ function validateDragDropPayload(payload: Record<string, unknown>) {
     if (typeof slot.correctItemId !== 'string' || !itemIds.has(slot.correctItemId)) {
       throw new BadRequestException(`payload.slots[${index}].correctItemId must reference an item id`);
     }
+    if (correctItemIds.has(slot.correctItemId)) {
+      throw new BadRequestException(
+        'Each drag item can be the correct answer for at most one slot',
+      );
+    }
+    correctItemIds.add(slot.correctItemId);
   });
 }
 
@@ -210,11 +226,15 @@ function validateFillNumberPayload(payload: Record<string, unknown>, stem: unkno
     throw new BadRequestException('payload.blanks must be a non-empty array');
   }
 
-  const stemBlankIds = new Set(
-    Array.isArray(stem)
-      ? stem.filter((node) => isRecord(node) && node.type === 'blank').map((node) => String(node.blankId))
-      : [],
-  );
+  const stemBlankIdList = Array.isArray(stem)
+    ? stem
+        .filter((node) => isRecord(node) && node.type === 'blank')
+        .map((node) => String(node.blankId))
+    : [];
+  const stemBlankIds = new Set(stemBlankIdList);
+  if (stemBlankIds.size !== stemBlankIdList.length) {
+    throw new BadRequestException('Stem blankId values must be unique');
+  }
   const ids = new Set<string>();
 
   payload.blanks.forEach((blank, index) => {
@@ -227,10 +247,54 @@ function validateFillNumberPayload(payload: Record<string, unknown>, stem: unkno
     if (!stemBlankIds.has(blank.id)) {
       throw new BadRequestException(`payload.blanks[${index}].id must match a stem blankId`);
     }
-    if (!Number.isFinite(Number(blank.correctValue))) {
+    if (
+      typeof blank.correctValue !== 'number' ||
+      !Number.isFinite(blank.correctValue)
+    ) {
       throw new BadRequestException(`payload.blanks[${index}].correctValue must be a number`);
     }
+    if (
+      blank.displayFormat !== undefined &&
+      !['integer', 'decimal_2', 'decimal_comma'].includes(
+        String(blank.displayFormat),
+      )
+    ) {
+      throw new BadRequestException(
+        `payload.blanks[${index}].displayFormat is invalid`,
+      );
+    }
+    if (blank.unit !== undefined && typeof blank.unit !== 'string') {
+      throw new BadRequestException(
+        `payload.blanks[${index}].unit must be a string`,
+      );
+    }
+    for (const field of ['min', 'max'] as const) {
+      if (
+        blank[field] !== undefined &&
+        (typeof blank[field] !== 'number' ||
+          !Number.isFinite(blank[field]))
+      ) {
+        throw new BadRequestException(
+          `payload.blanks[${index}].${field} must be a number`,
+        );
+      }
+    }
+    if (
+      typeof blank.min === 'number' &&
+      typeof blank.max === 'number' &&
+      blank.min > blank.max
+    ) {
+      throw new BadRequestException(
+        `payload.blanks[${index}].min cannot exceed max`,
+      );
+    }
   });
+
+  if (ids.size !== stemBlankIds.size) {
+    throw new BadRequestException(
+      'Every stem blankId must have exactly one matching payload blank',
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -245,4 +309,3 @@ function numberOrDefault(value: unknown, fallback: number) {
   }
   return parsed;
 }
-

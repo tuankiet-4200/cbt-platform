@@ -251,6 +251,9 @@ export class QuestionsService {
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
     const existing = await this.prisma.question.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Question not found');
+    if (this.changesQuestionContent(dto)) {
+      await this.assertQuestionContentMutable(id);
+    }
 
     const type = dto.type ?? existing.type;
     const data: Prisma.QuestionUpdateInput = {
@@ -287,6 +290,12 @@ export class QuestionsService {
   }
 
   async deleteQuestion(id: string) {
+    const existing = await this.prisma.question.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) throw new NotFoundException('Question not found');
+    await this.assertQuestionContentMutable(id);
     await this.prisma.question.delete({ where: { id } });
     return { ok: true };
   }
@@ -401,7 +410,7 @@ export class QuestionsService {
           questions: {
             create: createdQuestions.map((question, index) => ({
               questionId: question.id,
-              orderInBundle: index + 1,
+              orderInBundle: index,
               points: dto.questions[index].points ?? 1,
             })),
           },
@@ -443,6 +452,9 @@ export class QuestionsService {
   async updatePassageBundle(id: string, dto: UpdatePassageBundleDto) {
     const existing = await this.prisma.passageBundle.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Passage bundle not found');
+    if (this.changesBundleContent(dto)) {
+      await this.assertBundleContentMutable(id);
+    }
 
     if (dto.questions !== undefined) {
       this.validateBundle(existing.sectionType, dto.questions);
@@ -591,6 +603,91 @@ export class QuestionsService {
 
     if (!allowed[from].includes(to)) {
       throw new BadRequestException(`Cannot move question from ${from} to ${to}`);
+    }
+  }
+
+  private changesQuestionContent(dto: UpdateQuestionDto) {
+    return (
+      dto.type !== undefined ||
+      dto.level !== undefined ||
+      dto.contentJson !== undefined ||
+      dto.irtParams !== undefined ||
+      dto.expectedTimeSecs !== undefined ||
+      dto.tagIds !== undefined
+    );
+  }
+
+  private changesBundleContent(dto: UpdatePassageBundleDto) {
+    return (
+      dto.title !== undefined ||
+      dto.contentJson !== undefined ||
+      dto.expectedTimeSecs !== undefined ||
+      dto.tagIds !== undefined ||
+      dto.questions !== undefined
+    );
+  }
+
+  private async assertQuestionContentMutable(questionId: string) {
+    const protectedReference = await this.prisma.question.findUnique({
+      where: { id: questionId },
+      select: {
+        mathExamItems: {
+          where: {
+            exam: {
+              OR: [{ isPublished: true }, { attempts: { some: {} } }],
+            },
+          },
+          take: 1,
+          select: { examId: true },
+        },
+        bundleQuestion: {
+          select: {
+            bundle: {
+              select: {
+                examItems: {
+                  where: {
+                    exam: {
+                      OR: [{ isPublished: true }, { attempts: { some: {} } }],
+                    },
+                  },
+                  take: 1,
+                  select: { examId: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const usedByProtectedExam =
+      (protectedReference?.mathExamItems.length ?? 0) > 0 ||
+      (protectedReference?.bundleQuestion?.bundle.examItems.length ?? 0) > 0;
+    if (usedByProtectedExam) {
+      throw new ConflictException(
+        'Question content is locked because it belongs to a published exam or an exam with attempts. Duplicate the question before editing it.',
+      );
+    }
+  }
+
+  private async assertBundleContentMutable(bundleId: string) {
+    const protectedReference = await this.prisma.passageBundle.findUnique({
+      where: { id: bundleId },
+      select: {
+        examItems: {
+          where: {
+            exam: {
+              OR: [{ isPublished: true }, { attempts: { some: {} } }],
+            },
+          },
+          take: 1,
+          select: { examId: true },
+        },
+      },
+    });
+    if ((protectedReference?.examItems.length ?? 0) > 0) {
+      throw new ConflictException(
+        'Passage bundle content is locked because it belongs to a published exam or an exam with attempts. Duplicate the bundle before editing it.',
+      );
     }
   }
 

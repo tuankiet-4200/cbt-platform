@@ -247,7 +247,7 @@ export default function AdminQuestionEditorPage() {
         tagIds: bundleTagIds,
         questions: bundle.questions.map((item, index) => ({
           questionId: item.questionId,
-          orderInBundle: index + 1,
+          orderInBundle: index,
           points: item.points,
         })),
       });
