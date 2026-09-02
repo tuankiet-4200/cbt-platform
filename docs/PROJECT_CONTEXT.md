@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-03 (first Phase 4.1 remediation batch verified and committed)
+> **Last updated:** 2026-09-03 (single-section exam and scoped-retake extension verified)
 
 ### Active Sprint
-**Post–Sprint 4.1 Completion Audit**
-Status: ⚠️ REMEDIATION IN PROGRESS — the first regression/fix batch is verified, but release-blocking gaps remain before Phase 4.1 can be certified complete
+**Post–Sprint 4.1 Feature Extension and Completion Audit**
+Status: ⚠️ FEATURE COMPLETE / REMEDIATION IN PROGRESS — single-section exams and scoped retakes are implemented and verified; broader release-blocking audit gaps remain
 
 ### Sprint Progress Overview
 
@@ -337,6 +337,30 @@ Status: ⚠️ REMEDIATION IN PROGRESS — the first regression/fix batch is ver
 
 ---
 
+## ✅ Single-Section Exam and Scoped Retake Extension (2026-09-03)
+
+### Backend and Data
+1. [x] Added ordered `ExamAttempt.selectedSections` scope with migration/backfill for all historical attempts
+2. [x] Added optional `sectionTypes` to attempt creation; only one section or every available section is accepted
+3. [x] Limited transitions, grading, section scores, and answer review to the selected attempt scope
+4. [x] Kept fixed section timers at MATH 60 minutes, READING 30 minutes, and SCIENCE 60 minutes
+5. [x] Excluded partial retakes of multi-section exams from the full-exam leaderboard
+6. [x] Added admin exam creation scope; generated blueprint snapshots and displayed total duration now contain only the selected section(s)
+
+### Frontend
+1. [x] Added full-exam or single-section selection to admin exam creation
+2. [x] Added full or per-section retake choices to exam detail and result pages
+3. [x] Made exam detail/library section counts and cards work for one-section exams
+4. [x] Limited answer-review tabs to sections actually completed in the selected attempt
+5. [x] Labeled attempt-history rows by full-exam or individual-section scope
+
+### Quality
+- [x] Migration `20260903090000_add_attempt_selected_sections` applied successfully with historical backfill
+- [x] 31/31 API and 6/6 Web unit tests pass
+- [x] API and Web lint, typecheck, and production builds pass
+
+---
+
 ## ⚠️ Phase 1–4.1 Audit Findings (2026-07-27)
 
 ### High Priority
@@ -357,9 +381,9 @@ Status: ⚠️ REMEDIATION IN PROGRESS — the first regression/fix batch is ver
 11. [x] Add the API production build and frontend unit tests to CI.
 
 ### Audit Evidence
-- [x] PostgreSQL and Redis healthy; Prisma schema valid; all 9 migrations applied with no drift
+- [x] PostgreSQL and Redis healthy; Prisma schema valid; all 10 migrations applied with no drift
 - [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
-- [x] 27/27 API unit tests and 4/4 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
+- [x] 31/31 API unit tests and 6/6 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -395,8 +419,8 @@ These decisions are FINAL and must not be reversed without explicit user approva
 ### Tech Choices
 | Decision | Rule |
 |----------|------|
-| **Exam attempt/session lifecycle** | One `ExamAttempt` aggregates three sequential `ExamSession` records: MATH, READING, SCIENCE. Each section has its own confirmation, server-authoritative timer, submission, and transition screen. |
-| **Default section durations** | MATH = 60 minutes, READING = 30 minutes, SCIENCE = 60 minutes. Blueprint section JSON may override these values. |
+| **Exam attempt/session lifecycle** | One `ExamAttempt` aggregates either every available section or one selected section. Full attempts remain sequential MATH → READING → SCIENCE; each selected section has its own confirmation, server-authoritative timer, submission, and transition screen. |
+| **Fixed section durations** | MATH = 60 minutes, READING = 30 minutes, SCIENCE = 60 minutes. |
 | **Aggregate result ownership** | `ExamResult` belongs to `ExamAttempt`; `sectionScores[]` stores the MATH/READING/SCIENCE breakdown. |
 | Tailwind CSS | **v4 only**. CSS-first `@theme {}`. No `tailwind.config.js`. Plugin: `@tailwindcss/vite`. |
 | Rich text format | **`RichTextNode[]` JSON** (NOT Markdown string). See `QuestionContentSpec.md`. |
@@ -438,7 +462,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 
 | Service | Container | Port | Status (as of last update) |
 |---------|-----------|------|--------------------------|
-| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — 19 tables migrated; ExamAttempt constraints verified |
+| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — all 10 migrations applied; selected-section backfill verified by migration |
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |

@@ -2,17 +2,18 @@
 
 > **Status:** APPROVED
 > **Approved by:** Project owner
-> **Date:** 2026-07-27
+> **Date:** 2026-07-27; scope extension approved 2026-09-03
 > **Scope:** Sprint 3.1 onward
 
 ## Decision
 
-A complete TSA exam attempt is split into three sequential, independently timed
-section sessions:
+An exam attempt contains either every section assembled in the exam or one
+selected section. Full TSA attempts remain split into three sequential,
+independently timed section sessions:
 
-1. `MATH` — 60 minutes by default
-2. `READING` — 30 minutes by default
-3. `SCIENCE` — 60 minutes by default
+1. `MATH` — 60 minutes
+2. `READING` — 30 minutes
+3. `SCIENCE` — 60 minutes
 
 The UX follows the supplied TSA reference: confirmation before each section,
 server-authoritative section timer, a transition summary after submission, and
@@ -23,12 +24,14 @@ an explicit continuation action for the next section.
 ### `ExamAttempt`
 
 `ExamAttempt` is the aggregate root for one user's complete run through an exam.
-It owns the overall lifecycle, current section, and final aggregate result.
+It owns the overall lifecycle, selected sections, current section, and final
+aggregate result.
 
 Required fields:
 
 - `userId`
 - `examId`
+- `selectedSections` — canonical ordered scope for this attempt
 - `status`
 - `currentSection`
 - `startedAt`
@@ -49,7 +52,7 @@ Required additions:
 Invariants:
 
 - `@@unique([attemptId, sectionType])`
-- A section may start only after all preceding sections are submitted.
+- A section may start only after all preceding selected sections are submitted.
 - A submitted section cannot be reopened or edited.
 - `endTime` is computed once by the server when the section starts.
 - Reloading or reconnecting never resets `startTime` or `endTime`.
@@ -79,10 +82,14 @@ Create/resume attempt
 ```
 
 Sections with zero questions are skipped when resolving the next section.
+For a single-section attempt, submitting that section immediately submits the
+attempt for grading. Only selected sections contribute to the result. A partial
+retake of a multi-section exam is excluded from that exam's full leaderboard.
 
 ## API Shape
 
-- `POST /api/v1/sessions` — create or resume an `ExamAttempt`
+- `POST /api/v1/sessions` — create or resume an `ExamAttempt`; optional
+  `sectionTypes` selects one section or every available section
 - `GET /api/v1/sessions/attempts/:attemptId` — attempt and section progress
 - `POST /api/v1/sessions/attempts/:attemptId/start` — start/resume the current section
 - `GET /api/v1/sessions/:sessionId` — safe section payload and timing metadata
@@ -95,10 +102,9 @@ session endpoints.
 
 ## Timing Configuration
 
-The canonical defaults are `MATH=60`, `READING=30`, and `SCIENCE=60`.
-Blueprint section JSON may override `durationMins`; existing blueprints without
-section durations use the canonical defaults. `Exam.durationMins` remains the
-displayed total and must equal the sum of enabled section durations.
+The fixed durations are `MATH=60`, `READING=30`, and `SCIENCE=60`.
+`Exam.durationMins` remains the displayed total and equals the sum of enabled
+section durations for newly created exams.
 
 ## Redis and Persistence
 
