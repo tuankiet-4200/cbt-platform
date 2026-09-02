@@ -151,7 +151,10 @@ export default function AdminContributionsPage() {
                 <div className="grid gap-2">
                   <button
                     className="btn btn-secondary btn-md"
-                    disabled={updateMutation.isPending}
+                    disabled={
+                      updateMutation.isPending ||
+                      selected.status !== 'PENDING'
+                    }
                     onClick={() => updateMutation.mutate('REVIEWING')}
                   >
                     <FileText className="h-4 w-4" />
@@ -159,7 +162,10 @@ export default function AdminContributionsPage() {
                   </button>
                   <button
                     className="btn btn-primary btn-md"
-                    disabled={updateMutation.isPending}
+                    disabled={
+                      updateMutation.isPending ||
+                      selected.status !== 'REVIEWING'
+                    }
                     onClick={() => updateMutation.mutate('APPROVED')}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -167,7 +173,10 @@ export default function AdminContributionsPage() {
                   </button>
                   <button
                     className="btn btn-danger btn-md"
-                    disabled={updateMutation.isPending}
+                    disabled={
+                      updateMutation.isPending ||
+                      selected.status !== 'REVIEWING'
+                    }
                     onClick={() => updateMutation.mutate('REJECTED')}
                   >
                     <XCircle className="h-4 w-4" />

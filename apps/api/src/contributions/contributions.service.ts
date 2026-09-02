@@ -88,8 +88,30 @@ export class ContributionsService {
   }
 
   async updateContributionStatus(id: string, dto: UpdateContributionStatusDto, currentUser: User) {
-    if (dto.status === ContributionStatus.PENDING) {
-      throw new BadRequestException('Admin cannot move contribution back to PENDING');
+    const contribution = await this.prisma.contributionSubmission.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!contribution) {
+      throw new NotFoundException('Contribution not found');
+    }
+
+    const allowed: Record<ContributionStatus, ContributionStatus[]> = {
+      [ContributionStatus.PENDING]: [ContributionStatus.REVIEWING],
+      [ContributionStatus.REVIEWING]: [
+        ContributionStatus.APPROVED,
+        ContributionStatus.REJECTED,
+      ],
+      [ContributionStatus.APPROVED]: [],
+      [ContributionStatus.REJECTED]: [],
+    };
+    if (
+      contribution.status !== dto.status &&
+      !allowed[contribution.status].includes(dto.status)
+    ) {
+      throw new BadRequestException(
+        `Cannot move contribution from ${contribution.status} to ${dto.status}`,
+      );
     }
 
     return this.prisma.contributionSubmission.update({
