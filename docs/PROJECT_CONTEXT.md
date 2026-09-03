@@ -380,6 +380,7 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
 6. [x] API/Web lint, typecheck, production builds, 31 API tests, and 6 Web tests pass
 7. [x] Production API/Web images build; API runtime/bcrypt and Web Nginx configuration smoke tests pass
 8. [x] Made the loopback API host port configurable and defaulted it to `3100` to avoid the deployment host's existing port-3000 service
+9. [x] Made the loopback Web host port configurable and defaulted it to `8180` to avoid the deployment host's existing port-8080 service
 
 ### Local Data Operation
 1. [x] Created and password-verified the two requested active customer accounts in the local PostgreSQL database with default public-exam access
