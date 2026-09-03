@@ -3,7 +3,7 @@
 This runbook deploys the application as four Docker Compose services:
 
 - `web`: production React build behind an internal Nginx container
-- `api`: NestJS API bound to `127.0.0.1:3000`
+- `api`: NestJS API bound to `127.0.0.1:3100` by default
 - `postgres`: private Docker network only
 - `redis`: password-protected and private Docker network only
 
@@ -109,6 +109,7 @@ Use hexadecimal secrets so the PostgreSQL/Redis URLs do not require URL encoding
 Required checks:
 
 - `FRONTEND_URL=https://demoserver.io.vn`
+- `API_HOST_PORT=3100` controls only the loopback port exposed to host Nginx
 - `DATABASE_URL` uses host `postgres`, not `localhost`
 - `REDIS_URL` uses host `redis`, not `localhost`
 - The password inside `DATABASE_URL` exactly matches `POSTGRES_PASSWORD`
@@ -136,7 +137,7 @@ docker compose \
   -f deploy/docker-compose.production.yml \
   ps -a
 
-curl http://127.0.0.1:3000/api/v1/health
+curl http://127.0.0.1:3100/api/v1/health
 curl -I http://127.0.0.1:8080/healthz
 ```
 
@@ -221,5 +222,5 @@ docker compose \
   > "cbt-platform-$(date +%F-%H%M).sql"
 ```
 
-Do not expose ports `3000`, `5432`, `6379`, or `8080` through UFW or the cloud
+Do not expose ports `3100`, `5432`, `6379`, or `8080` through UFW or the cloud
 firewall. Public traffic should enter only through Nginx on ports 80 and 443.
