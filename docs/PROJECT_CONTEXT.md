@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-03 (exam-style review, global history, and manual exam assembly completed)
+> **Last updated:** 2026-09-03 (manual question image upload completed)
 
 ### Active Sprint
-**Student Review UX and Admin Exam Assembly**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-style readonly review, global attempt history, and manual/blueprint exam creation pass tests, typecheck, lint, and production builds
+**Admin Question Authoring UX**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — manual question authoring now uploads and preserves images across stems, solutions, passages, options, statements, and drag/drop content
 
 ### Sprint Progress Overview
 
@@ -170,6 +170,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-style readonly review
 14. [x] Create Question section query param only initializes the active section; tab switches update create state, URL, and submitted section payload
 15. [x] Tag Management module added: `/admin/tags` list with MATH/READING/SCIENCE tabs plus shared create/edit tag form pages
 16. [x] READING/SCIENCE bundle list omits empty status filter so "All status" shows seeded bundles correctly
+17. [x] Manual question editor uploads PNG/JPEG/WebP/SVG assets directly to Supabase and inserts image nodes into stems, solutions, passages/stimuli, choice answers, matrix statements, and drag/drop content; edit/save round trips preserve existing images
 
 ---
 
@@ -381,7 +382,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-style readonly review
 3. [x] Removed unused vulnerable Nodemailer runtime/type dependencies
 4. [x] Web production dependency audit reports 0 vulnerabilities; API critical findings reduced to 0
 5. [ ] Upgrade and regression-test the NestJS major dependency family to resolve the remaining transitive audit findings (7 high, 9 moderate, 1 low in the current production dependency audit)
-6. [x] API/Web lint, typecheck, production builds, 32 API tests, and 6 Web tests pass
+6. [x] API/Web lint, typecheck, production builds, 32 API tests, and 8 Web tests pass
 7. [x] Production API/Web images build; API runtime/bcrypt and Web Nginx configuration smoke tests pass
 8. [x] Made the loopback API host port configurable and defaulted it to `3100` to avoid the deployment host's existing port-3000 service
 9. [x] Made the loopback Web host port configurable and defaulted it to `8180` to avoid the deployment host's existing port-8080 service
@@ -423,13 +424,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-style readonly review
 ## 🎯 Next Up: Production Rollout and Remediation
 
 1. [x] Complete exam-style readonly review, global student attempt history, and manual/blueprint exam creation flows
-2. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the three new flows over HTTPS
-3. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-4. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-5. [ ] Complete section timeout retry for transient online failures
-6. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-7. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-8. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+2. [x] Add direct image upload and lossless image-node editing to manual question authoring
+3. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+4. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+5. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+6. [ ] Complete section timeout retry for transient online failures
+7. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+8. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+9. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 

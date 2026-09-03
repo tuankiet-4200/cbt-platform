@@ -132,6 +132,25 @@ interface ApiEnvelope<T> {
   meta?: PaginationMeta;
 }
 
+export interface UploadedQuestionImage {
+  bucket: string;
+  path: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
+export async function uploadQuestionImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post<ApiEnvelope<UploadedQuestionImage>>(
+    '/admin/upload',
+    formData,
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
 export async function listQuestions(params: ListQuestionsParams) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {

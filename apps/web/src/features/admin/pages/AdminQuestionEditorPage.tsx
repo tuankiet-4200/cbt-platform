@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Dispatch, ElementType, ReactNode, SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -10,6 +10,7 @@ import {
   FileText,
   FlaskConical,
   Loader2,
+  ImagePlus,
   Plus,
   Sigma,
   Trash2,
@@ -18,6 +19,7 @@ import {
 import { BlockMath, InlineMath } from 'react-katex';
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
+import { appendImageToken, parseRichText, richTextToEditableText } from '../lib/rich-text-editable';
 import {
   bulkCreateQuestions,
   createPassageBundleWithQuestions,
@@ -30,6 +32,7 @@ import {
   updatePassageBundle,
   updateQuestion,
   updateQuestionStatus,
+  uploadQuestionImage,
   type AdminQuestion,
   type CognitiveLevel,
   type CreatePassageBundleWithQuestionsPayload,
@@ -540,11 +543,12 @@ export default function AdminQuestionEditorPage() {
             <>
               <div className="mt-5 grid gap-4">
                 <Field label={section === 'READING' ? 'Reading passage' : 'Science stimulus'}>
-                  <textarea
-                    className="input min-h-44 resize-y"
+                  <RichTextControl
                     value={bundlePassage}
-                    onChange={(event) => setBundlePassage(event.target.value)}
+                    onChange={setBundlePassage}
                     placeholder="Hỗ trợ LaTeX inline bằng $...$ và block bằng $$...$$"
+                    multiline
+                    imageWidth={720}
                   />
                 </Field>
                 <TagPicker title="PassageBundle tags" tags={tagTree} selectedIds={bundleTagIds} onChange={setBundleTagIds} />
@@ -713,10 +717,10 @@ function QuestionEditor({
       </div>
 
       <Field label="Stem">
-        <textarea className="input min-h-28 resize-y" value={draft.stem} onChange={(event) => patch({ stem: event.target.value })} />
+        <RichTextControl value={draft.stem} onChange={(stem) => patch({ stem })} multiline imageWidth={640} />
       </Field>
       <Field label="Solution">
-        <textarea className="input min-h-20 resize-y" value={draft.solution} onChange={(event) => patch({ solution: event.target.value })} />
+        <RichTextControl value={draft.solution} onChange={(solution) => patch({ solution })} multiline imageWidth={640} />
       </Field>
 
       <PayloadEditor draft={draft} setDraft={setDraft} />
@@ -738,7 +742,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
         {draft.choices.map((option, index) => (
           <div key={option.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_7rem_2.25rem]">
             <input className="input" value={option.id} disabled />
-            <input className="input" value={option.content} onChange={(event) => updateChoice(index, { content: event.target.value })} />
+            <RichTextControl value={option.content} onChange={(content) => updateChoice(index, { content })} imageWidth={260} compact />
             <label className="flex items-center justify-center gap-2 rounded-lg border border-neutral-200 text-sm text-neutral-700">
               <input
                 type={draft.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox'}
@@ -767,7 +771,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
         {draft.statements.map((statement, index) => (
           <div key={statement.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_2.25rem]">
             <input className="input" value={statement.id} disabled />
-            <input className="input" value={statement.content} onChange={(event) => updateStatement(index, { content: event.target.value })} />
+            <RichTextControl value={statement.content} onChange={(content) => updateStatement(index, { content })} imageWidth={480} compact />
             <SelectField
               value={String(statement.isTrue)}
               options={[
@@ -791,7 +795,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           {draft.dragItems.map((item, index) => (
             <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_2.25rem]">
               <input className="input" value={item.id} disabled />
-              <input className="input" value={item.content} onChange={(event) => updateDragItem(index, { content: event.target.value })} />
+              <RichTextControl value={item.content} onChange={(content) => updateDragItem(index, { content })} imageWidth={260} compact />
               <IconButton disabled={draft.dragItems.length <= 1} label="Remove item" onClick={() => patch({ dragItems: draft.dragItems.filter((_, itemIndex) => itemIndex !== index) })} />
             </div>
           ))}
@@ -800,7 +804,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           <SectionHeader title="Slots" onAdd={() => patch({ dragSlots: [...draft.dragSlots, { id: `slot${draft.dragSlots.length + 1}`, label: `Slot ${draft.dragSlots.length + 1}`, correctItemId: draft.dragItems[0]?.id ?? 'I1' }] })} />
           {draft.dragSlots.map((slot, index) => (
             <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
-              <input className="input" value={slot.label} onChange={(event) => updateDragSlot(index, { label: event.target.value })} />
+              <RichTextControl value={slot.label} onChange={(label) => updateDragSlot(index, { label })} imageWidth={260} compact />
               <SelectField
                 value={slot.correctItemId}
                 options={draft.dragItems.map((item) => ({ value: item.id, label: item.id }))}
@@ -858,10 +862,101 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
 
 function Field({ label, title, children }: { label: string; title?: string; children: ReactNode }) {
   return (
-    <label className="block" title={title}>
+    <div className="block" title={title}>
       <span className="label">{label}</span>
       {children}
-    </label>
+    </div>
+  );
+}
+
+function RichTextControl({
+  value,
+  onChange,
+  placeholder,
+  multiline = false,
+  imageWidth,
+  compact = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  imageWidth: number;
+  compact?: boolean;
+}) {
+  const latestValue = useRef(value);
+  latestValue.current = value;
+  return (
+    <div>
+      <div className="flex items-start gap-2">
+        {multiline ? (
+          <textarea
+            className={cn('input resize-y', imageWidth > 700 ? 'min-h-44' : imageWidth > 500 ? 'min-h-28' : 'min-h-20')}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={placeholder}
+          />
+        ) : (
+          <input className="input min-w-0" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+        )}
+        <ImageUploadButton
+          compact={compact}
+          onUploaded={(url, fileName) => onChange(appendImageToken(latestValue.current, url, fileName, imageWidth))}
+        />
+      </div>
+      {multiline && (
+        <p className="mt-1 text-xs text-neutral-400">Có thể chèn ảnh PNG, JPG, WebP hoặc SVG tối đa 10 MB. Dòng đánh dấu ảnh được tạo tự động.</p>
+      )}
+    </div>
+  );
+}
+
+function ImageUploadButton({ onUploaded, compact }: { onUploaded: (url: string, fileName: string) => void; compact?: boolean }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Ảnh không được vượt quá 10 MB.');
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const asset = await uploadQuestionImage(file);
+      onUploaded(asset.url, file.name);
+    } catch (uploadError) {
+      setError(getErrorMessage(uploadError) ?? 'Không upload được ảnh.');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="shrink-0">
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        onChange={(event) => void handleFile(event.target.files?.[0])}
+      />
+      <button
+        type="button"
+        className={cn('btn btn-secondary', compact ? 'h-10 w-10 p-0' : 'btn-md')}
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        title={error ?? 'Upload và chèn ảnh'}
+        aria-label={error ?? 'Upload và chèn ảnh'}
+      >
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+        {!compact && <span>{uploading ? 'Đang tải' : 'Thêm ảnh'}</span>}
+      </button>
+      {error && <p className="mt-1 max-w-36 text-xs text-danger-600">{error}</p>}
+    </div>
   );
 }
 
@@ -996,7 +1091,7 @@ function RichTextPreview({ nodes }: { nodes: RichTextNode[] }) {
         if (node.type === 'italic') return <em key={key}>{node.content}</em>;
         if (node.type === 'break') return <br key={key} />;
         if (node.type === 'blank') return <span key={key} className="mx-1 inline-flex min-w-14 rounded border border-primary-300 bg-primary-50 px-2 py-0.5 text-primary-700">{node.blankId}</span>;
-        if (node.type === 'image') return <img key={key} src={node.url} alt={node.alt ?? ''} className="my-2 max-h-52 rounded" />;
+        if (node.type === 'image') return <img key={key} src={node.url} alt={node.alt ?? ''} style={{ maxWidth: node.width ? `${node.width}px` : undefined }} className="my-2 max-h-52 rounded object-contain" />;
         return <span key={key}>{node.content}</span>;
       })}
     </>
@@ -1242,36 +1337,6 @@ function payloadPreview(draft: QuestionDraft) {
     { type: 'text', content: `${blank.correctValue}${blank.unit ? ` ${blank.unit}` : ''}` } satisfies RichTextNode,
     { type: 'break' } satisfies RichTextNode,
   ]);
-}
-
-function richTextToEditableText(nodes: RichTextNode[]) {
-  return nodes
-    .map((node) => {
-      if (node.type === 'latex') return `$${node.content ?? ''}$`;
-      if (node.type === 'latex_block') return `$$${node.content ?? ''}$$`;
-      if (node.type === 'blank') return `{{${node.blankId ?? ''}}}`;
-      if (node.type === 'break') return '\n';
-      return node.content ?? '';
-    })
-    .join('');
-}
-
-function parseRichText(value: string, includeBlanks = false): RichTextNode[] {
-  const nodes: RichTextNode[] = [];
-  const pattern = includeBlanks ? /(\{\{[A-Za-z0-9_-]+\}\}|\$\$[^$]+\$\$|\$[^$]+\$|\n)/g : /(\$\$[^$]+\$\$|\$[^$]+\$|\n)/g;
-  let cursor = 0;
-  for (const match of value.matchAll(pattern)) {
-    const index = match.index ?? 0;
-    if (index > cursor) nodes.push({ type: 'text', content: value.slice(cursor, index) });
-    const token = match[0];
-    if (token === '\n') nodes.push({ type: 'break' });
-    else if (token.startsWith('{{') && token.endsWith('}}')) nodes.push({ type: 'blank', blankId: token.slice(2, -2) });
-    else if (token.startsWith('$$')) nodes.push({ type: 'latex_block', content: token.slice(2, -2) });
-    else nodes.push({ type: 'latex', content: token.slice(1, -1) });
-    cursor = index + token.length;
-  }
-  if (cursor < value.length) nodes.push({ type: 'text', content: value.slice(cursor) });
-  return nodes.filter((node) => node.type === 'break' || node.type === 'blank' || Boolean(node.content?.trim()));
 }
 
 function summarizeRichText(nodes: RichTextNode[]) {
