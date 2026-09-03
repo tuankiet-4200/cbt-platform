@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-03 (Ubuntu/Nginx production deployment package verified locally)
+> **Last updated:** 2026-09-03 (exam-style review, global history, and manual exam assembly completed)
 
 ### Active Sprint
-**Production Deployment Preparation and Security Hardening**
-Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx deployment artifacts pass local validation; DNS, server rollout, and the remaining NestJS-major security remediation are pending
+**Student Review UX and Admin Exam Assembly**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-style readonly review, global attempt history, and manual/blueprint exam creation pass tests, typecheck, lint, and production builds
 
 ### Sprint Progress Overview
 
@@ -35,10 +35,10 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
 | 1.1 | Project Bootstrap & Infrastructure Core | ⚠️ AUDITED | 95% |
 | 1.2 | Authentication & Question Content Model | ⚠️ PARTIAL | 85% |
 | 2.1 | Admin Question Bank Management | ⚠️ AUDITED | 95% |
-| 2.2 | Exam Assembly & Access Code System | ⚠️ PARTIAL | 90% |
+| 2.2 | Exam Assembly & Access Code System | ⚠️ PARTIAL | 95% |
 | 3.1 | Exam Session Engine & Write Path | ⚠️ PARTIAL | 95% |
-| 3.2 | Question Renderers & Proctoring | ⚠️ PARTIAL | 90% |
-| 4.1 | Result Engine & Personal Analytics | ⚠️ PARTIAL | 90% |
+| 3.2 | Question Renderers & Proctoring | ⚠️ PARTIAL | 95% |
+| 4.1 | Result Engine & Personal Analytics | ⚠️ PARTIAL | 95% |
 | 4.2 | IRT Integration & Advanced Features | ⏸ DEFERRED | 0% |
 | 5.1 | Performance & Security Hardening | 🔄 IN PROGRESS | 20% |
 | 5.2 | Final Polish, UAT & Launch | ⏸ DEFERRED | — |
@@ -188,6 +188,7 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
    - Added builder APIs under `/api/v1/admin/exams/:id/builder` for full assembly inspection, replacement candidates, section reorder, and slot replacement.
    - Published exams are locked from assembly edits; admins must unpublish before changing question/bundle composition to preserve audit consistency.
    - Replacement candidates only include published standalone MATH questions and valid published READING/SCIENCE bundles with exact bundle cardinality.
+   - Manual assembly now supports adding/removing standalone MATH questions and atomic READING/SCIENCE bundles, with automatic ordering and total-point recalculation.
 4. [x] Access Code API: create/list/deactivate codes, atomic unlock flow
    - Added `AccessCodesModule` with admin list/create/deactivate endpoints under `/api/v1/admin/access-codes`.
    - Added `POST /api/v1/exams/unlock` with Serializable transaction semantics, quota increment, expiry/active checks, and idempotent already-unlocked handling.
@@ -215,6 +216,7 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
    - Exam management now routes generated exams to `/admin/exams/:examId/edit`, combining metadata edit, assembly reorder/replacement, preview, and delete with confirmation for published-impacting edits.
    - Exam edit workspace now includes publish/unpublish controls and a visible Draft/Published badge so admins can manage release state without returning to the exam list.
    - Exam edit header now includes a primary Save action for title/description metadata changes, while reorder/replace actions continue to persist immediately.
+   - Exam creation now explicitly offers Manual or Blueprint mode. Manual mode creates a scoped draft and opens the content bank, where admins can add, remove, replace, and reorder items before preview/publish.
 3. [x] Access Code Management UI
    - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
 4. [x] User Exam Library unlock flow
@@ -276,6 +278,7 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
 3. [x] Added `useProctoringMonitor` for tab switch, blur, copy, and fullscreen-exit events with 10-second batching/retry
 4. [x] Added aggregate result page with section score cards, correctness summary, duration, and tag progress
 5. [x] Added answer-review page with correct/wrong/skipped filters, passage layout, correct answers, solutions, and timing
+   - Replaced the card-list review with the full exam workspace: readonly answers, no countdown, section navigation, and green/red/neutral question navigator states.
 6. [x] Final section completion now routes to `/results/:attemptId`; exam library/detail link to the latest graded result
 
 ### Quality — Sprint 3.2
@@ -292,6 +295,7 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
 
 ### Backend — Sprint 4.1
 1. [x] Added paginated personal exam history with aggregate score, correctness, duration, and section breakdown
+   - Added a global `/analytics/me/history` feed and student `/history` page linked above Account in the sidebar, with direct result and review actions.
 2. [x] Added weakness/strength aggregation over the latest 50 result tag breakdowns
 3. [x] Added per-section actual-versus-expected question time analysis
 4. [x] Added authenticated top-100 Redis leaderboard with current-user rank and best-score-only updates
@@ -377,7 +381,7 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
 3. [x] Removed unused vulnerable Nodemailer runtime/type dependencies
 4. [x] Web production dependency audit reports 0 vulnerabilities; API critical findings reduced to 0
 5. [ ] Upgrade and regression-test the NestJS major dependency family to resolve the remaining transitive audit findings (7 high, 9 moderate, 1 low in the current production dependency audit)
-6. [x] API/Web lint, typecheck, production builds, 31 API tests, and 6 Web tests pass
+6. [x] API/Web lint, typecheck, production builds, 32 API tests, and 6 Web tests pass
 7. [x] Production API/Web images build; API runtime/bcrypt and Web Nginx configuration smoke tests pass
 8. [x] Made the loopback API host port configurable and defaulted it to `3100` to avoid the deployment host's existing port-3000 service
 9. [x] Made the loopback Web host port configurable and defaulted it to `8180` to avoid the deployment host's existing port-8080 service
@@ -418,13 +422,14 @@ Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx 
 
 ## 🎯 Next Up: Production Rollout and Remediation
 
-1. [ ] Push the verified commits, point `demoserver.io.vn`, execute the Ubuntu runbook, and verify HTTPS health checks
-2. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-3. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-4. [ ] Complete section timeout retry for transient online failures
-5. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-6. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-7. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+1. [x] Complete exam-style readonly review, global student attempt history, and manual/blueprint exam creation flows
+2. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the three new flows over HTTPS
+3. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+4. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+5. [ ] Complete section timeout retry for transient online failures
+6. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+7. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+8. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 

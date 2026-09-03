@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { BookOpen, BarChart3, User, LogOut, Shield, ChevronRight, GraduationCap, Inbox, Tags, FileJson } from 'lucide-react';
+import { BookOpen, BarChart3, User, LogOut, Shield, ChevronRight, GraduationCap, Inbox, Tags, FileJson, History } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useLogoutMutation } from '@/features/auth/api/useAuth';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ interface RootLayoutProps {
 
 const userNavItems = [
   { to: '/exams',     label: 'Đề thi',      icon: BookOpen },
+  { to: '/history',   label: 'Lịch sử làm bài', icon: History },
   { to: '/profile',   label: 'Tài khoản',   icon: User },
 ];
 

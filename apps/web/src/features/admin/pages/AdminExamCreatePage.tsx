@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -12,6 +12,7 @@ import {
   RefreshCcw,
   Search,
   ShieldCheck,
+  ListPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
@@ -41,6 +42,8 @@ import { ExamPreviewModal } from './ExamPreviewModal';
 
 export default function AdminExamCreatePage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [creationMode, setCreationMode] = useState<'BLUEPRINT' | 'MANUAL'>('BLUEPRINT');
   const [createdExam, setCreatedExam] = useState<AdminExam | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -82,6 +85,15 @@ export default function AdminExamCreatePage() {
 
   const createMutation = useMutation({
     mutationFn: () => {
+      if (creationMode === 'MANUAL') {
+        const sections = examScope === 'ALL' ? EXAM_SECTION_ORDER : [examScope];
+        return createExam({
+          title,
+          description,
+          accessType,
+          blueprintJson: createManualBlueprint(sections),
+        });
+      }
       if (!selectedBlueprint || !scopedBlueprint) throw new Error('Chon blueprint truoc khi tao exam.');
       return createExam({
         title,
@@ -96,6 +108,7 @@ export default function AdminExamCreatePage() {
       setCreatedExam(exam);
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
+      if (creationMode === 'MANUAL') navigate(`/admin/exams/${exam.id}/edit`);
     },
     onError: (error) => setFormError(getErrorMessage(error) ?? 'Khong tao duoc exam.'),
   });
@@ -194,7 +207,7 @@ export default function AdminExamCreatePage() {
             Back to exams
           </Link>
           <h1 className="mt-3 text-2xl font-bold text-neutral-900">Create exam</h1>
-          <p className="mt-1 text-sm text-neutral-500">Chon blueprint co san, tao metadata, generate draft va preview truoc khi publish.</p>
+          <p className="mt-1 text-sm text-neutral-500">Tạo đề thủ công từ ngân hàng câu hỏi hoặc sinh tự động theo blueprint.</p>
         </div>
         {createdExam && (
           <span className={cn('badge h-9 justify-center px-3', createdExam.isPublished ? 'badge-success' : 'badge-warning')}>
@@ -202,6 +215,17 @@ export default function AdminExamCreatePage() {
           </span>
         )}
       </header>
+
+      <section className="grid gap-3 sm:grid-cols-2">
+        <button type="button" disabled={Boolean(createdExam)} onClick={() => setCreationMode('MANUAL')} className={cn('card flex items-start gap-3 p-5 text-left transition', creationMode === 'MANUAL' && 'border-primary-400 bg-primary-50 ring-1 ring-primary-300')}>
+          <ListPlus className="mt-0.5 h-5 w-5 text-primary-700" />
+          <span><strong className="block text-neutral-900">Tạo đề thủ công</strong><span className="mt-1 block text-sm text-neutral-500">Tạo đề rỗng, sau đó tự chọn và sắp xếp từng câu hỏi hoặc bài đọc.</span></span>
+        </button>
+        <button type="button" disabled={Boolean(createdExam)} onClick={() => setCreationMode('BLUEPRINT')} className={cn('card flex items-start gap-3 p-5 text-left transition', creationMode === 'BLUEPRINT' && 'border-primary-400 bg-primary-50 ring-1 ring-primary-300')}>
+          <FileJson className="mt-0.5 h-5 w-5 text-primary-700" />
+          <span><strong className="block text-neutral-900">Tạo theo blueprint</strong><span className="mt-1 block text-sm text-neutral-500">Sinh tự động theo ma trận, độ khó và số lượng đã cấu hình.</span></span>
+        </button>
+      </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
@@ -251,14 +275,14 @@ export default function AdminExamCreatePage() {
               <textarea className="input min-h-20 resize-y" value={description} onChange={(event) => setDescription(event.target.value)} disabled={Boolean(createdExam)} />
             </label>
             <div className="mt-5 flex justify-end">
-              <button className="btn btn-primary btn-md" type="button" disabled={!title.trim() || !selectedBlueprint || Boolean(createdExam) || createMutation.isPending} onClick={() => createMutation.mutate()}>
+              <button className="btn btn-primary btn-md" type="button" disabled={!title.trim() || (creationMode === 'BLUEPRINT' && !selectedBlueprint) || Boolean(createdExam) || createMutation.isPending} onClick={() => createMutation.mutate()}>
                 {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FilePlus2 className="h-4 w-4" />}
-                Create draft shell
+                {creationMode === 'MANUAL' ? 'Tạo và chọn nội dung' : 'Create draft shell'}
               </button>
             </div>
           </section>
 
-          <section className="card p-5">
+          {creationMode === 'BLUEPRINT' && <section className="card p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
@@ -293,15 +317,15 @@ export default function AdminExamCreatePage() {
               </p>
             )}
             {formError && <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{formError}</p>}
-          </section>
+          </section>}
 
-          <section className="grid gap-6 xl:grid-cols-2">
+          {creationMode === 'BLUEPRINT' && <section className="grid gap-6 xl:grid-cols-2">
             <ReportPanel title="Availability" report={availability} shortages={availability?.shortages ?? []} />
             <ReportPanel title="Generation" report={generationResult} shortages={generationResult?.shortages ?? []} />
-          </section>
+          </section>}
         </div>
 
-        <aside className="space-y-6">
+        {creationMode === 'BLUEPRINT' ? <aside className="space-y-6">
           <section className="card p-5">
             <p className="text-sm font-semibold text-neutral-900">Generation controls</p>
             <label className="mt-4 block">
@@ -343,7 +367,7 @@ export default function AdminExamCreatePage() {
               <StateRow label="Preview ready" done={Boolean(preview)} />
             </div>
           </section>
-        </aside>
+        </aside> : <aside className="space-y-6"><section className="card p-5"><h2 className="font-semibold text-neutral-900">Quy trình thủ công</h2><ol className="mt-4 space-y-3 text-sm leading-6 text-neutral-600"><li>1. Nhập metadata và phạm vi bài thi.</li><li>2. Bấm “Tạo và chọn nội dung”.</li><li>3. Trong editor, thêm câu Toán hoặc bundle Đọc hiểu/Khoa học từ ngân hàng.</li><li>4. Sắp xếp, xem trước rồi publish.</li></ol></section></aside>}
       </section>
 
       {preview && <ExamPreviewModal preview={preview} onClose={() => setPreview(null)} />}
@@ -423,6 +447,18 @@ function selectBlueprintScope(
       0,
     ),
     sections,
+  };
+}
+
+function createManualBlueprint(sectionTypes: ExamSectionType[]): ExamBlueprint {
+  return {
+    version: 1,
+    durationMins: sectionTypes.reduce((total, section) => total + EXAM_SECTION_DURATION_MINS[section], 0),
+    sections: sectionTypes.map((sectionType) => ({
+      sectionType,
+      targetQuestionCount: sectionType === 'MATH' ? 1 : 0,
+      ...(sectionType === 'MATH' ? {} : { targetBundleCount: 1 }),
+    })),
   };
 }
 

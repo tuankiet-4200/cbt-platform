@@ -18,6 +18,53 @@ export class AnalyticsService {
     private readonly redis: RedisService,
   ) {}
 
+  async getHistory(userId: string, query: AnalyticsHistoryQueryDto) {
+    const where: Prisma.ExamAttemptWhereInput = {
+      userId,
+      status: SessionStatus.GRADED,
+      result: { isNot: null },
+    };
+    const [total, attempts] = await Promise.all([
+      this.prisma.examAttempt.count({ where }),
+      this.prisma.examAttempt.findMany({
+        where,
+        orderBy: { completedAt: 'desc' },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        select: {
+          id: true,
+          selectedSections: true,
+          startedAt: true,
+          completedAt: true,
+          exam: { select: { id: true, title: true } },
+          result: {
+            select: {
+              totalScore: true,
+              maxScore: true,
+              percentScore: true,
+              correctCount: true,
+              wrongCount: true,
+              skippedCount: true,
+              durationSecs: true,
+              sectionScores: true,
+              completedAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: attempts,
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+      },
+    };
+  }
+
   async getExamHistory(
     userId: string,
     examId: string,

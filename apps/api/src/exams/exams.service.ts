@@ -816,6 +816,72 @@ export class ExamsService {
     return this.getExamBuilder(examId);
   }
 
+  async addMathQuestion(examId: string, questionId: string) {
+    await this.assertExamExists(examId);
+    await this.prisma.$transaction(async (tx) => {
+      const [question, duplicate, last] = await Promise.all([
+        tx.question.findUnique({ where: { id: questionId }, include: { bundleQuestion: true } }),
+        tx.examMathQuestion.findUnique({ where: { examId_questionId: { examId, questionId } } }),
+        tx.examMathQuestion.findFirst({ where: { examId }, orderBy: { orderInSection: 'desc' }, select: { orderInSection: true } }),
+      ]);
+      if (!question) throw new NotFoundException('Question not found');
+      if (duplicate) throw new BadRequestException('Question is already in this exam');
+      if (question.status !== QuestionStatus.PUBLISHED || question.bundleQuestion) throw new BadRequestException('Only a published standalone MATH question can be added');
+      await tx.examMathQuestion.create({ data: { examId, questionId, orderInSection: (last?.orderInSection ?? -1) + 1, points: 1 } });
+      await this.recalculateExamTotalPoints(tx, examId);
+    });
+    return this.getExamBuilder(examId);
+  }
+
+  async removeMathQuestion(examId: string, questionId: string) {
+    await this.assertExamExists(examId);
+    await this.prisma.$transaction(async (tx) => {
+      const row = await tx.examMathQuestion.findUnique({ where: { examId_questionId: { examId, questionId } } });
+      if (!row) throw new NotFoundException('Question is not in this exam');
+      await tx.examMathQuestion.delete({ where: { id: row.id } });
+      const remaining = await tx.examMathQuestion.findMany({ where: { examId }, orderBy: { orderInSection: 'asc' } });
+      await Promise.all(remaining.map((item, index) => tx.examMathQuestion.update({ where: { id: item.id }, data: { orderInSection: -index - 1 } })));
+      await Promise.all(remaining.map((item, index) => tx.examMathQuestion.update({ where: { id: item.id }, data: { orderInSection: index } })));
+      await this.recalculateExamTotalPoints(tx, examId);
+    });
+    return this.getExamBuilder(examId);
+  }
+
+  async addPassageBundle(examId: string, sectionType: ExamSectionType, passageBundleId: string) {
+    await this.assertExamExists(examId);
+    if (sectionType === ExamSectionType.MATH) throw new BadRequestException('MATH does not use passage bundles');
+    await this.prisma.$transaction(async (tx) => {
+      const [bundle, duplicate, last] = await Promise.all([
+        tx.passageBundle.findUnique({ where: { id: passageBundleId }, include: { questions: true } }),
+        tx.examPassageBundle.findUnique({ where: { examId_passageBundleId: { examId, passageBundleId } } }),
+        tx.examPassageBundle.findFirst({ where: { examId, sectionType }, orderBy: { orderInSection: 'desc' }, select: { orderInSection: true } }),
+      ]);
+      if (!bundle) throw new NotFoundException('Passage bundle not found');
+      if (duplicate) throw new BadRequestException('Passage bundle is already in this exam');
+      if (bundle.status !== QuestionStatus.PUBLISHED || bundle.sectionType !== sectionType) throw new BadRequestException('Bundle must be published and belong to the selected section');
+      const expectedCount = sectionType === ExamSectionType.READING ? 10 : 5;
+      if (bundle.questions.length !== expectedCount) throw new BadRequestException(`Bundle must contain exactly ${expectedCount} questions`);
+      await tx.examPassageBundle.create({ data: { examId, passageBundleId, sectionType, orderInSection: (last?.orderInSection ?? -1) + 1 } });
+      await this.recalculateExamTotalPoints(tx, examId);
+    });
+    return this.getExamBuilder(examId);
+  }
+
+  async removePassageBundle(examId: string, sectionType: ExamSectionType, passageBundleId: string) {
+    await this.assertExamExists(examId);
+    if (sectionType === ExamSectionType.MATH) throw new BadRequestException('MATH does not use passage bundles');
+    await this.prisma.$transaction(async (tx) => {
+      const row = await tx.examPassageBundle.findFirst({ where: { examId, sectionType, passageBundleId } });
+      if (!row) throw new NotFoundException('Passage bundle is not in this exam section');
+      await tx.examPassageBundle.delete({ where: { id: row.id } });
+      const remaining = await tx.examPassageBundle.findMany({ where: { examId, sectionType }, orderBy: { orderInSection: 'asc' } });
+      await Promise.all(remaining.map((item, index) => tx.examPassageBundle.update({ where: { id: item.id }, data: { orderInSection: -index - 1 } })));
+      await Promise.all(remaining.map((item, index) => tx.examPassageBundle.update({ where: { id: item.id }, data: { orderInSection: index } })));
+      await this.recalculateExamTotalPoints(tx, examId);
+    });
+    return this.getExamBuilder(examId);
+  }
+
   async reorderPassageBundles(examId: string, sectionType: ExamSectionType, passageBundleIds: string[]) {
     await this.assertExamExists(examId);
     if (sectionType === ExamSectionType.MATH) {

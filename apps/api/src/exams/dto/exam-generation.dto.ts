@@ -178,3 +178,16 @@ export class ReplacePassageBundleDto {
   @IsString()
   replacementPassageBundleId!: string;
 }
+
+export class AddMathQuestionDto {
+  @IsString()
+  questionId!: string;
+}
+
+export class AddPassageBundleDto {
+  @IsEnum(ExamSectionType)
+  sectionType!: ExamSectionType;
+
+  @IsString()
+  passageBundleId!: string;
+}

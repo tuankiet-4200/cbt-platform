@@ -313,6 +313,26 @@ export async function reorderMathQuestions(id: string, questionIds: string[]) {
   return response.data.data;
 }
 
+export async function addMathQuestion(id: string, questionId: string) {
+  const response = await apiClient.post<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/math`, { questionId });
+  return response.data.data;
+}
+
+export async function removeMathQuestion(id: string, questionId: string) {
+  const response = await apiClient.delete<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/math/${questionId}`);
+  return response.data.data;
+}
+
+export async function addPassageBundle(id: string, payload: { sectionType: Exclude<ExamSectionType, 'MATH'>; passageBundleId: string }) {
+  const response = await apiClient.post<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/bundles`, payload);
+  return response.data.data;
+}
+
+export async function removePassageBundle(id: string, sectionType: Exclude<ExamSectionType, 'MATH'>, bundleId: string) {
+  const response = await apiClient.delete<ApiEnvelope<ExamBuilder>>(`/admin/exams/${id}/builder/bundles/${sectionType}/${bundleId}`);
+  return response.data.data;
+}
+
 export async function reorderPassageBundles(
   id: string,
   payload: { sectionType: Exclude<ExamSectionType, 'MATH'>; passageBundleIds: string[] },

@@ -39,11 +39,13 @@ export function QuestionRenderer({
   answer,
   onAnswer,
   shuffleSeed,
+  readOnly = false,
 }: {
   question: SessionQuestion;
   answer?: Answer;
   onAnswer: (answer: Answer) => void;
   shuffleSeed: string;
+  readOnly?: boolean;
 }) {
   const payload = question.content.payload;
   const orderedOptions = useMemo(() => {
@@ -87,6 +89,7 @@ export function QuestionRenderer({
                   inputMode="decimal"
                   value={String(value)}
                   onChange={(event) => setBlank(blankId, event.target.value)}
+                  readOnly={readOnly}
                   className="h-8 w-28 border-0 border-b-2 border-blue-400 bg-transparent px-2 text-center outline-none focus:border-blue-600"
                   aria-label={`Ô trả lời ${blankId}`}
                 />
@@ -106,6 +109,7 @@ export function QuestionRenderer({
               key={option.id}
               selected={answer?.selectedOptionId === option.id}
               onClick={() => onAnswer({ selectedOptionId: option.id })}
+              disabled={readOnly}
               content={option.content}
             />
           ))}
@@ -130,6 +134,7 @@ export function QuestionRenderer({
                       : [...selectedIds, option.id],
                   })
                 }
+                disabled={readOnly}
                 content={option.content}
               />
             );
@@ -174,11 +179,13 @@ export function QuestionRenderer({
                   selected={current === true}
                   onClick={() => setValue(true)}
                   label={`${statement.id} đúng`}
+                  disabled={readOnly}
                 />
                 <MatrixChoice
                   selected={current === false}
                   onClick={() => setValue(false)}
                   label={`${statement.id} sai`}
+                  disabled={readOnly}
                 />
               </div>
             );
@@ -187,17 +194,19 @@ export function QuestionRenderer({
       )}
 
       {question.type === 'DRAG_DROP' && (
-        <DragDropQuestion
-          items={items}
-          slots={slots}
-          value={
-            (answer?.slots as Array<{
-              slotId: string;
-              itemId: string;
-            }> | undefined) ?? []
-          }
-          onChange={(value) => onAnswer({ slots: value })}
-        />
+        <div className={readOnly ? 'pointer-events-none' : undefined} aria-disabled={readOnly}>
+          <DragDropQuestion
+            items={items}
+            slots={slots}
+            value={
+              (answer?.slots as Array<{
+                slotId: string;
+                itemId: string;
+              }> | undefined) ?? []
+            }
+            onChange={(value) => onAnswer({ slots: value })}
+          />
+        </div>
       )}
     </article>
   );
@@ -208,16 +217,19 @@ function AnswerOption({
   square,
   onClick,
   content,
+  disabled,
 }: {
   selected: boolean;
   square?: boolean;
   onClick: () => void;
   content: RichTextNode[];
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left text-sm leading-6 transition ${
         selected
           ? 'border-blue-400 bg-blue-50 text-blue-950'
@@ -244,16 +256,19 @@ function MatrixChoice({
   selected,
   onClick,
   label,
+  disabled,
 }: {
   selected: boolean;
   onClick: () => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
+      disabled={disabled}
       className="flex items-center justify-center border-l border-neutral-200"
     >
       <span

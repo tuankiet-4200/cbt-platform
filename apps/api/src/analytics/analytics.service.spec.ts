@@ -6,12 +6,15 @@ describe('AnalyticsService', () => {
   const resultFindMany = jest.fn();
   const examFindFirst = jest.fn();
   const userFindMany = jest.fn();
+  const attemptCount = jest.fn();
+  const attemptFindMany = jest.fn();
   const zrevrange = jest.fn();
   const zrevrank = jest.fn();
   const zscore = jest.fn();
   const prisma = {
     examResult: { findMany: resultFindMany },
     exam: { findFirst: examFindFirst },
+    examAttempt: { count: attemptCount, findMany: attemptFindMany },
     user: { findMany: userFindMany },
   } as unknown as PrismaService;
   const redis = {
@@ -23,6 +26,28 @@ describe('AnalyticsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('returns paginated history across all exams for the current user', async () => {
+    attemptCount.mockResolvedValue(1);
+    attemptFindMany.mockResolvedValue([
+      {
+        id: 'attempt-1',
+        selectedSections: ['MATH'],
+        exam: { id: 'exam-1', title: 'Đề Toán' },
+        result: { percentScore: 80 },
+      },
+    ]);
+
+    const result = await service.getHistory('user-1', { page: 1, limit: 10 });
+
+    expect(attemptFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: 'user-1' }),
+      skip: 0,
+      take: 10,
+    }));
+    expect(result.data[0]).toEqual(expect.objectContaining({ id: 'attempt-1' }));
+    expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
   });
 
   it('aggregates tag accuracy across recent attempts', async () => {

@@ -18,10 +18,13 @@ import {
   ShieldCheck,
   Shuffle,
   Trash2,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExamSectionType } from '../api/questionBank.api';
 import {
+  addMathQuestion,
+  addPassageBundle,
   deleteExam,
   getExamBuilder,
   listReplacementCandidates,
@@ -31,6 +34,8 @@ import {
   reorderPassageBundles,
   replaceMathQuestion,
   replacePassageBundle,
+  removeMathQuestion,
+  removePassageBundle,
   updateExamSettings,
   type ExamPreview,
   type ExamPreviewBundle,
@@ -81,6 +86,10 @@ export default function AdminExamBuilderPage() {
   });
 
   const builder = builderQuery.data;
+  const availableSections = useMemo(() => {
+    const configured = builder?.blueprintJson?.sections.map((item) => item.sectionType) ?? SECTIONS.map((item) => item.value);
+    return SECTIONS.filter((item) => configured.includes(item.value));
+  }, [builder?.blueprintJson]);
   const sectionIds = useMemo(() => getSectionIds(builder, activeSection), [activeSection, builder]);
   const hasMetadataChanges = useMemo(() => {
     if (!builder) return false;
@@ -92,6 +101,10 @@ export default function AdminExamBuilderPage() {
     setTitleDraft(builder.title);
     setDescriptionDraft(builder.description ?? '');
   }, [builder]);
+
+  useEffect(() => {
+    if (availableSections.length && !availableSections.some((item) => item.value === activeSection)) setActiveSection(availableSections[0].value);
+  }, [activeSection, availableSections]);
 
   const refreshBuilder = (nextBuilder: Awaited<ReturnType<typeof getExamBuilder>>) => {
     queryClient.setQueryData(['admin', 'exam-builder', examId], nextBuilder);
@@ -134,6 +147,26 @@ export default function AdminExamBuilderPage() {
       setActionError(null);
     },
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Khong replace duoc item.'),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (candidateId: string) => {
+      if (!examId) throw new Error('Missing exam id.');
+      if (activeSection === 'MATH') return addMathQuestion(examId, candidateId);
+      return addPassageBundle(examId, { sectionType: activeSection, passageBundleId: candidateId });
+    },
+    onSuccess: (result) => { refreshBuilder(result); setCandidateSearch(''); setActionError(null); },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Không thêm được nội dung.'),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: ({ section, id }: { section: BuilderSection; id: string }) => {
+      if (!examId) throw new Error('Missing exam id.');
+      if (section === 'MATH') return removeMathQuestion(examId, id);
+      return removePassageBundle(examId, section, id);
+    },
+    onSuccess: (result) => { refreshBuilder(result); setReplacementTarget(null); setActionError(null); },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Không xóa được nội dung.'),
   });
 
   const previewMutation = useMutation({
@@ -342,7 +375,7 @@ export default function AdminExamBuilderPage() {
         <div className="card overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-neutral-200 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="grid grid-cols-3 gap-2 rounded-lg border border-neutral-200 bg-white p-1">
-              {SECTIONS.map((section) => (
+              {availableSections.map((section) => (
                 <button
                   key={section.value}
                   type="button"
@@ -379,8 +412,9 @@ export default function AdminExamBuilderPage() {
                       <QuestionRow
                         key={question.id}
                         question={question}
-                  disabled={reorderMutation.isPending}
+                        disabled={reorderMutation.isPending || removeMutation.isPending}
                         onReplace={() => setReplacementTarget({ section: 'MATH', id: question.id, label: `M${question.order + 1}` })}
+                        onRemove={() => confirmIfPublished('Xóa câu hỏi này khỏi đề thi.', () => removeMutation.mutate({ section: 'MATH', id: question.id }))}
                       />
                     ))}
 
@@ -388,10 +422,16 @@ export default function AdminExamBuilderPage() {
                       <BundleRow
                         key={bundle.id}
                         bundle={bundle}
-                        disabled={reorderMutation.isPending}
+                        disabled={reorderMutation.isPending || removeMutation.isPending}
                         onReplace={() => setReplacementTarget({ section: activeSection, id: bundle.id, label: `${activeSection}-${bundle.order + 1}` })}
+                        onRemove={() => confirmIfPublished('Xóa bundle này khỏi đề thi.', () => removeMutation.mutate({ section: activeSection, id: bundle.id }))}
                       />
                     ))}
+                    {sectionIds.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">
+                        Phần thi chưa có nội dung. Chọn <strong>Add</strong> trong Content bank để thêm mục đầu tiên.
+                      </div>
+                    )}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -403,10 +443,10 @@ export default function AdminExamBuilderPage() {
           <section className="card p-5">
             <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
               <FileSearch className="h-4 w-4" />
-              Replacement bank
+              Content bank
             </div>
             <p className="mt-2 text-sm text-neutral-500">
-              {replacementTarget ? `Replacing ${replacementTarget.label}` : 'Select Replace on an item to target a slot.'}
+              {replacementTarget ? `Replacing ${replacementTarget.label}` : 'Chọn Add để thêm nội dung mới vào cuối phần thi.'}
             </p>
 
             <label className="relative mt-4 block">
@@ -424,8 +464,9 @@ export default function AdminExamBuilderPage() {
                 <CandidateCard
                   key={candidate.id}
                   candidate={candidate}
-                  disabled={!replacementTarget || replacementTarget.section !== activeSection || replaceMutation.isPending}
-                  onChoose={() => confirmIfPublished('Replacing items in a published exam changes the content students will see in future attempts and can affect score comparability.', () => replaceMutation.mutate(candidate.id))}
+                  actionLabel={replacementTarget ? 'Replace' : 'Add'}
+                  disabled={Boolean(replacementTarget && replacementTarget.section !== activeSection) || replaceMutation.isPending || addMutation.isPending}
+                  onChoose={() => confirmIfPublished(replacementTarget ? 'Replacing items in a published exam changes the content students will see in future attempts and can affect score comparability.' : 'Thêm nội dung vào đề thi.', () => replacementTarget ? replaceMutation.mutate(candidate.id) : addMutation.mutate(candidate.id))}
                 />
               ))}
               {!candidatesQuery.isLoading && candidates.length === 0 && (
@@ -476,10 +517,10 @@ export default function AdminExamBuilderPage() {
   );
 }
 
-function QuestionRow({ question, disabled, onReplace }: { question: ExamPreviewQuestion; disabled?: boolean; onReplace: () => void }) {
+function QuestionRow({ question, disabled, onReplace, onRemove }: { question: ExamPreviewQuestion; disabled?: boolean; onReplace: () => void; onRemove: () => void }) {
   return (
     <SortableRow id={question.id} disabled={disabled}>
-      <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-[4rem_minmax(0,1fr)_8rem] md:items-center">
+      <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-[4rem_minmax(0,1fr)_12rem] md:items-center">
         <div>
           <p className="text-xs font-semibold uppercase text-neutral-500">Order</p>
           <p className="font-bold text-neutral-900">M{question.order + 1}</p>
@@ -493,19 +534,16 @@ function QuestionRow({ question, disabled, onReplace }: { question: ExamPreviewQ
           <p className="mt-2 line-clamp-2 text-sm text-neutral-600">{question.snippet || 'No preview text'}</p>
           <TagLine tags={question.tags ?? []} />
         </div>
-        <button className="btn btn-secondary btn-sm" type="button" onClick={onReplace} disabled={disabled}>
-          <Shuffle className="h-4 w-4" />
-          Replace
-        </button>
+        <div className="flex gap-1"><button className="btn btn-secondary btn-sm" type="button" onClick={onReplace} disabled={disabled}><Shuffle className="h-4 w-4" />Replace</button><button className="btn btn-danger btn-sm px-2" type="button" onClick={onRemove} disabled={disabled} aria-label="Xóa câu hỏi"><Trash2 className="h-4 w-4" /></button></div>
       </div>
     </SortableRow>
   );
 }
 
-function BundleRow({ bundle, disabled, onReplace }: { bundle: ExamPreviewBundle; disabled?: boolean; onReplace: () => void }) {
+function BundleRow({ bundle, disabled, onReplace, onRemove }: { bundle: ExamPreviewBundle; disabled?: boolean; onReplace: () => void; onRemove: () => void }) {
   return (
     <SortableRow id={bundle.id} disabled={disabled}>
-      <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-[4rem_minmax(0,1fr)_8rem] md:items-center">
+      <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-[4rem_minmax(0,1fr)_12rem] md:items-center">
         <div>
           <p className="text-xs font-semibold uppercase text-neutral-500">Bundle</p>
           <p className="font-bold text-neutral-900">#{bundle.order + 1}</p>
@@ -518,10 +556,7 @@ function BundleRow({ bundle, disabled, onReplace }: { bundle: ExamPreviewBundle;
           <p className="mt-2 line-clamp-2 text-sm text-neutral-600">{bundle.snippet || 'No passage preview'}</p>
           <TagLine tags={bundle.tags} />
         </div>
-        <button className="btn btn-secondary btn-sm" type="button" onClick={onReplace} disabled={disabled}>
-          <Shuffle className="h-4 w-4" />
-          Replace
-        </button>
+        <div className="flex gap-1"><button className="btn btn-secondary btn-sm" type="button" onClick={onReplace} disabled={disabled}><Shuffle className="h-4 w-4" />Replace</button><button className="btn btn-danger btn-sm px-2" type="button" onClick={onRemove} disabled={disabled} aria-label="Xóa bundle"><Trash2 className="h-4 w-4" /></button></div>
       </div>
     </SortableRow>
   );
@@ -557,10 +592,12 @@ function CandidateCard({
   candidate,
   disabled,
   onChoose,
+  actionLabel,
 }: {
   candidate: ExamPreviewQuestion | (ExamPreviewBundle & { sectionType?: 'READING' | 'SCIENCE' });
   disabled?: boolean;
   onChoose: () => void;
+  actionLabel: 'Add' | 'Replace';
 }) {
   const isBundle = 'questions' in candidate;
   return (
@@ -571,7 +608,7 @@ function CandidateCard({
           <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{candidate.snippet || 'No preview text'}</p>
         </div>
         <button className="btn btn-secondary btn-sm shrink-0" type="button" onClick={onChoose} disabled={disabled}>
-          Use
+          {actionLabel === 'Add' && <Plus className="h-4 w-4" />}{actionLabel}
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

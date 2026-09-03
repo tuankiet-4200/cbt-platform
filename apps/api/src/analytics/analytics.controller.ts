@@ -10,6 +10,14 @@ import { AnalyticsHistoryQueryDto } from './dto/analytics-query.dto';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Get('history')
+  getHistory(
+    @Query() query: AnalyticsHistoryQueryDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.analyticsService.getHistory(user.id, query);
+  }
+
   @Get('exams/:examId')
   getExamHistory(
     @Param('examId') examId: string,

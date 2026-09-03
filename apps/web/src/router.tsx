@@ -16,6 +16,7 @@ const ExamSessionPage   = lazy(() => import('@/features/exam/pages/ExamSessionPa
 const ResultPage        = lazy(() => import('@/features/results/pages/ResultPage'));
 const ResultReviewPage  = lazy(() => import('@/features/results/pages/ResultReviewPage'));
 const ProfilePage       = lazy(() => import('@/features/profile/pages/ProfilePage'));
+const HistoryPage       = lazy(() => import('@/features/analytics/pages/HistoryPage'));
 // Admin
 const AdminDashboard    = lazy(() => import('@/features/admin/pages/AdminDashboard'));
 const AdminQuestionsPage = lazy(() => import('@/features/admin/pages/AdminQuestionsPage'));
@@ -57,7 +58,7 @@ export const router = createBrowserRouter([
           { path: '/exams',       element: withSuspense(ExamLibraryPage) },
           { path: '/exams/:id',   element: withSuspense(ExamDetailPage) },
           { path: '/results/:attemptId',        element: withSuspense(ResultPage) },
-          { path: '/results/:attemptId/review', element: withSuspense(ResultReviewPage) },
+          { path: '/history',     element: withSuspense(HistoryPage) },
           { path: '/analytics',   element: <Navigate to="/exams" replace /> },
           { path: '/profile',     element: withSuspense(ProfilePage) },
         ],
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
         element: <ExamLayout />,
         children: [
           { path: '/exam/attempt/:attemptId', element: withSuspense(ExamSessionPage) },
+          { path: '/results/:attemptId/review', element: withSuspense(ResultReviewPage) },
         ],
       },
 

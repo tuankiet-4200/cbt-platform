@@ -1,9 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { ExamSectionType, UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import {
+  AddMathQuestionDto,
+  AddPassageBundleDto,
   CheckBlueprintAvailabilityDto,
   CreateExamDto,
   GenerateExamDto,
@@ -89,6 +91,26 @@ export class ExamsController {
   @Patch(':id/builder/math/reorder')
   reorderMath(@Param('id') id: string, @Body() dto: ReorderMathQuestionsDto): Promise<unknown> {
     return this.examsService.reorderMathQuestions(id, dto.questionIds);
+  }
+
+  @Post(':id/builder/math')
+  addMath(@Param('id') id: string, @Body() dto: AddMathQuestionDto): Promise<unknown> {
+    return this.examsService.addMathQuestion(id, dto.questionId);
+  }
+
+  @Delete(':id/builder/math/:questionId')
+  removeMath(@Param('id') id: string, @Param('questionId') questionId: string): Promise<unknown> {
+    return this.examsService.removeMathQuestion(id, questionId);
+  }
+
+  @Post(':id/builder/bundles')
+  addBundle(@Param('id') id: string, @Body() dto: AddPassageBundleDto): Promise<unknown> {
+    return this.examsService.addPassageBundle(id, dto.sectionType, dto.passageBundleId);
+  }
+
+  @Delete(':id/builder/bundles/:sectionType/:bundleId')
+  removeBundle(@Param('id') id: string, @Param('sectionType') sectionType: ExamSectionType, @Param('bundleId') bundleId: string): Promise<unknown> {
+    return this.examsService.removePassageBundle(id, sectionType, bundleId);
   }
 
   @Patch(':id/builder/bundles/reorder')

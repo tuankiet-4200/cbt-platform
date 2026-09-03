@@ -36,6 +36,13 @@ export interface ExamHistory {
   };
 }
 
+export interface AttemptHistoryPage {
+  data: Array<Omit<ExamHistoryEntry, 'attemptNumber'> & {
+    exam: { id: string; title: string };
+  }>;
+  meta: ExamHistory['meta'];
+}
+
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
@@ -53,6 +60,14 @@ export interface Leaderboard {
 export async function getExamHistory(examId: string, page = 1) {
   const response = await apiClient.get<ExamHistory>(
     `/analytics/me/exams/${examId}`,
+    { params: { page, limit: 10 } },
+  );
+  return response.data;
+}
+
+export async function getAttemptHistory(page = 1) {
+  const response = await apiClient.get<AttemptHistoryPage>(
+    '/analytics/me/history',
     { params: { page, limit: 10 } },
   );
   return response.data;
