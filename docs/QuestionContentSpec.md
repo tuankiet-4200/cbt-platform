@@ -1,8 +1,8 @@
-# Question Content Specification v2.0
+# Question Content Specification v2.2
 
 > **Status:** APPROVED ✅  
 > **Agreed by:** Backend, Frontend  
-> **Last updated:** Sprint 1.1 (Rev 2)
+> **Last updated:** 2026-09-04
 
 Đây là **contract** định nghĩa format JSON lưu trữ trong cột `content_json` (JSONB) của bảng `questions`.  
 Frontend và Backend phải tuân thủ spec này. Mọi thay đổi phải được đồng thuận và cập nhật version.
@@ -17,7 +17,7 @@ interface QuestionContent {
   stem: RichTextNode[];
   
   /** Loại câu hỏi — xác định payload schema */
-  type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE_MATRIX' | 'DRAG_DROP' | 'FILL_NUMBER';
+  type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE_MATRIX' | 'DRAG_DROP' | 'FILL_NUMBER' | 'FILL_TEXT';
   
   /** Dữ liệu câu hỏi — schema phụ thuộc vào `type` */
   payload:
@@ -25,7 +25,8 @@ interface QuestionContent {
     | MultipleChoicePayload
     | TrueFalsePayload
     | DragDropPayload
-    | FillNumberPayload;
+    | FillNumberPayload
+    | FillTextPayload;
   
   /** Lời giải — tuỳ chọn, hiển thị sau khi chấm bài */
   solution?: RichTextNode[];
@@ -46,6 +47,7 @@ interface QuestionContent {
 | `TRUE_FALSE_MATRIX` | **All-or-nothing** — phải trả lời đúng TẤT CẢ các phát biểu |
 | `DRAG_DROP` | **All-or-nothing** — phải đặt đúng item vào TẤT CẢ các slot |
 | `FILL_NUMBER` | **Exact match** — giá trị nhập phải khớp CHÍNH XÁC với `correctValue` |
+| `FILL_TEXT` | **Normalized exact match** — chuẩn hóa Unicode NFC, khoảng trắng và mặc định không phân biệt hoa/thường; vẫn phân biệt dấu tiếng Việt |
 
 > **Lý do all-or-nothing:** Theo cấu trúc đề thi TSA thực tế, các câu hỏi dạng ma trận/kéo thả/điền là một "câu" thống nhất. Không có điểm thành phần.
 
@@ -335,6 +337,51 @@ Nếu **bất kỳ 1 ô nào sai** → toàn câu **0 điểm**.
 
 ---
 
+## Type 6: FILL_TEXT (Điền văn bản — All-or-Nothing)
+
+Một câu có thể có một hoặc nhiều ô trống. Mỗi `blankId` trong stem phải có đúng một đáp án trong payload.
+
+```typescript
+interface FillTextBlank {
+  id: string;
+  correctValue: string;
+  /** Mặc định false. Khi false, hệ thống không phân biệt chữ hoa/chữ thường. */
+  caseSensitive?: boolean;
+}
+
+interface FillTextPayload {
+  blanks: FillTextBlank[];
+}
+```
+
+Quy tắc chuẩn hóa trước khi so sánh:
+
+- Chuẩn hóa Unicode về NFC.
+- Xóa khoảng trắng đầu/cuối và gộp nhiều khoảng trắng liên tiếp thành một.
+- Mặc định không phân biệt chữ hoa/chữ thường theo locale tiếng Việt.
+- Dấu tiếng Việt vẫn phải chính xác.
+- Nếu bất kỳ ô nào sai hoặc bỏ trống, toàn câu được 0 điểm.
+
+```json
+{
+  "stem": [
+    {"type": "text", "content": "Tác giả Truyện Kiều là "},
+    {"type": "blank", "blankId": "B1"}
+  ],
+  "type": "FILL_TEXT",
+  "payload": {
+    "blanks": [
+      {"id": "B1", "correctValue": "Nguyễn Du", "caseSensitive": false}
+    ]
+  },
+  "_version": 2
+}
+```
+
+**Answer format:** `{ blanks: { blankId: string, value: string }[] }`
+
+---
+
 ## Passage (Bài dẫn — Đọc hiểu & Khoa học)
 
 Trong đề TSA, phần **Đọc hiểu** và **Khoa học** sử dụng giao diện **2 cột**:
@@ -391,6 +438,7 @@ P(θ) = c + (1-c) / (1 + e^(-a(θ-b)))
 | TRUE_FALSE_MATRIX | `{ "answers": [{"statementId": "S1", "value": true}, ...] }` |
 | DRAG_DROP | `{ "slots": [{"slotId": "slot1", "itemId": "I2"}, ...] }` |
 | FILL_NUMBER | `{ "blanks": [{"blankId": "B1", "value": 2}, {"blankId": "B2", "value": 1}] }` |
+| FILL_TEXT | `{ "blanks": [{"blankId": "B1", "value": "Nguyễn Du"}] }` |
 
 ---
 
@@ -417,3 +465,4 @@ interface SectionScore {
 | 1.0 | Sprint 1.1 | Initial spec — 4 question types |
 | 2.0 | Sprint 1.1 Rev2 | Add MULTIPLE_CHOICE; FILL_NUMBER → exact match (remove tolerance); TRUE_FALSE/DRAG_DROP → all-or-nothing; Add Passage concept; Add section score schema |
 | 2.1 | Sprint 1.1 Rev3 | FILL_NUMBER → multi-blank support (blanks[]) with all-or-nothing; blank RichTextNode adds blankId field |
+| 2.2 | 2026-09-04 | Add FILL_TEXT with Vietnamese-aware normalized exact matching and all-or-nothing grading |

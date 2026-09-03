@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (review navigator parity and admin exam edit access fixes completed)
+> **Last updated:** 2026-09-04 (admin content CRUD, Reading bundle compatibility, and FILL_TEXT completed)
 
 ### Active Sprint
-**Exam Session, Review, and Admin Editing UX Stabilization**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigation, live per-question timing, and admin edit access are corrected and production-build verified
+**Admin Content Authoring and Question Type Expansion**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — editor navigation/deletion, Reading bundle content compatibility, and FILL_TEXT are implemented and verified
 
 ### Sprint Progress Overview
 
@@ -171,6 +171,9 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigation, live pe
 15. [x] Tag Management module added: `/admin/tags` list with MATH/READING/SCIENCE tabs plus shared create/edit tag form pages
 16. [x] READING/SCIENCE bundle list omits empty status filter so "All status" shows seeded bundles correctly
 17. [x] Manual question editor uploads PNG/JPEG/WebP/SVG assets directly to Supabase using an explicit multipart request and inserts image nodes into stems, solutions, passages/stimuli, choice answers, matrix statements, and drag/drop content; edit/save round trips preserve existing images and upload errors expose the API validation message
+18. [x] Tag and question/bundle editors provide Back navigation and guarded Delete actions; used taxonomy/content returns a domain-level conflict instead of unsafe deletion
+19. [x] Reading/Science bundle passage writes normalize supported legacy paragraph/text/line-break nodes before canonical validation, resolving compatible `contentJson[0].type is invalid` payloads
+20. [x] Added FILL_TEXT authoring, rendering, validation, grading, answer extraction, blueprint selection, and bulk-import support with Vietnamese-aware normalized matching
 
 ---
 
@@ -417,9 +420,9 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigation, live pe
 11. [x] Add the API production build and frontend unit tests to CI.
 
 ### Audit Evidence
-- [x] PostgreSQL and Redis healthy; Prisma schema valid; all 10 migrations applied with no drift
+- [x] PostgreSQL and Redis healthy; Prisma schema valid; FILL_TEXT migration applied with no drift
 - [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
-- [x] 31/31 API unit tests and 6/6 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
+- [x] 35/35 API unit tests and 8/8 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -431,13 +434,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigation, live pe
 2. [x] Add direct image upload and lossless image-node editing to manual question authoring
 3. [x] Fix circular review navigation, unanswered-as-incorrect display, and live per-question elapsed timing
 4. [x] Allow manual, snapshot-only, generated, and empty exam shells to open the admin editor
-5. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-6. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-7. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-8. [ ] Complete section timeout retry for transient online failures
-9. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-10. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-11. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+5. [x] Add guarded tag/question/bundle deletion, Reading bundle legacy-node normalization, and the FILL_TEXT question type
+6. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+7. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+8. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+9. [ ] Complete section timeout retry for transient online failures
+10. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+11. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+12. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -455,7 +459,8 @@ These decisions are FINAL and must not be reversed without explicit user approva
 | `Question.authorId` | = person credited PUBLICLY (contributor's userId for community questions, not the admin's userId) |
 | `ContributionSubmission` | Community uploads PDF/DOCX only. Admin manually enters questions and sets `authorId = contributor.userId` |
 | `FILL_NUMBER` structure | Uses `blanks[]` array. **NO single `correctValue`**. **NO `tolerance`**. Exact match only. |
-| All-or-nothing grading | `MULTIPLE_CHOICE`, `TRUE_FALSE_MATRIX`, `DRAG_DROP`, `FILL_NUMBER` — partial credit forbidden |
+| `FILL_TEXT` structure | Uses `blanks[]` with string `correctValue`; Unicode/whitespace normalized, case-insensitive by default, Vietnamese diacritics preserved. |
+| All-or-nothing grading | `MULTIPLE_CHOICE`, `TRUE_FALSE_MATRIX`, `DRAG_DROP`, `FILL_NUMBER`, `FILL_TEXT` — partial credit forbidden |
 | Migration-only workflow | Never use `prisma db push`. Always `prisma migrate dev`. |
 
 ### Tech Choices
@@ -474,13 +479,14 @@ These decisions are FINAL and must not be reversed without explicit user approva
 | `prisma db push` | **FORBIDDEN** on this project |
 | **UI Mockup rule** | **Before coding UI**, ask the user for screenshots/mockups to replicate. If not provided, autonomously design using project CSS theme. |
 
-### Question Types (5 total, defined in QuestionContentSpec.md v2.1)
+### Question Types (6 total, defined in QuestionContentSpec.md v2.2)
 ```
 SINGLE_CHOICE     → 1 correct option, radio
 MULTIPLE_CHOICE   → N correct options, checkboxes, all-or-nothing
 TRUE_FALSE_MATRIX → Đúng/Sai per statement, all-or-nothing
 DRAG_DROP         → Items into slots, all-or-nothing
 FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
+FILL_TEXT         → Multiple text blanks[], Vietnamese-aware normalized match, all-or-nothing
 ```
 
 ---
@@ -491,7 +497,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 |------|---------|
 | `docs/PROJECT_CONTEXT.md` | **THIS FILE** — Live project state (read first, update last) |
 | `docs/execution_plan.md` | Full 5-month sprint plan with deliverables |
-| `docs/QuestionContentSpec.md` | Canonical question content schema v2.1 |
+| `docs/QuestionContentSpec.md` | Canonical question content schema v2.2 |
 | `docs/section-session-architecture.md` | Approved ExamAttempt + independently timed section-session architecture |
 | `docs/DEPLOY_UBUNTU_NGINX.md` | Production deployment, HTTPS, update, and backup runbook for the Ubuntu host |
 | `deploy/docker-compose.production.yml` | Production API/Web/PostgreSQL/Redis orchestration and migration gate |
@@ -506,7 +512,7 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 
 | Service | Container | Port | Status (as of last update) |
 |---------|-----------|------|--------------------------|
-| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — all 10 migrations applied; selected-section backfill verified by migration |
+| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — FILL_TEXT enum migration applied locally |
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |

@@ -86,7 +86,7 @@ export function QuestionRenderer({
               <span className="inline-flex items-center gap-1">
                 <input
                   type="text"
-                  inputMode="decimal"
+                  inputMode={question.type === 'FILL_NUMBER' ? 'decimal' : 'text'}
                   value={String(value)}
                   onChange={(event) => setBlank(blankId, event.target.value)}
                   readOnly={readOnly}

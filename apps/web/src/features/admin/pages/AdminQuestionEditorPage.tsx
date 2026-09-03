@@ -3,6 +3,8 @@ import type { Dispatch, ElementType, ReactNode, SetStateAction } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  AlertTriangle,
+  ArrowLeft,
   BookOpen,
   Check,
   Database,
@@ -25,6 +27,8 @@ import {
   bulkCreateQuestions,
   createPassageBundleWithQuestions,
   createQuestion,
+  deletePassageBundle,
+  deleteQuestion,
   getPassageBundle,
   getQuestion,
   listPassageBundles,
@@ -77,6 +81,12 @@ interface FillBlankState {
   unit: string;
 }
 
+interface FillTextBlankState {
+  id: string;
+  correctValue: string;
+  caseSensitive: boolean;
+}
+
 interface IrtState {
   a: number;
   b: number;
@@ -95,6 +105,7 @@ interface QuestionDraft {
   dragItems: DragItemState[];
   dragSlots: DragSlotState[];
   fillBlanks: FillBlankState[];
+  fillTextBlanks: FillTextBlankState[];
 }
 
 const SECTIONS: Array<{ value: SectionMode; label: string; icon: ElementType; description: string }> = [
@@ -109,6 +120,7 @@ const QUESTION_TYPES: Array<{ value: QuestionType; label: string }> = [
   { value: 'TRUE_FALSE_MATRIX', label: 'True/False matrix' },
   { value: 'DRAG_DROP', label: 'Drag drop' },
   { value: 'FILL_NUMBER', label: 'Fill number' },
+  { value: 'FILL_TEXT', label: 'Fill text' },
 ];
 
 const LEVELS: Array<{ value: CognitiveLevel; label: string }> = [
@@ -153,6 +165,7 @@ export default function AdminQuestionEditorPage() {
   const [bulkJson, setBulkJson] = useState('');
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [hydratedRecordId, setHydratedRecordId] = useState<string | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
   const tagsQuery = useQuery({
     queryKey: ['admin', 'tags', section],
@@ -271,6 +284,20 @@ export default function AdminQuestionEditorPage() {
       setBulkError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] });
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (params.questionId) return deleteQuestion(params.questionId);
+      if (params.bundleId) return deletePassageBundle(params.bundleId);
+      throw new Error('Không tìm thấy nội dung cần xóa.');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'passage-bundles'] });
+      navigate('/admin/questions');
+    },
+    onError: () => setDeleteConfirmationOpen(false),
   });
 
   const activeBundleDraft = bundleDrafts[activeBundleIndex] ?? bundleDrafts[0];
@@ -469,6 +496,10 @@ export default function AdminQuestionEditorPage() {
       )}
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
+          <button type="button" onClick={() => navigate('/admin/questions')} className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-primary-700">
+            <ArrowLeft className="h-4 w-4" />
+            Back to questions
+          </button>
           <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
             <Database className="h-4 w-4" />
             {isEditMode ? 'Edit Question Content' : 'Create Question Content'}
@@ -478,23 +509,31 @@ export default function AdminQuestionEditorPage() {
           </h1>
           <p className="mt-1 text-sm text-neutral-500">{sectionMeta.description}</p>
         </div>
-        <div className="grid gap-2 rounded-lg border border-neutral-200 bg-white p-2 sm:grid-cols-3">
-          {SECTIONS.map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => handleSectionChange(value)}
-              disabled={isEditMode}
-              className={cn(
-                'flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition',
-                section === value ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
-                isEditMode && section !== value && 'cursor-not-allowed opacity-50',
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
+        <div className="flex flex-col items-stretch gap-3 xl:items-end">
+          {isEditMode && (
+            <button type="button" className="btn btn-danger btn-sm self-end" onClick={() => setDeleteConfirmationOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              {params.bundleId ? 'Xóa bundle' : 'Xóa câu hỏi'}
             </button>
-          ))}
+          )}
+          <div className="grid gap-2 rounded-lg border border-neutral-200 bg-white p-2 sm:grid-cols-3">
+            {SECTIONS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleSectionChange(value)}
+                disabled={isEditMode}
+                className={cn(
+                  'flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition',
+                  section === value ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
+                  isEditMode && section !== value && 'cursor-not-allowed opacity-50',
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -534,7 +573,7 @@ export default function AdminQuestionEditorPage() {
                 <TagPicker title="Question tags" tags={tagTree} selectedIds={mathTagIds} onChange={setMathTagIds} />
               </div>
               <SubmitBar
-                error={formError ?? getErrorMessage(createMathMutation.error) ?? getErrorMessage(updateMathMutation.error)}
+                error={formError ?? getErrorMessage(createMathMutation.error) ?? getErrorMessage(updateMathMutation.error) ?? getErrorMessage(deleteMutation.error)}
                 isPending={createMathMutation.isPending || updateMathMutation.isPending}
                 onSubmit={isEditMode ? saveMathQuestion : createMathQuestion}
                 submitLabel={isEditMode ? 'Cập nhật câu hỏi MATH' : 'Lưu câu hỏi MATH'}
@@ -599,7 +638,7 @@ export default function AdminQuestionEditorPage() {
               </div>
 
               <SubmitBar
-                error={formError ?? getErrorMessage(createBundleMutation.error) ?? getErrorMessage(updateBundleMutation.error)}
+                error={formError ?? getErrorMessage(createBundleMutation.error) ?? getErrorMessage(updateBundleMutation.error) ?? getErrorMessage(deleteMutation.error)}
                 isPending={createBundleMutation.isPending || updateBundleMutation.isPending}
                 onSubmit={isEditMode ? saveBundle : createBundle}
                 submitLabel={isEditMode ? `Cập nhật ${section} bundle` : `Tạo ${section} bundle`}
@@ -663,6 +702,18 @@ export default function AdminQuestionEditorPage() {
           </p>
         )}
       </section>}
+
+      {deleteConfirmationOpen && (
+        <ConfirmDeleteModal
+          title={params.bundleId ? 'Xóa Reading/Science bundle?' : 'Xóa câu hỏi?'}
+          description={params.bundleId
+            ? 'Bundle và toàn bộ câu hỏi con sẽ bị xóa vĩnh viễn. Không thể xóa nếu bundle đang thuộc bất kỳ đề thi nào.'
+            : 'Câu hỏi sẽ bị xóa vĩnh viễn. Không thể xóa nếu câu hỏi đang thuộc bundle hoặc được sử dụng trong đề thi.'}
+          pending={deleteMutation.isPending}
+          onCancel={() => setDeleteConfirmationOpen(false)}
+          onConfirm={() => deleteMutation.mutate()}
+        />
+      )}
     </div>
   );
 }
@@ -819,6 +870,36 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
     );
   }
 
+  if (draft.type === 'FILL_TEXT') {
+    return (
+      <div className="space-y-3 border-t border-neutral-200 pt-5">
+        <SectionHeader
+          title="Text blanks"
+          addLabel="Add blank"
+          onAdd={() => {
+            const nextId = `B${draft.fillTextBlanks.length + 1}`;
+            patch({
+              fillTextBlanks: [...draft.fillTextBlanks, { id: nextId, correctValue: '', caseSensitive: false }],
+              stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${nextId}}}`,
+            });
+          }}
+        />
+        {draft.fillTextBlanks.map((blank, index) => (
+          <div key={blank.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_9rem_8rem_2.25rem]">
+            <input className="input" value={blank.id} disabled />
+            <input className="input" type="text" value={blank.correctValue} placeholder="Đáp án tiếng Việt" onChange={(event) => updateTextBlank(index, { correctValue: event.target.value })} />
+            <label className="flex items-center justify-center gap-2 rounded-lg border border-neutral-200 px-2 text-xs text-neutral-700">
+              <input type="checkbox" checked={blank.caseSensitive} onChange={(event) => updateTextBlank(index, { caseSensitive: event.target.checked })} />
+              Phân biệt hoa/thường
+            </label>
+            <button className="btn btn-secondary btn-sm" type="button" onClick={() => patch({ stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${blank.id}}}` })}>Insert</button>
+            <IconButton disabled={draft.fillTextBlanks.length <= 1} label="Remove blank" onClick={() => patch({ fillTextBlanks: draft.fillTextBlanks.filter((_, itemIndex) => itemIndex !== index) })} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 border-t border-neutral-200 pt-5">
       <SectionHeader
@@ -858,6 +939,9 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
   }
   function updateBlank(index: number, value: Partial<FillBlankState>) {
     patch({ fillBlanks: draft.fillBlanks.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
+  }
+  function updateTextBlank(index: number, value: Partial<FillTextBlankState>) {
+    patch({ fillTextBlanks: draft.fillTextBlanks.map((item, itemIndex) => itemIndex === index ? { ...item, ...value } : item) });
   }
 }
 
@@ -1170,6 +1254,7 @@ function createQuestionDraft(): QuestionDraft {
       { id: 'slot2', label: 'Slot 2', correctItemId: 'I2' },
     ],
     fillBlanks: [{ id: 'B1', correctValue: 0, unit: '' }],
+    fillTextBlanks: [{ id: 'B1', correctValue: '', caseSensitive: false }],
   };
 }
 
@@ -1244,12 +1329,24 @@ function draftFromQuestion(question: AdminQuestion): QuestionDraft {
     });
   }
 
+  if (question.type === 'FILL_TEXT') {
+    const blanks = Array.isArray(payload.blanks) ? payload.blanks : [];
+    draft.fillTextBlanks = blanks.map((blank, index) => {
+      const value = blank as { id?: string; correctValue?: string; caseSensitive?: boolean };
+      return {
+        id: value.id ?? `B${index + 1}`,
+        correctValue: value.correctValue ?? '',
+        caseSensitive: Boolean(value.caseSensitive),
+      };
+    });
+  }
+
   return draft;
 }
 
 function buildQuestionContent(draft: QuestionDraft): CreateQuestionPayload['contentJson'] {
   const content: CreateQuestionPayload['contentJson'] = {
-    stem: parseRichText(draft.stem, draft.type === 'FILL_NUMBER'),
+    stem: parseRichText(draft.stem, draft.type === 'FILL_NUMBER' || draft.type === 'FILL_TEXT'),
     type: draft.type,
     payload: {},
     _version: 2,
@@ -1277,12 +1374,20 @@ function buildQuestionContent(draft: QuestionDraft): CreateQuestionPayload['cont
       items: draft.dragItems.map((item) => ({ id: item.id, content: parseRichText(item.content || item.id) })),
       slots: draft.dragSlots.map((slot) => ({ id: slot.id, label: parseRichText(slot.label || slot.id), correctItemId: slot.correctItemId })),
     };
-  } else {
+  } else if (draft.type === 'FILL_NUMBER') {
     content.payload = {
       blanks: draft.fillBlanks.map((blank) => ({
         id: blank.id,
         correctValue: blank.correctValue,
         ...(blank.unit ? { unit: blank.unit } : {}),
+      })),
+    };
+  } else {
+    content.payload = {
+      blanks: draft.fillTextBlanks.map((blank) => ({
+        id: blank.id,
+        correctValue: blank.correctValue.trim(),
+        ...(blank.caseSensitive ? { caseSensitive: true } : {}),
       })),
     };
   }
@@ -1300,11 +1405,16 @@ function validateQuestionDraft(content: CreateQuestionPayload['contentJson']) {
     if (content.type === 'SINGLE_CHOICE' && correctCount !== 1) return 'Single choice cần đúng 1 đáp án đúng.';
     if (content.type === 'MULTIPLE_CHOICE' && correctCount < 1) return 'Multiple choice cần ít nhất 1 đáp án đúng.';
   }
-  if (content.type === 'FILL_NUMBER') {
+  if (content.type === 'FILL_NUMBER' || content.type === 'FILL_TEXT') {
     const blankIds = new Set(content.stem.filter((node) => node.type === 'blank').map((node) => node.blankId));
     const blanks = (content.payload.blanks as Array<{ id: string }> | undefined) ?? [];
     const missing = blanks.find((blank) => !blankIds.has(blank.id));
     if (missing) return `Stem cần chứa token {{${missing.id}}} cho blank ${missing.id}.`;
+    if (blankIds.size !== blanks.length) return 'Mỗi blank trong stem cần đúng một đáp án.';
+    if (content.type === 'FILL_TEXT') {
+      const textBlanks = (content.payload.blanks as Array<{ correctValue: string }> | undefined) ?? [];
+      if (textBlanks.some((blank) => !blank.correctValue.trim())) return 'Đáp án Fill text không được để trống.';
+    }
   }
   return null;
 }
@@ -1333,9 +1443,10 @@ function payloadPreview(draft: QuestionDraft) {
       { type: 'break' } satisfies RichTextNode,
     ]);
   }
-  return draft.fillBlanks.flatMap((blank) => [
+  const blanks = draft.type === 'FILL_TEXT' ? draft.fillTextBlanks : draft.fillBlanks;
+  return blanks.flatMap((blank) => [
     { type: 'bold', content: `${blank.id}: ` } satisfies RichTextNode,
-    { type: 'text', content: `${blank.correctValue}${blank.unit ? ` ${blank.unit}` : ''}` } satisfies RichTextNode,
+    { type: 'text', content: `${blank.correctValue}${'unit' in blank && blank.unit ? ` ${blank.unit}` : ''}` } satisfies RichTextNode,
     { type: 'break' } satisfies RichTextNode,
   ]);
 }
@@ -1366,4 +1477,29 @@ function getErrorMessage(error: unknown) {
   }
   if (error instanceof Error) return error.message;
   return null;
+}
+
+function ConfirmDeleteModal({ title, description, pending, onCancel, onConfirm }: { title: string; description: string; pending: boolean; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-neutral-950/45 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+        <div className="flex items-start gap-3 border-b border-neutral-200 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-danger-50 text-danger-700">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-bold text-neutral-900">{title}</h2>
+            <p className="mt-1 text-sm leading-6 text-neutral-600">{description}</p>
+          </div>
+        </div>
+        <footer className="flex justify-end gap-2 p-4">
+          <button type="button" className="btn btn-secondary btn-md" disabled={pending} onClick={onCancel}>Hủy</button>
+          <button type="button" className="btn btn-danger btn-md" disabled={pending} onClick={onConfirm}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Xóa
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
 }

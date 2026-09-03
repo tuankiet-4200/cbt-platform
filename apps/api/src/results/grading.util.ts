@@ -106,6 +106,26 @@ export function gradeQuestion(
         })
       );
     }
+    case QuestionType.FILL_TEXT: {
+      const blanks = asArray(payload.blanks).map(asRecord).filter(isPresent);
+      const submitted = new Map(
+        asArray(answer.blanks)
+          .map(asRecord)
+          .filter(isPresent)
+          .filter((item) => typeof item.blankId === 'string')
+          .map((item) => [item.blankId as string, item.value]),
+      );
+      return (
+        blanks.length > 0 &&
+        blanks.every((blank) => {
+          if (typeof blank.id !== 'string' || typeof blank.correctValue !== 'string') return false;
+          const submittedValue = submitted.get(blank.id);
+          if (typeof submittedValue !== 'string') return false;
+          return normalizeTextAnswer(submittedValue, blank.caseSensitive === true) ===
+            normalizeTextAnswer(blank.correctValue, blank.caseSensitive === true);
+        })
+      );
+    }
   }
 }
 
@@ -165,6 +185,16 @@ export function extractCorrectAnswer(
                 : 0,
           })),
       };
+    case QuestionType.FILL_TEXT:
+      return {
+        blanks: asArray(payload.blanks)
+          .map(asRecord)
+          .filter(isPresent)
+          .map((blank) => ({
+            blankId: String(blank.id ?? ''),
+            value: typeof blank.correctValue === 'string' ? blank.correctValue : '',
+          })),
+      };
   }
 }
 
@@ -198,4 +228,9 @@ function parseExactNumber(value: Prisma.JsonValue | undefined): number | null {
   if (typeof value !== 'string' || value.trim() === '') return null;
   const parsed = Number.parseFloat(value.replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeTextAnswer(value: string, caseSensitive: boolean) {
+  const normalized = value.normalize('NFC').trim().replace(/\s+/g, ' ');
+  return caseSensitive ? normalized : normalized.toLocaleLowerCase('vi-VN');
 }

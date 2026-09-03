@@ -5,7 +5,8 @@ export type QuestionType =
   | 'MULTIPLE_CHOICE'
   | 'TRUE_FALSE_MATRIX'
   | 'DRAG_DROP'
-  | 'FILL_NUMBER';
+  | 'FILL_NUMBER'
+  | 'FILL_TEXT';
 
 export type QuestionStatus = 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'ARCHIVED';
 export type CognitiveLevel = 'RECOGNITION' | 'COMPREHENSION' | 'APPLICATION' | 'HIGH_APPLICATION';
@@ -199,6 +200,10 @@ export async function updateTag(id: string, payload: UpsertTagPayload) {
   return response.data.data;
 }
 
+export async function deleteTag(id: string) {
+  await apiClient.delete(`/admin/tags/${id}`);
+}
+
 export async function createQuestion(payload: CreateQuestionPayload) {
   const response = await apiClient.post<ApiEnvelope<AdminQuestion>>('/admin/questions', payload);
   return response.data.data;
@@ -212,6 +217,10 @@ export async function getQuestion(id: string) {
 export async function updateQuestion(id: string, payload: UpdateQuestionPayload) {
   const response = await apiClient.patch<ApiEnvelope<AdminQuestion>>(`/admin/questions/${id}`, payload);
   return response.data.data;
+}
+
+export async function deleteQuestion(id: string) {
+  await apiClient.delete(`/admin/questions/${id}`);
 }
 
 export async function bulkCreateQuestions(questions: CreateQuestionPayload[]) {
@@ -268,4 +277,8 @@ export async function getPassageBundle(id: string) {
 export async function updatePassageBundle(id: string, payload: UpdatePassageBundlePayload) {
   const response = await apiClient.patch<ApiEnvelope<PassageBundle>>(`/admin/passage-bundles/${id}`, payload);
   return response.data.data;
+}
+
+export async function deletePassageBundle(id: string) {
+  await apiClient.delete(`/admin/passage-bundles/${id}`);
 }

@@ -46,6 +46,7 @@ enum QuestionType {
   TRUE_FALSE_MATRIX // Table with statements — Đúng/Sai per row (all-or-nothing)
   DRAG_DROP // Drag items into target slots (all-or-nothing)
   FILL_NUMBER // Numeric input blanks — exact match, all blanks must be correct (all-or-nothing)
+  FILL_TEXT // Text input blanks — normalized exact match, all blanks must be correct (all-or-nothing)
 }
 
 /// TSA Exam section type — determines layout and score grouping
@@ -233,7 +234,7 @@ model Question {
   status QuestionStatus @default(DRAFT)
   level  CognitiveLevel @default(RECOGNITION)
 
-  /// Full question content stored as JSONB (see QuestionContentSpec.md v2.1)
+  /// Full question content stored as JSONB (see QuestionContentSpec.md v2.2)
   contentJson Json @map("content_json") @db.JsonB
 
   /// IRT 3PL parameters: { a, b, c }
@@ -597,6 +598,7 @@ model SessionAnswer {
   /// TRUE_FALSE_MATRIX: { answers: { statementId: string, value: boolean }[] }
   /// DRAG_DROP:         { slots: { slotId: string, itemId: string }[] }
   /// FILL_NUMBER:       { blanks: { blankId: string, value: number }[] }
+  /// FILL_TEXT:         { blanks: { blankId: string, value: string }[] }
   answerJson Json? @map("answer_json") @db.JsonB
 
   isCorrect    Boolean? @map("is_correct") // null until graded

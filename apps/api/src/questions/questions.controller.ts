@@ -49,6 +49,11 @@ export class QuestionsController {
     return this.questionsService.updateTag(id, dto);
   }
 
+  @Delete('tags/:id')
+  deleteTag(@Param('id') id: string) {
+    return this.questionsService.deleteTag(id);
+  }
+
   @Post('questions')
   createQuestion(@Body() dto: CreateQuestionDto, @CurrentUser() user: User) {
     return this.questionsService.createQuestion(dto, user);
@@ -119,5 +124,10 @@ export class QuestionsController {
   @Patch('passage-bundles/:id')
   updatePassageBundle(@Param('id') id: string, @Body() dto: UpdatePassageBundleDto) {
     return this.questionsService.updatePassageBundle(id, dto);
+  }
+
+  @Delete('passage-bundles/:id')
+  deletePassageBundle(@Param('id') id: string) {
+    return this.questionsService.deletePassageBundle(id);
   }
 }

@@ -64,7 +64,7 @@
 - [ ] **Question Content Validation (class-validator):** Zod/class-validator DTO cho toàn bộ `contentJson` — match chính xác [QuestionContentSpec.md v2.1](./QuestionContentSpec.md):
   ```typescript
   // 5 types hiện tại:
-  type QuestionType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE_MATRIX' | 'DRAG_DROP' | 'FILL_NUMBER';
+  type QuestionType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE_MATRIX' | 'DRAG_DROP' | 'FILL_NUMBER' | 'FILL_TEXT';
   // FILL_NUMBER dùng blanks[] array — KHÔNG phải correctValue đơn lẻ
   // Không có tolerance — exact numeric match
   ```
@@ -124,7 +124,7 @@
 - [x] **Admin Dashboard Layout:** Sidebar navigation: Unified Question Content, Contributions, Exams, Users, Access Codes, Analytics.
 - [x] **Question List Page:** DataTable với filter panel. Pagination. Bulk select + action (Archive, Publish).
 - [x] **Question Detail / Create Form:**
-  - Dynamic form: dropdown chọn `type` → render phần payload tương ứng (choices cho SINGLE/MULTIPLE, statements cho TRUE_FALSE, items+slots cho DRAG_DROP, blanks[] cho FILL_NUMBER).
+  - Dynamic form: dropdown chọn `type` → render phần payload tương ứng (choices cho SINGLE/MULTIPLE, statements cho TRUE_FALSE, items+slots cho DRAG_DROP, blanks[] cho FILL_NUMBER/FILL_TEXT).
   - LaTeX preview real-time (dùng `react-katex` + `<MathRenderer/>`).
   - IRT params input với tooltip giải thích ý nghĩa a/b/c.
   - Tag selector (multi-select với tree search).
@@ -232,6 +232,7 @@
     - `TRUE_FALSE_MATRIX`: `statements.every(s => answer[s.id] === s.isTrue)` — **all-or-nothing**
     - `DRAG_DROP`: `slots.every(s => answer.slots[s.id] === s.correctItemId)` — **all-or-nothing**
     - `FILL_NUMBER`: `blanks.every(b => parseFloat(answer.blanks[b.id]) === b.correctValue)` — **exact match, all-or-nothing**
+    - `FILL_TEXT`: normalized Unicode/whitespace match with optional case sensitivity — **all-or-nothing**
   - Tính `sectionScores[]` (MATH/READING/SCIENCE) — lưu vào `ExamResult.sectionScores` JSONB.
   - Lưu `ExamResult` (totalScore, maxScore, percentScore, correctCount, wrongCount, skippedCount, durationSecs).
   - Lưu chi tiết `SessionAnswer` (isCorrect, pointsEarned, timeSpentMs).

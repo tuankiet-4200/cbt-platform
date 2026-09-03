@@ -14,6 +14,7 @@ import {
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { paginate } from '@/common/dto/pagination.dto';
 import {
+  normalizeRichTextArray,
   validateIrtParams,
   validateQuestionContent,
   validateRichTextArray,
@@ -164,6 +165,25 @@ export class QuestionsService {
     }
   }
 
+  async deleteTag(id: string) {
+    const tag = await this.prisma.tag.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        _count: { select: { children: true, questions: true, bundles: true } },
+      },
+    });
+    if (!tag) throw new NotFoundException('Tag not found');
+    if (tag._count.children > 0) {
+      throw new ConflictException('Cannot delete a tag that still has child tags');
+    }
+    if (tag._count.questions > 0 || tag._count.bundles > 0) {
+      throw new ConflictException('Cannot delete a tag that is still assigned to questions or passage bundles');
+    }
+    await this.prisma.tag.delete({ where: { id } });
+    return { ok: true };
+  }
+
   async createQuestion(dto: CreateQuestionDto, currentUser: User) {
     return this.createQuestionRecord(dto, currentUser);
   }
@@ -292,9 +312,16 @@ export class QuestionsService {
   async deleteQuestion(id: string) {
     const existing = await this.prisma.question.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        bundleQuestion: { select: { bundleId: true } },
+        mathExamItems: { take: 1, select: { examId: true } },
+      },
     });
     if (!existing) throw new NotFoundException('Question not found');
+    if (existing.bundleQuestion || existing.mathExamItems.length > 0) {
+      throw new ConflictException('Cannot delete a question that belongs to a passage bundle or exam');
+    }
     await this.assertQuestionContentMutable(id);
     await this.prisma.question.delete({ where: { id } });
     return { ok: true };
@@ -339,13 +366,14 @@ export class QuestionsService {
 
   async createPassageBundle(dto: CreatePassageBundleDto, currentUser: User) {
     this.validateBundle(dto.sectionType, dto.questions);
-    validateRichTextArray(dto.contentJson, 'contentJson');
+    const contentJson = normalizeRichTextArray(dto.contentJson);
+    validateRichTextArray(contentJson, 'contentJson');
 
     return this.prisma.passageBundle.create({
       data: {
         sectionType: dto.sectionType,
         title: dto.title,
-        contentJson: dto.contentJson as Prisma.InputJsonValue,
+        contentJson: contentJson as Prisma.InputJsonValue,
         expectedTimeSecs: dto.expectedTimeSecs,
         status: dto.status ?? QuestionStatus.DRAFT,
         authorId: dto.authorId ?? currentUser.id,
@@ -373,7 +401,8 @@ export class QuestionsService {
     currentUser: User,
   ) {
     this.validateBundleCount(dto.sectionType, dto.questions.length);
-    validateRichTextArray(dto.contentJson, 'contentJson');
+    const contentJson = normalizeRichTextArray(dto.contentJson);
+    validateRichTextArray(contentJson, 'contentJson');
 
     return this.prisma.$transaction(async (tx) => {
       const createdQuestions = [];
@@ -396,7 +425,7 @@ export class QuestionsService {
         data: {
           sectionType: dto.sectionType,
           title: dto.title,
-          contentJson: dto.contentJson as Prisma.InputJsonValue,
+          contentJson: contentJson as Prisma.InputJsonValue,
           expectedTimeSecs: dto.expectedTimeSecs,
           status: dto.status ?? QuestionStatus.DRAFT,
           authorId: dto.authorId ?? currentUser.id,
@@ -460,6 +489,7 @@ export class QuestionsService {
       this.validateBundle(existing.sectionType, dto.questions);
     }
     if (dto.contentJson !== undefined) {
+      dto.contentJson = normalizeRichTextArray(dto.contentJson) as unknown[];
       validateRichTextArray(dto.contentJson, 'contentJson');
     }
 
@@ -499,6 +529,30 @@ export class QuestionsService {
         include: this.bundleInclude(),
       });
     });
+  }
+
+  async deletePassageBundle(id: string) {
+    const existing = await this.prisma.passageBundle.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        questions: { select: { questionId: true } },
+        examItems: { take: 1, select: { examId: true } },
+      },
+    });
+    if (!existing) throw new NotFoundException('Passage bundle not found');
+    if (existing.examItems.length > 0) {
+      throw new ConflictException('Cannot delete a passage bundle that belongs to an exam');
+    }
+    await this.assertBundleContentMutable(id);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.passageBundle.delete({ where: { id } });
+      await tx.question.deleteMany({
+        where: { id: { in: existing.questions.map((item) => item.questionId) } },
+      });
+    });
+    return { ok: true };
   }
 
   private validateBundle(

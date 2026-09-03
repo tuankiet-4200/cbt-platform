@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, Check, FlaskConical, Loader2, Sigma, Tags } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BookOpen, Check, FlaskConical, Loader2, Sigma, Tags, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
 import {
   createTag,
+  deleteTag,
   getTag,
   listTags,
   updateTag,
@@ -45,6 +47,7 @@ export default function AdminTagEditorPage() {
   }));
   const [hasEditedSlug, setHasEditedSlug] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
   const tagQuery = useQuery({
     queryKey: ['admin', 'tags', params.tagId],
@@ -89,6 +92,15 @@ export default function AdminTagEditorPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] });
       navigate('/admin/tags');
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteTag(params.tagId ?? ''),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] });
+      navigate('/admin/tags');
+    },
+    onError: () => setDeleteConfirmationOpen(false),
   });
 
   const sectionMeta = SECTIONS.find((item) => item.value === form.sectionType) ?? SECTIONS[0];
@@ -139,6 +151,10 @@ export default function AdminTagEditorPage() {
 
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
+          <button type="button" onClick={() => navigate('/admin/tags')} className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-primary-700">
+            <ArrowLeft className="h-4 w-4" />
+            Back to tags
+          </button>
           <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
             <Tags className="h-4 w-4" />
             {isEditMode ? 'Edit Tag' : 'Create Tag'}
@@ -146,8 +162,15 @@ export default function AdminTagEditorPage() {
           <h1 className="mt-2 text-2xl font-bold text-neutral-900">{isEditMode ? 'Chỉnh sửa tag' : 'Tạo tag'}</h1>
           <p className="mt-1 text-sm text-neutral-500">{sectionMeta.description}</p>
         </div>
-        <div className="grid gap-2 rounded-lg border border-neutral-200 bg-white p-2 sm:grid-cols-3">
-          {SECTIONS.map(({ value, label, icon: Icon }) => (
+        <div className="flex flex-col items-stretch gap-3 xl:items-end">
+          {isEditMode && (
+            <button type="button" className="btn btn-danger btn-sm self-end" onClick={() => setDeleteConfirmationOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              Xóa tag
+            </button>
+          )}
+          <div className="grid gap-2 rounded-lg border border-neutral-200 bg-white p-2 sm:grid-cols-3">
+            {SECTIONS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               type="button"
@@ -162,7 +185,8 @@ export default function AdminTagEditorPage() {
               <Icon className="h-4 w-4" />
               {label}
             </button>
-          ))}
+            ))}
+          </div>
         </div>
       </header>
 
@@ -170,7 +194,7 @@ export default function AdminTagEditorPage() {
         <TagForm
           form={form}
           parentOptions={parentOptions}
-          error={formError ?? getErrorMessage(createMutation.error) ?? getErrorMessage(updateMutation.error)}
+          error={formError ?? getErrorMessage(createMutation.error) ?? getErrorMessage(updateMutation.error) ?? getErrorMessage(deleteMutation.error)}
           isPending={createMutation.isPending || updateMutation.isPending}
           onNameChange={handleNameChange}
           onSlugChange={(slug) => {
@@ -194,6 +218,14 @@ export default function AdminTagEditorPage() {
           </div>
         </aside>
       </section>
+
+      {deleteConfirmationOpen && (
+        <ConfirmTagDeleteModal
+          pending={deleteMutation.isPending}
+          onCancel={() => setDeleteConfirmationOpen(false)}
+          onConfirm={() => deleteMutation.mutate()}
+        />
+      )}
     </div>
   );
 }
@@ -308,6 +340,28 @@ function slugify(value: string) {
 }
 
 function getErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const response = error.response?.data as { message?: string | string[] } | undefined;
+    if (Array.isArray(response?.message)) return response.message.join(', ');
+    if (response?.message) return response.message;
+  }
   if (error instanceof Error) return error.message;
   return null;
+}
+
+function ConfirmTagDeleteModal({ pending, onCancel, onConfirm }: { pending: boolean; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-neutral-950/45 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+        <div className="flex items-start gap-3 border-b border-neutral-200 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-danger-50 text-danger-700"><AlertTriangle className="h-5 w-5" /></div>
+          <div><h2 className="font-bold text-neutral-900">Xóa tag?</h2><p className="mt-1 text-sm leading-6 text-neutral-600">Tag chỉ có thể xóa khi không còn tag con và chưa được gắn vào câu hỏi hoặc bundle.</p></div>
+        </div>
+        <footer className="flex justify-end gap-2 p-4">
+          <button type="button" className="btn btn-secondary btn-md" disabled={pending} onClick={onCancel}>Hủy</button>
+          <button type="button" className="btn btn-danger btn-md" disabled={pending} onClick={onConfirm}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}Xóa tag</button>
+        </footer>
+      </div>
+    </div>
+  );
 }

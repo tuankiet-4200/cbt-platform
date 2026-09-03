@@ -18,7 +18,7 @@ interface FlatTagOption {
 
 const SECTIONS: ExamSectionType[] = ['MATH', 'READING', 'SCIENCE'];
 const LEVELS: CognitiveLevel[] = ['RECOGNITION', 'COMPREHENSION', 'APPLICATION', 'HIGH_APPLICATION'];
-const QUESTION_TYPES: QuestionType[] = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE_MATRIX', 'DRAG_DROP', 'FILL_NUMBER'];
+const QUESTION_TYPES: QuestionType[] = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE_MATRIX', 'DRAG_DROP', 'FILL_NUMBER', 'FILL_TEXT'];
 
 interface BlueprintFormBuilderProps {
   blueprint: ExamBlueprint;

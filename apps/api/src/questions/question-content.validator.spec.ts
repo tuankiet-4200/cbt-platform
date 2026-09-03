@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { QuestionType } from '@prisma/client';
-import { validateQuestionContent } from './question-content.validator';
+import { normalizeRichTextArray, validateQuestionContent, validateRichTextArray } from './question-content.validator';
 
 describe('question content validation', () => {
   it('accepts a complete multi-blank FILL_NUMBER payload', () => {
@@ -90,5 +90,38 @@ describe('question content validation', () => {
         'payload.displayOrder must be original or shuffle',
       ),
     );
+  });
+
+  it('accepts FILL_TEXT blanks with Vietnamese answers', () => {
+    expect(
+      validateQuestionContent(
+        {
+          _version: 2,
+          type: QuestionType.FILL_TEXT,
+          stem: [
+            { type: 'text', content: 'Tác giả là ' },
+            { type: 'blank', blankId: 'B1' },
+          ],
+          payload: {
+            blanks: [{ id: 'B1', correctValue: 'Nguyễn Du', caseSensitive: false }],
+          },
+        },
+        QuestionType.FILL_TEXT,
+      ),
+    ).toBeDefined();
+  });
+
+  it('normalizes legacy passage nodes before validating a bundle', () => {
+    const normalized = normalizeRichTextArray([
+      { type: 'paragraph', content: '[1] Nội dung bài đọc' },
+      { text: '[2] Đoạn tiếp theo' },
+      { type: 'line_break' },
+    ]);
+    expect(() => validateRichTextArray(normalized, 'contentJson')).not.toThrow();
+    expect(normalized).toEqual([
+      { type: 'text', content: '[1] Nội dung bài đọc' },
+      { type: 'text', content: '[2] Đoạn tiếp theo' },
+      { type: 'break' },
+    ]);
   });
 });

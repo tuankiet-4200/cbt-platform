@@ -112,6 +112,31 @@ describe('gradeQuestion', () => {
       }),
     ).toBe(false);
   });
+
+  it('grades FILL_TEXT with normalized whitespace, Unicode, and optional casing', () => {
+    const content = question('FILL_TEXT', {
+      blanks: [
+        { id: 'B1', correctValue: 'Nguyễn Du' },
+        { id: 'B2', correctValue: 'Truyện Kiều', caseSensitive: true },
+      ],
+    });
+    expect(
+      gradeQuestion(QuestionType.FILL_TEXT, content, {
+        blanks: [
+          { blankId: 'B1', value: '  NGUYỄN   DU ' },
+          { blankId: 'B2', value: 'Truyện Kiều' },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      gradeQuestion(QuestionType.FILL_TEXT, content, {
+        blanks: [
+          { blankId: 'B1', value: 'Nguyễn Du' },
+          { blankId: 'B2', value: 'truyện kiều' },
+        ],
+      }),
+    ).toBe(false);
+  });
 });
 
 function question(

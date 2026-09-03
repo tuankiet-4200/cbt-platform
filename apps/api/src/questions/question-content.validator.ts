@@ -80,6 +80,9 @@ export function validateQuestionContent(content: unknown, expectedType?: Questio
     case QuestionType.FILL_NUMBER:
       validateFillNumberPayload(content.payload, content.stem);
       break;
+    case QuestionType.FILL_TEXT:
+      validateFillTextPayload(content.payload, content.stem);
+      break;
     default:
       throw new BadRequestException('Unsupported question type');
   }
@@ -93,6 +96,22 @@ export function validateRichTextArray(value: unknown, path: string) {
   }
 
   value.forEach((node, index) => validateRichTextNode(node, `${path}[${index}]`));
+}
+
+export function normalizeRichTextArray(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((node) => {
+    if (typeof node === 'string') return { type: 'text', content: node };
+    if (!isRecord(node)) return node;
+    if ((node.type === 'paragraph' || node.type === undefined) && typeof node.content === 'string') {
+      return { type: 'text', content: node.content };
+    }
+    if (node.type === undefined && typeof node.text === 'string') {
+      return { type: 'text', content: node.text };
+    }
+    if (node.type === 'line_break') return { type: 'break' };
+    return node;
+  });
 }
 
 function validateRichTextNode(value: unknown, path: string) {
@@ -295,6 +314,52 @@ function validateFillNumberPayload(payload: Record<string, unknown>, stem: unkno
       'Every stem blankId must have exactly one matching payload blank',
     );
   }
+}
+
+function validateFillTextPayload(payload: Record<string, unknown>, stem: unknown) {
+  const blanks = validateFillBlankReferences(payload, stem);
+  blanks.forEach((blank, index) => {
+    if (typeof blank.correctValue !== 'string' || blank.correctValue.trim().length === 0) {
+      throw new BadRequestException(`payload.blanks[${index}].correctValue must be a non-empty string`);
+    }
+    if (blank.caseSensitive !== undefined && typeof blank.caseSensitive !== 'boolean') {
+      throw new BadRequestException(`payload.blanks[${index}].caseSensitive must be boolean`);
+    }
+  });
+}
+
+function validateFillBlankReferences(payload: Record<string, unknown>, stem: unknown) {
+  if (!Array.isArray(payload.blanks) || payload.blanks.length === 0) {
+    throw new BadRequestException('payload.blanks must be a non-empty array');
+  }
+
+  const stemBlankIdList = Array.isArray(stem)
+    ? stem
+        .filter((node) => isRecord(node) && node.type === 'blank')
+        .map((node) => String(node.blankId))
+    : [];
+  const stemBlankIds = new Set(stemBlankIdList);
+  if (stemBlankIds.size !== stemBlankIdList.length) {
+    throw new BadRequestException('Stem blankId values must be unique');
+  }
+  const ids = new Set<string>();
+
+  payload.blanks.forEach((blank, index) => {
+    if (!isRecord(blank)) throw new BadRequestException(`payload.blanks[${index}] must be an object`);
+    if (typeof blank.id !== 'string' || blank.id.length === 0) {
+      throw new BadRequestException(`payload.blanks[${index}].id is required`);
+    }
+    if (ids.has(blank.id)) throw new BadRequestException('Blank ids must be unique');
+    ids.add(blank.id);
+    if (!stemBlankIds.has(blank.id)) {
+      throw new BadRequestException(`payload.blanks[${index}].id must match a stem blankId`);
+    }
+  });
+
+  if (ids.size !== stemBlankIds.size) {
+    throw new BadRequestException('Every stem blankId must have exactly one matching payload blank');
+  }
+  return payload.blanks as Array<Record<string, unknown>>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
