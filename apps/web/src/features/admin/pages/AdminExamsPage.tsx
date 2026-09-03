@@ -153,8 +153,7 @@ export default function AdminExamsPage() {
                     <div className="flex justify-end gap-2">
                       <Link
                         to={`/admin/exams/${exam.id}/edit`}
-                        className={cn('btn btn-secondary btn-sm', !exam.generatedAt && 'pointer-events-none opacity-50')}
-                        aria-disabled={!exam.generatedAt}
+                        className="btn btn-secondary btn-sm"
                       >
                         <Layers3 className="h-4 w-4" />
                         Edit

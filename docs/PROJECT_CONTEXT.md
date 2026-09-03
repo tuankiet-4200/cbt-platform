@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-03 (review navigator and live per-question timer fixes completed)
+> **Last updated:** 2026-09-04 (review navigator parity and admin exam edit access fixes completed)
 
 ### Active Sprint
-**Exam Session and Review UX Stabilization**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigator styling/status and live per-question timing are corrected and production-build verified
+**Exam Session, Review, and Admin Editing UX Stabilization**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigation, live per-question timing, and admin edit access are corrected and production-build verified
 
 ### Sprint Progress Overview
 
@@ -218,6 +218,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigator styling/s
    - Exam edit workspace now includes publish/unpublish controls and a visible Draft/Published badge so admins can manage release state without returning to the exam list.
    - Exam edit header now includes a primary Save action for title/description metadata changes, while reorder/replace actions continue to persist immediately.
    - Exam creation now explicitly offers Manual or Blueprint mode. Manual mode creates a scoped draft and opens the content bank, where admins can add, remove, replace, and reorder items before preview/publish.
+   - Exam management now allows every exam shell to open the editor, including manual/snapshot-only and not-yet-generated drafts; edit availability is no longer incorrectly tied to `generatedAt`.
 3. [x] Access Code Management UI
    - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
 4. [x] User Exam Library unlock flow
@@ -281,7 +282,8 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigator styling/s
 4. [x] Added aggregate result page with section score cards, correctness summary, duration, and tag progress
 5. [x] Added answer-review page with correct/wrong/skipped filters, passage layout, correct answers, solutions, and timing
    - Replaced the card-list review with the full exam workspace: readonly answers, no countdown, section navigation, and correctness-based navigator states.
-   - Review navigator now uses circular single-choice-style buttons; unanswered questions are classified and displayed as incorrect in red.
+   - Review navigator now uses circular single-choice-style buttons; unanswered questions are classified and displayed with the same state as incorrect answers.
+   - Review navigator sizing and eight-column layout now match the live exam navigator, with the requested solid correctness colors and white question numbers.
 6. [x] Final section completion now routes to `/results/:attemptId`; exam library/detail link to the latest graded result
 
 ### Quality — Sprint 3.2
@@ -428,13 +430,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigator styling/s
 1. [x] Complete exam-style readonly review, global student attempt history, and manual/blueprint exam creation flows
 2. [x] Add direct image upload and lossless image-node editing to manual question authoring
 3. [x] Fix circular review navigation, unanswered-as-incorrect display, and live per-question elapsed timing
-4. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-5. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-6. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-7. [ ] Complete section timeout retry for transient online failures
-8. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-9. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-10. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+4. [x] Allow manual, snapshot-only, generated, and empty exam shells to open the admin editor
+5. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+6. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+7. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+8. [ ] Complete section timeout retry for transient online failures
+9. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+10. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+11. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
