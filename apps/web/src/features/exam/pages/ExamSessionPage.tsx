@@ -282,6 +282,9 @@ function ActiveExam({
   const setConnected = useExamSessionStore((state) => state.setConnected);
   const clearStore = useExamSessionStore((state) => state.clear);
   const questionStartedAt = useRef(Date.now());
+  const questionTimingBase = useRef(0);
+  const leavingExam = useRef(false);
+  const [displayedQuestionTimeMs, setDisplayedQuestionTimeMs] = useState(0);
   const autoSubmitted = useRef(false);
   useProctoringMonitor({
     sessionId: payload.id,
@@ -292,12 +295,24 @@ function ActiveExam({
   const flattened = useMemo(() => flattenQuestions(payload), [payload]);
   const safeIndex = Math.min(currentIndex, Math.max(0, flattened.length - 1));
   const active = flattened[safeIndex];
+  const activeQuestionId = active?.question.id;
+  const storedQuestionTimeMs = activeQuestionId
+    ? (timing[activeQuestionId] ?? 0)
+    : 0;
   const [remainingMs, setRemainingMs] = useState(
     Math.max(0, new Date(payload.endTime).getTime() - Date.now()),
   );
 
   const submitMutation = useMutation({
     mutationFn: async () => {
+      if (activeQuestionId) {
+        const now = Date.now();
+        const elapsed = Math.max(0, now - questionStartedAt.current);
+        if (elapsed > 0) addTime(activeQuestionId, elapsed);
+        questionTimingBase.current += elapsed;
+        questionStartedAt.current = now;
+        setDisplayedQuestionTimeMs(questionTimingBase.current);
+      }
       const current = useExamSessionStore.getState();
       const questionIds = current.dirtyQuestionIds.filter(
         (questionId) => current.answers[questionId],
@@ -335,6 +350,7 @@ function ActiveExam({
       return submitSection(payload.id);
     },
     onSuccess: (result) => {
+      leavingExam.current = true;
       clearStore();
       onSubmitted(result);
     },
@@ -421,19 +437,36 @@ function ActiveExam({
   ]);
 
   useEffect(() => {
+    if (!activeQuestionId) return;
+    questionTimingBase.current =
+      useExamSessionStore.getState().timing[activeQuestionId] ?? 0;
     questionStartedAt.current = Date.now();
+    setDisplayedQuestionTimeMs(questionTimingBase.current);
+    const interval = window.setInterval(() => {
+      setDisplayedQuestionTimeMs(
+        questionTimingBase.current + Date.now() - questionStartedAt.current,
+      );
+    }, 1_000);
     return () => {
-      if (active) {
-        addTime(active.question.id, Date.now() - questionStartedAt.current);
+      window.clearInterval(interval);
+      if (!leavingExam.current) {
+        addTime(activeQuestionId, Date.now() - questionStartedAt.current);
       }
     };
-  }, [active, addTime]);
+  }, [activeQuestionId, addTime]);
+
+  useEffect(() => {
+    if (!activeQuestionId || storedQuestionTimeMs <= questionTimingBase.current) {
+      return;
+    }
+    const now = Date.now();
+    questionTimingBase.current =
+      storedQuestionTimeMs + now - questionStartedAt.current;
+    questionStartedAt.current = now;
+    setDisplayedQuestionTimeMs(questionTimingBase.current);
+  }, [activeQuestionId, storedQuestionTimeMs]);
 
   const goTo = (index: number) => {
-    if (active) {
-      addTime(active.question.id, Date.now() - questionStartedAt.current);
-    }
-    questionStartedAt.current = Date.now();
     setCurrentIndex(Math.max(0, Math.min(index, flattened.length - 1)));
   };
 
@@ -575,7 +608,7 @@ function ActiveExam({
           </button>
           <span>Thời gian làm câu hiện tại</span>
           <span className="font-mono text-xl text-[#17386d]">
-            {formatDuration(timing[active.question.id] ?? 0)}
+            {formatDuration(displayedQuestionTimeMs)}
           </span>
         </div>
       </footer>

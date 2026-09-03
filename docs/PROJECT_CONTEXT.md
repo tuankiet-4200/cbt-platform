@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-03 (manual question image upload completed)
+> **Last updated:** 2026-09-03 (review navigator and live per-question timer fixes completed)
 
 ### Active Sprint
-**Admin Question Authoring UX**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — manual question authoring now uploads and preserves images across stems, solutions, passages, options, statements, and drag/drop content
+**Exam Session and Review UX Stabilization**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — review navigator styling/status and live per-question timing are corrected and production-build verified
 
 ### Sprint Progress Overview
 
@@ -253,6 +253,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — manual question authoring 
 4. [x] Added server-authoritative section countdown timer with automatic timeout submission
 5. [x] Added submission confirmation, completion summary, and explicit next-section transition
 6. [x] Added MATH single-column and READING/SCIENCE independent-scroll two-column shells, navigator, progress, connection state, and fullscreen-exit warning
+7. [x] Per-question elapsed time now updates live every second, preserves recovered timing, commits on navigation, and flushes the active question before final submission
 
 ### Quality — Sprint 3.1
 - [x] Prisma migration `20260727041422_add_section_scoped_exam_attempts` applied and database constraints verified
@@ -279,7 +280,8 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — manual question authoring 
 3. [x] Added `useProctoringMonitor` for tab switch, blur, copy, and fullscreen-exit events with 10-second batching/retry
 4. [x] Added aggregate result page with section score cards, correctness summary, duration, and tag progress
 5. [x] Added answer-review page with correct/wrong/skipped filters, passage layout, correct answers, solutions, and timing
-   - Replaced the card-list review with the full exam workspace: readonly answers, no countdown, section navigation, and green/red/neutral question navigator states.
+   - Replaced the card-list review with the full exam workspace: readonly answers, no countdown, section navigation, and correctness-based navigator states.
+   - Review navigator now uses circular single-choice-style buttons; unanswered questions are classified and displayed as incorrect in red.
 6. [x] Final section completion now routes to `/results/:attemptId`; exam library/detail link to the latest graded result
 
 ### Quality — Sprint 3.2
@@ -425,13 +427,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — manual question authoring 
 
 1. [x] Complete exam-style readonly review, global student attempt history, and manual/blueprint exam creation flows
 2. [x] Add direct image upload and lossless image-node editing to manual question authoring
-3. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-4. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-5. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-6. [ ] Complete section timeout retry for transient online failures
-7. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-8. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-9. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+3. [x] Fix circular review navigation, unanswered-as-incorrect display, and live per-question elapsed timing
+4. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+5. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+6. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+7. [ ] Complete section timeout retry for transient online failures
+8. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+9. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+10. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 

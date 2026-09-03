@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Menu, MinusCircle, X, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Menu, X, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { QuestionRenderer } from '@/features/exam/components/QuestionRenderer';
 import { RichText } from '@/features/exam/components/RichText';
@@ -97,10 +97,10 @@ function ReviewQuestionCard({ question, number, active, shuffleSeed, onSelect }:
   return (
     <article onClick={onSelect} className={cn('border-b border-neutral-100 p-5 transition', active && onSelect && 'bg-blue-50/30')}>
       <div className="flex items-start gap-3">
-        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold', question.isCorrect ? 'bg-success-50 text-success-700' : question.userAnswer ? 'bg-danger-50 text-danger-700' : 'bg-neutral-100 text-neutral-600')}>{number}</span>
+        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold', question.isCorrect ? 'bg-success-50 text-success-700' : 'bg-danger-50 text-danger-700')}>{number}</span>
         <div className="min-w-0 flex-1">
           <QuestionRenderer question={toSessionQuestion(question)} answer={question.userAnswer ?? undefined} onAnswer={() => undefined} shuffleSeed={shuffleSeed} readOnly />
-          <div className={cn('mt-5 rounded-lg border p-4', !question.userAnswer ? 'border-neutral-200 bg-neutral-50' : question.isCorrect ? 'border-success-100 bg-success-50' : 'border-danger-100 bg-danger-50')}>
+          <div className={cn('mt-5 rounded-lg border p-4', question.isCorrect ? 'border-success-100 bg-success-50' : 'border-danger-100 bg-danger-50')}>
             <div className="flex items-center justify-between gap-3"><StatusLabel question={question} /><span className="text-xs font-semibold text-neutral-500">{question.pointsEarned}/{question.points} điểm</span></div>
             {!question.isCorrect && <p className="mt-3 text-sm text-neutral-700"><strong>Đáp án đúng:</strong> {formatAnswer(question.correctAnswer)}</p>}
             {question.content.solution?.length ? <div className="mt-3 border-t border-neutral-200/70 pt-3 text-sm leading-7"><strong>Lời giải: </strong><RichText nodes={question.content.solution} /></div> : null}
@@ -121,15 +121,14 @@ function ReviewSidebar({ open, onClose, candidateName, section, selectedSections
       <div className="mt-6 rounded-md border border-neutral-200 px-3 py-3 text-center"><p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Xem lại bài làm</p><p className="mt-1 text-sm font-bold text-[#17386d]">Không giới hạn thời gian</p></div>
       {selectedSections.length > 1 && <div className="mt-5 grid grid-cols-3 gap-1 rounded-lg bg-neutral-100 p-1">{SECTIONS.filter((item) => selectedSections.includes(item.value)).map((item) => <button key={item.value} type="button" onClick={() => onSection(item.value)} className={cn('rounded-md px-2 py-2 text-xs font-semibold', section === item.value ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500')}>{item.value === 'MATH' ? 'Toán' : item.value === 'READING' ? 'Đọc hiểu' : 'Khoa học'}</button>)}</div>}
       <div className="mt-6 flex items-center justify-between"><h3 className="text-sm font-semibold text-neutral-800">Danh sách câu hỏi</h3><span className="text-xs text-neutral-500">{questions.filter((q) => q.isCorrect).length}/{questions.length} đúng</span></div>
-      <div className="mt-3 grid grid-cols-5 gap-2 overflow-y-auto pb-3">{questions.map((question, index) => <button key={question.id} type="button" onClick={() => onGoTo(index)} className={cn('relative h-10 rounded-md border text-sm font-bold transition', question.isCorrect ? 'border-success-300 bg-success-50 text-success-700' : question.userAnswer ? 'border-danger-300 bg-danger-50 text-danger-700' : 'border-neutral-300 bg-neutral-100 text-neutral-600', index === currentIndex && 'ring-2 ring-[#17386d] ring-offset-1')}>{index + 1}</button>)}</div>
-      <div className="mt-auto space-y-3 border-t border-neutral-100 pt-4"><div className="flex flex-wrap gap-3 text-xs text-neutral-500"><span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-success-100" />Đúng</span><span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-danger-100" />Sai</span><span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-neutral-200" />Bỏ trống</span></div><Link to={`/results/${attemptId}`} className="btn btn-secondary w-full"><ArrowLeft className="h-4 w-4" />Kết quả tổng quan</Link></div>
+      <div className="mt-3 grid grid-cols-5 gap-2 overflow-y-auto pb-3">{questions.map((question, index) => <button key={question.id} type="button" onClick={() => onGoTo(index)} className={cn('relative h-10 w-10 rounded-full border text-sm font-bold transition', question.isCorrect ? 'border-success-300 bg-success-50 text-success-700' : 'border-danger-300 bg-danger-50 text-danger-700', index === currentIndex && 'ring-2 ring-[#17386d] ring-offset-1')}>{index + 1}</button>)}</div>
+      <div className="mt-auto space-y-3 border-t border-neutral-100 pt-4"><div className="flex flex-wrap gap-3 text-xs text-neutral-500"><span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-success-100" />Đúng</span><span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-danger-100" />Sai hoặc bỏ trống</span></div><Link to={`/results/${attemptId}`} className="btn btn-secondary w-full"><ArrowLeft className="h-4 w-4" />Kết quả tổng quan</Link></div>
     </aside>
   </>;
 }
 
 function StatusLabel({ question }: { question: ReviewQuestion }) {
-  if (!question.userAnswer) return <span className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-600"><MinusCircle className="h-4 w-4" />Bỏ trống</span>;
-  return question.isCorrect ? <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-700"><CheckCircle2 className="h-4 w-4" />Trả lời đúng</span> : <span className="inline-flex items-center gap-1 text-sm font-semibold text-danger-700"><XCircle className="h-4 w-4" />Trả lời sai</span>;
+  return question.isCorrect ? <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-700"><CheckCircle2 className="h-4 w-4" />Trả lời đúng</span> : <span className="inline-flex items-center gap-1 text-sm font-semibold text-danger-700"><XCircle className="h-4 w-4" />{question.userAnswer ? 'Trả lời sai' : 'Trả lời sai (bỏ trống)'}</span>;
 }
 
 function normalizeBundles(questions: ReviewQuestion[], bundles: ReviewBundle[], section: ExamSectionType | null): ReviewBundle[] {
