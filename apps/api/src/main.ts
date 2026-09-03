@@ -17,6 +17,12 @@ async function bootstrap() {
   const port = configService.get<number>('API_PORT', 3000);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
+  // The production topology has exactly one trusted reverse proxy (host Nginx).
+  // This keeps client IP based controls such as throttling accurate.
+  if (nodeEnv === 'production') {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
+
   // ── Security ────────────────────────────────────────────────────────────
   app.use(
     helmet({
