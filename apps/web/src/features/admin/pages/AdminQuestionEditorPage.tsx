@@ -17,6 +17,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { BlockMath, InlineMath } from 'react-katex';
+import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
 import { appendImageToken, parseRichText, richTextToEditableText } from '../lib/rich-text-editable';
@@ -1358,6 +1359,11 @@ function isQuestionEnvelope(value: unknown): value is { questions: unknown[] } {
 }
 
 function getErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const response = error.response?.data as { message?: string | string[] } | undefined;
+    if (Array.isArray(response?.message)) return response.message.join(', ');
+    if (response?.message) return response.message;
+  }
   if (error instanceof Error) return error.message;
   return null;
 }

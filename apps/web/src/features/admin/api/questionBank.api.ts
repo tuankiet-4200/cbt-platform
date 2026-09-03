@@ -146,7 +146,10 @@ export async function uploadQuestionImage(file: File) {
   const response = await apiClient.post<ApiEnvelope<UploadedQuestionImage>>(
     '/admin/upload',
     formData,
-    { timeout: 30_000 },
+    {
+      timeout: 30_000,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    },
   );
   return response.data.data;
 }

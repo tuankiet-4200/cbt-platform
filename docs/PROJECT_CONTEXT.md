@@ -170,7 +170,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — manual question authoring 
 14. [x] Create Question section query param only initializes the active section; tab switches update create state, URL, and submitted section payload
 15. [x] Tag Management module added: `/admin/tags` list with MATH/READING/SCIENCE tabs plus shared create/edit tag form pages
 16. [x] READING/SCIENCE bundle list omits empty status filter so "All status" shows seeded bundles correctly
-17. [x] Manual question editor uploads PNG/JPEG/WebP/SVG assets directly to Supabase and inserts image nodes into stems, solutions, passages/stimuli, choice answers, matrix statements, and drag/drop content; edit/save round trips preserve existing images
+17. [x] Manual question editor uploads PNG/JPEG/WebP/SVG assets directly to Supabase using an explicit multipart request and inserts image nodes into stems, solutions, passages/stimuli, choice answers, matrix statements, and drag/drop content; edit/save round trips preserve existing images and upload errors expose the API validation message
 
 ---
 
