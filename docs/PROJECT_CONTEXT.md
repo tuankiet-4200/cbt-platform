@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-03 (single-section exam and scoped-retake extension verified)
+> **Last updated:** 2026-09-03 (Ubuntu/Nginx production deployment package verified locally)
 
 ### Active Sprint
-**Post–Sprint 4.1 Feature Extension and Completion Audit**
-Status: ⚠️ FEATURE COMPLETE / REMEDIATION IN PROGRESS — single-section exams and scoped retakes are implemented and verified; broader release-blocking audit gaps remain
+**Production Deployment Preparation and Security Hardening**
+Status: ⚠️ LOCAL PACKAGE VERIFIED / REMOTE ROLLOUT PENDING — Docker/Nginx deployment artifacts pass local validation; DNS, server rollout, and the remaining NestJS-major security remediation are pending
 
 ### Sprint Progress Overview
 
@@ -40,7 +40,7 @@ Status: ⚠️ FEATURE COMPLETE / REMEDIATION IN PROGRESS — single-section exa
 | 3.2 | Question Renderers & Proctoring | ⚠️ PARTIAL | 90% |
 | 4.1 | Result Engine & Personal Analytics | ⚠️ PARTIAL | 90% |
 | 4.2 | IRT Integration & Advanced Features | ⏸ DEFERRED | 0% |
-| 5.1 | Performance & Security Hardening | ⏸ DEFERRED | — |
+| 5.1 | Performance & Security Hardening | 🔄 IN PROGRESS | 20% |
 | 5.2 | Final Polish, UAT & Launch | ⏸ DEFERRED | — |
 
 ---
@@ -361,6 +361,31 @@ Status: ⚠️ FEATURE COMPLETE / REMEDIATION IN PROGRESS — single-section exa
 
 ---
 
+## 🔄 Production Deployment Preparation (2026-09-03)
+
+### Deployment Stack
+1. [x] Added multi-stage production Docker images for the NestJS API and React/Nginx Web app
+2. [x] Added production Compose orchestration for API, Web, PostgreSQL, Redis, and one-shot Prisma migrations
+3. [x] Kept API/Web host bindings on loopback and PostgreSQL/Redis private to Docker networks
+4. [x] Added host Nginx reverse-proxy configuration for `demoserver.io.vn` and an Ubuntu deployment/backup/update runbook
+5. [x] Added a safe production environment template; real credentials remain excluded from Git
+6. [ ] Point `demoserver.io.vn` to the Ubuntu server, perform the remote rollout, and issue the Let's Encrypt certificate
+
+### Security and Quality
+1. [x] Enabled the configured NestJS throttler globally and trusted exactly one production reverse proxy
+2. [x] Upgraded bcrypt 5 → 6, removing the vulnerable `node-pre-gyp`/`tar` installation chain
+3. [x] Removed unused vulnerable Nodemailer runtime/type dependencies
+4. [x] Web production dependency audit reports 0 vulnerabilities; API critical findings reduced to 0
+5. [ ] Upgrade and regression-test the NestJS major dependency family to resolve the remaining transitive audit findings (7 high, 9 moderate, 1 low in the current production dependency audit)
+6. [x] API/Web lint, typecheck, production builds, 31 API tests, and 6 Web tests pass
+7. [x] Production API/Web images build; API runtime/bcrypt and Web Nginx configuration smoke tests pass
+
+### Local Data Operation
+1. [x] Created and password-verified the two requested active customer accounts in the local PostgreSQL database with default public-exam access
+2. [ ] Recreate those accounts through the HTTPS registration flow after a fresh production deployment, or explicitly restore the local database if its full dataset is intended for production
+
+---
+
 ## ⚠️ Phase 1–4.1 Audit Findings (2026-07-27)
 
 ### High Priority
@@ -389,13 +414,15 @@ Status: ⚠️ FEATURE COMPLETE / REMEDIATION IN PROGRESS — single-section exa
 
 ---
 
-## 🎯 Next Up: Phase 4.1 Remediation
+## 🎯 Next Up: Production Rollout and Remediation
 
-1. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-2. [ ] Complete section timeout retry for transient online failures
-3. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-4. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-5. [ ] Keep Sprint 4.2, 5.1, and 5.2 deferred until explicitly resumed
+1. [ ] Push the verified commits, point `demoserver.io.vn`, execute the Ubuntu runbook, and verify HTTPS health checks
+2. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+3. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+4. [ ] Complete section timeout retry for transient online failures
+5. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+6. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+7. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -451,6 +478,8 @@ FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
 | `docs/execution_plan.md` | Full 5-month sprint plan with deliverables |
 | `docs/QuestionContentSpec.md` | Canonical question content schema v2.1 |
 | `docs/section-session-architecture.md` | Approved ExamAttempt + independently timed section-session architecture |
+| `docs/DEPLOY_UBUNTU_NGINX.md` | Production deployment, HTTPS, update, and backup runbook for the Ubuntu host |
+| `deploy/docker-compose.production.yml` | Production API/Web/PostgreSQL/Redis orchestration and migration gate |
 | `.agents/AGENTS.md` | Agent rules — Prisma workflow, commit convention, checklists |
 | `apps/api/prisma/schema.prisma` | Database schema — source of truth (18 tables) |
 | `apps/web/src/index.css` | Tailwind v4 design tokens + component CSS |
