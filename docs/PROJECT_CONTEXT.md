@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (inline Drag drop slots implemented and validated)
+> **Last updated:** 2026-09-04 (inline Drag drop slots and compact authoring layout completed)
 
 ### Active Sprint
 **Inline Drag Drop Authoring and Delivery**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Drag drop slots are embedded in the question stem, answer Items remain reusable authoring choices, and legacy records remain renderable
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Drag drop slots are embedded in the question stem, the Phương án/Vị trí editor fits the form column, and legacy records remain renderable
 
 ### Sprint Progress Overview
 
@@ -176,7 +176,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Drag drop slots are embedd
 20. [x] Added FILL_TEXT authoring, rendering, validation, grading, answer extraction, blueprint selection, and bulk-import support with Vietnamese-aware normalized matching
 21. [x] Question-bank cards and exam previews reuse the production RichText renderer for LaTeX/images; question inspection shows only the rendered stem and structured answers
 22. [x] Drag drop authoring now explains Items and Slots inline with examples, clearer Vietnamese labels/placeholders, and answer mappings that include Item content; recent standalone MATH questions render RichText/KaTeX instead of raw markup
-23. [x] Drag drop Slots now use inline `{{slotN}}` stem tokens like Fill text blanks; the exam renderer provides inline drop targets, admin validation enforces one matching token per Slot, and legacy records receive tokens when opened for editing
+23. [x] Drag drop Slots now use inline `{{slotN}}` stem tokens like Fill text blanks; the exam renderer provides inline drop targets, admin validation enforces one matching token per Slot, legacy records receive tokens when opened for editing, and the stacked Phương án/Vị trí controls avoid narrow-column overflow
 
 ---
 

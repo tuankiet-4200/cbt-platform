@@ -842,17 +842,17 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
 
   if (draft.type === 'DRAG_DROP') {
     return (
-      <div className="grid gap-4 border-t border-neutral-200 pt-5 lg:grid-cols-2">
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900 lg:col-span-2">
+      <div className="space-y-5 border-t border-neutral-200 pt-5">
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
           <p className="font-semibold">Cách tạo câu kéo thả</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li><strong>Phương án kéo (Item)</strong> là nội dung thí sinh sẽ kéo, ví dụ “Hà Nội”, “Huế”.</li>
-            <li><strong>Vị trí thả (Slot)</strong> là ô trống nằm trực tiếp trong Stem. Dùng nút “Chèn vào đề” để thêm token như <code>{'{{slot1}}'}</code>.</li>
-            <li>Ở ô chọn bên phải mỗi Slot, chọn đúng Item tương ứng. Ví dụ Stem “Thủ đô Việt Nam là <code>{'{{slot1}}'}</code>” và slot1 chọn Item “Hà Nội”.</li>
+            <li><strong>Phương án</strong> là nội dung thí sinh sẽ kéo, ví dụ “Hà Nội”, “Huế”.</li>
+            <li><strong>Vị trí</strong> là ô trống nằm trực tiếp trong Stem. Dùng nút “Chèn vào đề” để thêm token như <code>{'{{slot1}}'}</code>.</li>
+            <li>Chọn phương án đúng cho từng vị trí. Ví dụ Stem “Thủ đô Việt Nam là <code>{'{{slot1}}'}</code>” và vị trí slot1 chọn phương án “Hà Nội”.</li>
           </ol>
         </div>
         <div className="space-y-3">
-          <SectionHeader title="Phương án kéo (Items)" addLabel="Thêm phương án" onAdd={() => patch({ dragItems: [...draft.dragItems, { id: `I${draft.dragItems.length + 1}`, content: '' }] })} />
+          <SectionHeader title="Phương án" addLabel="Thêm phương án" onAdd={() => patch({ dragItems: [...draft.dragItems, { id: `I${draft.dragItems.length + 1}`, content: '' }] })} />
           {draft.dragItems.map((item, index) => (
             <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_2.25rem]">
               <input className="input" value={item.id} disabled />
@@ -862,7 +862,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           ))}
         </div>
         <div className="space-y-3">
-          <SectionHeader title="Vị trí thả (Slots)" addLabel="Thêm vị trí" onAdd={() => {
+          <SectionHeader title="Vị trí" addLabel="Thêm vị trí" onAdd={() => {
             const nextId = `slot${draft.dragSlots.length + 1}`;
             patch({
               dragSlots: [...draft.dragSlots, { id: nextId, label: '', correctItemId: draft.dragItems[0]?.id ?? 'I1' }],
@@ -870,8 +870,8 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
             });
           }} />
           {draft.dragSlots.map((slot, index) => (
-            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_7rem_2.25rem]">
-              <RichTextControl value={slot.label} onChange={(label) => updateDragSlot(index, { label })} placeholder="Ghi chú Slot (tuỳ chọn)" imageWidth={260} compact />
+            <div key={slot.id} className="grid gap-2 sm:grid-cols-[5rem_minmax(0,1fr)_8rem_2.25rem]">
+              <input className="input" value={slot.id} disabled aria-label={`Mã vị trí ${slot.id}`} />
               <SelectField
                 value={slot.correctItemId}
                 options={draft.dragItems.map((item) => ({ value: item.id, label: `${item.id} — ${item.content || 'Chưa nhập'}` }))}
