@@ -50,6 +50,7 @@ export interface ExamAttempt {
   selectedSections: ExamSectionType[];
   startedAt: string;
   completedAt?: string | null;
+  breakEndsAt?: string | null;
   sections: Array<{
     sectionType: ExamSectionType;
     durationMins: number;
@@ -112,6 +113,7 @@ export interface SectionTransition {
   nextSection: ExamSectionType | null;
   submittedSection: ExamSectionType | null;
   answeredCount: number;
+  breakEndsAt?: string | null;
 }
 
 export type ProctoringEventType =

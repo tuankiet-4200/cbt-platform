@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (Reading/Science rich-text DTO transformation fixed)
+> **Last updated:** 2026-09-04 (full-attempt section lobby, timed breaks, collapsible exam sidebar, and Drag drop styling completed)
 
 ### Active Sprint
-**Question Authoring Reliability**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle passage nodes survive request transformation, inline Drag drop authoring is complete, and regression coverage passes
+**Exam Workspace and Full-Attempt Flow**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — full attempts use a persistent section lobby with five-minute breaks, Reading/Science can expand by hiding the sidebar, and Drag drop options match the supplied visual reference
 
 ### Sprint Progress Overview
 
@@ -36,8 +36,8 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle
 | 1.2 | Authentication & Question Content Model | ⚠️ PARTIAL | 85% |
 | 2.1 | Admin Question Bank Management | ⚠️ AUDITED | 95% |
 | 2.2 | Exam Assembly & Access Code System | ⚠️ PARTIAL | 95% |
-| 3.1 | Exam Session Engine & Write Path | ⚠️ PARTIAL | 95% |
-| 3.2 | Question Renderers & Proctoring | ⚠️ PARTIAL | 95% |
+| 3.1 | Exam Session Engine & Write Path | ✅ FEATURE COMPLETE | 100% |
+| 3.2 | Question Renderers & Proctoring | ✅ FEATURE COMPLETE | 100% |
 | 4.1 | Result Engine & Personal Analytics | ⚠️ PARTIAL | 95% |
 | 4.2 | IRT Integration & Advanced Features | ⏸ DEFERRED | 0% |
 | 5.1 | Performance & Security Hardening | 🔄 IN PROGRESS | 20% |
@@ -255,6 +255,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle
 3. [x] Added Redis answer sync with batched writes, 24-hour TTL, section membership validation, and `X-Idempotency-Key`
 4. [x] Added BullMQ delayed flush/final synchronous flush to PostgreSQL plus final `grade-attempt` queue hand-off
 5. [x] Added session recovery with Redis primary and PostgreSQL fallback
+6. [x] Added a durable five-minute inter-section break deadline derived from the previous section's `submittedAt` and exposed it in attempt/transition responses
 
 ### Frontend — Sprint 3.1
 1. [x] Added section confirmation/loading screens based on the approved TSA reference
@@ -264,6 +265,8 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle
 5. [x] Added submission confirmation, completion summary, and explicit next-section transition
 6. [x] Added MATH single-column and READING/SCIENCE independent-scroll two-column shells, navigator, progress, connection state, and fullscreen-exit warning
 7. [x] Per-question elapsed time now updates live every second, preserves recovered timing, commits on navigation, and flushes the active question before final submission
+8. [x] Full attempts now enter a shared MATH/READING/SCIENCE lobby before starting and after every section; learners may continue early and the next section auto-starts when the reload-safe break expires
+9. [x] Reading/Science exam workspaces can hide or reopen the right sidebar from a red desktop control while retaining the mobile drawer
 
 ### Quality — Sprint 3.1
 - [x] Prisma migration `20260727041422_add_section_scoped_exam_attempts` applied and database constraints verified
@@ -286,6 +289,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle
 
 ### Frontend — Sprint 3.2
 1. [x] Completed all five question renderers with RichText/KaTeX support and native `@dnd-kit` drag-and-drop with touch sensor
+   - Drag drop choices now use the supplied evenly spaced pink-chip presentation while assigned choices remain inline with their stem slots.
 2. [x] Added per-question review flags and navigator flagged state
 3. [x] Added `useProctoringMonitor` for tab switch, blur, copy, and fullscreen-exit events with 10-second batching/retry
 4. [x] Added aggregate result page with section score cards, correctness summary, duration, and tag progress
@@ -429,7 +433,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle
 ### Audit Evidence
 - [x] PostgreSQL and Redis healthy; Prisma schema valid; FILL_TEXT migration applied with no drift
 - [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
-- [x] 40/40 API unit tests and 11/11 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
+- [x] 41/41 API unit tests and 11/11 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -447,13 +451,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Reading and Science bundle
 8. [x] Improve exam-overview retake actions, document Drag drop authoring in the UI, render recent-question formulas, and compact access-code management
 9. [x] Embed Drag drop Slots inline in question stems and enforce one-to-one Slot/token validation
 10. [x] Preserve Reading/Science passage RichText nodes through DTO transformation on create and update
-11. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-12. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-13. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-14. [ ] Complete section timeout retry for transient online failures
-15. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-16. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-17. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+11. [x] Add the full-attempt section lobby, reload-safe five-minute inter-section breaks, expandable Reading/Science workspace, and reference-styled Drag drop options
+12. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+13. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+14. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+15. [ ] Complete section timeout retry for transient online failures
+16. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+17. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+18. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -479,7 +484,8 @@ These decisions are FINAL and must not be reversed without explicit user approva
 ### Tech Choices
 | Decision | Rule |
 |----------|------|
-| **Exam attempt/session lifecycle** | One `ExamAttempt` aggregates either every available section or one selected section. Full attempts remain sequential MATH → READING → SCIENCE; each selected section has its own confirmation, server-authoritative timer, submission, and transition screen. |
+| **Exam attempt/session lifecycle** | One `ExamAttempt` aggregates either every available section or one selected section. Full attempts remain sequential MATH → READING → SCIENCE and use a shared section lobby before the first section and after every submitted section. Each section keeps its own server-authoritative timer. |
+| **Inter-section break** | Full attempts provide a maximum five-minute break after each non-final section. The deadline is derived from the previous section's durable `submittedAt`, survives reload/reconnect, permits early continuation, and starts the next section automatically when it expires. |
 | **Fixed section durations** | MATH = 60 minutes, READING = 30 minutes, SCIENCE = 60 minutes. |
 | **Aggregate result ownership** | `ExamResult` belongs to `ExamAttempt`; `sectionScores[]` stores the MATH/READING/SCIENCE breakdown. |
 | Tailwind CSS | **v4 only**. CSS-first `@theme {}`. No `tailwind.config.js`. Plugin: `@tailwindcss/vite`. |

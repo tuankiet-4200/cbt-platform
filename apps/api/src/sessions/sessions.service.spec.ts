@@ -158,4 +158,54 @@ describe('SessionsService', () => {
       })],
     }));
   });
+
+  it('returns a reload-safe five-minute break after a submitted section', async () => {
+    const submittedAt = new Date('2026-09-04T09:00:00.000Z');
+    examAttemptFindFirst.mockResolvedValue({
+      id: 'attempt-1',
+      examId: 'exam-1',
+      status: SessionStatus.IN_PROGRESS,
+      currentSection: ExamSectionType.READING,
+      selectedSections: [
+        ExamSectionType.MATH,
+        ExamSectionType.READING,
+        ExamSectionType.SCIENCE,
+      ],
+      startedAt: new Date('2026-09-04T08:00:00.000Z'),
+      completedAt: null,
+      sessions: [
+        {
+          id: 'math-session',
+          sectionType: ExamSectionType.MATH,
+          status: SessionStatus.SUBMITTED,
+          startTime: new Date('2026-09-04T08:00:00.000Z'),
+          endTime: new Date('2026-09-04T09:00:00.000Z'),
+          submittedAt,
+        },
+      ],
+      exam: {
+        id: 'exam-1',
+        title: 'TSA Mock',
+        instructions: null,
+        blueprintJson: null,
+      },
+    });
+    examMathQuestionCount.mockResolvedValue(40);
+    examPassageBundleFindMany.mockResolvedValue([
+      {
+        sectionType: ExamSectionType.READING,
+        passageBundle: { _count: { questions: 20 } },
+      },
+      {
+        sectionType: ExamSectionType.SCIENCE,
+        passageBundle: { _count: { questions: 40 } },
+      },
+    ]);
+
+    const result = await service.getAttempt('attempt-1', 'user-1');
+
+    expect(result.breakEndsAt).toEqual(
+      new Date('2026-09-04T09:05:00.000Z'),
+    );
+  });
 });

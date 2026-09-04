@@ -15,9 +15,10 @@ independently timed section sessions:
 2. `READING` — 30 minutes
 3. `SCIENCE` — 60 minutes
 
-The UX follows the supplied TSA reference: confirmation before each section,
-server-authoritative section timer, a transition summary after submission, and
-an explicit continuation action for the next section.
+The UX follows the supplied TSA reference: a shared section lobby for full
+attempts, server-authoritative section timers, and a maximum five-minute break
+between consecutive sections. The learner may continue early; otherwise the
+next section starts automatically when the break expires.
 
 ## Domain Model
 
@@ -66,15 +67,13 @@ session. `sectionScores` remains the source of per-section breakdown.
 
 ```text
 Create/resume attempt
-  -> Confirm MATH
+  -> Section lobby
   -> Start MATH session (60m)
   -> Submit/timeout
-  -> Transition summary
-  -> Confirm READING
+  -> Section lobby + break (max 5m)
   -> Start READING session (30m)
   -> Submit/timeout
-  -> Transition summary
-  -> Confirm SCIENCE
+  -> Section lobby + break (max 5m)
   -> Start SCIENCE session (60m)
   -> Submit/timeout
   -> Attempt SUBMITTED
@@ -85,6 +84,12 @@ Sections with zero questions are skipped when resolving the next section.
 For a single-section attempt, submitting that section immediately submits the
 attempt for grading. Only selected sections contribute to the result. A partial
 retake of a multi-section exam is excluded from that exam's full leaderboard.
+
+The inter-section deadline is derived from the previous section session's
+durable `submittedAt` timestamp plus five minutes. It is returned as
+`breakEndsAt` by both attempt-progress and submission-transition responses, so
+refreshing or reconnecting cannot reset the break. Starting the next section
+before the deadline is explicitly allowed.
 
 ## API Shape
 
@@ -129,8 +134,10 @@ The supplied reference defines these required states:
 - Fullscreen-exit warning
 - Section submission confirmation
 - Section completion and next-section transition
+- Full-attempt section lobby with progress and reload-safe break countdown
 - MATH single-column layout
-- READING/SCIENCE two-column independent-scroll layout
+- READING/SCIENCE two-column independent-scroll layout with a collapsible
+  desktop sidebar and mobile menu drawer
 
 Question renderers and proctoring behavior remain Sprint 3.2 deliverables, but
 the Sprint 3.1 shell and store must expose the state required by those screens.

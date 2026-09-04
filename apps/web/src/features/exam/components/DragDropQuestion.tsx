@@ -114,16 +114,12 @@ function ItemPool({ items }: { items: DragItem[] }) {
   return (
     <section
       ref={setNodeRef}
-      className={`rounded-xl border-2 border-dashed p-4 transition ${
-        isOver
-          ? 'border-blue-400 bg-blue-50'
-          : 'border-neutral-200 bg-neutral-50'
-      }`}
+      className={`rounded-lg px-2 py-3 transition ${isOver ? 'bg-primary-50' : ''}`}
     >
-      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-neutral-500">
-        Kéo đáp án vào vị trí phù hợp
+      <p className="mb-4 text-xs font-bold uppercase tracking-wide text-neutral-500">
+        Các phương án
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-x-5 gap-y-3">
         {items.map((item) => (
           <DraggableItem key={item.id} item={item} compact />
         ))}
@@ -143,12 +139,12 @@ function InlineDropSlot({ slot, children }: { slot: DragSlot; children: React.Re
     <span
       ref={setNodeRef}
       aria-label={`Vị trí thả ${slot.id}`}
-      className={`mx-1 inline-flex min-h-10 min-w-24 items-center justify-center rounded-lg border-2 border-dashed px-1 align-middle transition ${
+      className={`inline-flex min-h-10 min-w-28 items-center justify-center rounded-lg border border-dashed px-1 align-middle transition ${
         isOver
-          ? 'border-blue-500 bg-blue-50'
+          ? 'border-primary-500 bg-primary-50'
           : children
-            ? 'border-blue-300 bg-blue-50/40'
-            : 'border-neutral-400 bg-white'
+            ? 'border-primary-300 bg-primary-50/40'
+            : 'border-neutral-500 bg-white'
       }`}
     >
       {children ?? <span className="px-3 text-xs text-neutral-400">Thả vào đây</span>}
@@ -200,13 +196,17 @@ function DraggableItem({ item, compact = false }: { item: DragItem; compact?: bo
       ref={setNodeRef}
       type="button"
       style={{ transform: CSS.Translate.toString(transform) }}
-      className={`flex touch-none items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-left text-sm shadow-sm transition ${compact ? 'min-h-9 w-auto' : 'min-h-11 w-full'} ${
-        isDragging ? 'z-50 opacity-70 shadow-xl' : 'hover:border-blue-300'
+      className={`flex touch-none items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
+        compact
+          ? 'min-h-9 w-auto border-transparent bg-[#f3bbc2] px-5 text-neutral-800 shadow-none hover:bg-[#efaab4]'
+          : 'min-h-11 w-full border-neutral-200 bg-white shadow-sm hover:border-blue-300'
+      } ${
+        isDragging ? 'z-50 opacity-70 shadow-xl' : ''
       }`}
       {...listeners}
       {...attributes}
     >
-      <GripVertical className="h-4 w-4 shrink-0 text-neutral-400" />
+      {!compact && <GripVertical className="h-4 w-4 shrink-0 text-neutral-400" />}
       <span className="min-w-0">
         <RichText nodes={item.content} />
       </span>

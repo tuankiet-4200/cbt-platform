@@ -34,6 +34,8 @@ const DEFAULT_SECTION_DURATION: Record<ExamSectionType, number> = {
   SCIENCE: 60,
 };
 
+const SECTION_BREAK_DURATION_MS = 5 * 60_000;
+
 const SESSION_QUEUE = 'session-persistence';
 const GRADING_QUEUE = 'grading-queue';
 
@@ -165,6 +167,21 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       availableSections,
       attempt.selectedSections,
     );
+    const currentSectionSession = attempt.sessions.find(
+      (session) => session.sectionType === attempt.currentSection,
+    );
+    const latestSubmittedSession = attempt.sessions
+      .filter((session) => session.submittedAt)
+      .at(-1);
+    const breakEndsAt =
+      attempt.currentSection &&
+      !currentSectionSession &&
+      latestSubmittedSession?.submittedAt
+        ? new Date(
+            latestSubmittedSession.submittedAt.getTime() +
+              SECTION_BREAK_DURATION_MS,
+          )
+        : null;
 
     return {
       id: attempt.id,
@@ -178,6 +195,7 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       selectedSections: sections.map((section) => section.sectionType),
       startedAt: attempt.startedAt,
       completedAt: attempt.completedAt,
+      breakEndsAt,
       sections: sections.map((section) => {
         const session = attempt.sessions.find(
           (item) => item.sectionType === section.sectionType,
@@ -635,6 +653,12 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       nextSection: attempt.currentSection,
       submittedSection: latest?.sectionType ?? null,
       answeredCount: latest?.answers.length ?? 0,
+      breakEndsAt:
+        attempt.currentSection && latest?.submittedAt
+          ? new Date(
+              latest.submittedAt.getTime() + SECTION_BREAK_DURATION_MS,
+            )
+          : null,
     };
   }
 
