@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getReviewRequest, matchesReviewFilter } from './review-filter';
+import { getReviewNavigatorTone, getReviewRequest, matchesReviewFilter } from './review-filter';
 
 describe('result review filtering', () => {
   it('loads the complete section whenever a filter is active', () => {
@@ -32,5 +32,11 @@ describe('result review filtering', () => {
     expect(matchesReviewFilter(wrong, 'FLAGGED', flagged)).toBe(true);
     expect(matchesReviewFilter(skipped, 'SKIPPED', flagged)).toBe(true);
     expect(matchesReviewFilter(skipped, 'WRONG', flagged)).toBe(false);
+  });
+
+  it('uses green semantics only for correct answers', () => {
+    expect(getReviewNavigatorTone(true)).toBe('correct');
+    expect(getReviewNavigatorTone(false)).toBe('incorrect');
+    expect(getReviewNavigatorTone(null)).toBe('incorrect');
   });
 });

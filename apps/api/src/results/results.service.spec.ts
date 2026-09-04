@@ -41,6 +41,38 @@ describe('ResultsService authorization and pagination', () => {
     );
   });
 
+  it('uses the first section start time and returns the candidate in result details', async () => {
+    const attemptStartedAt = new Date('2026-09-04T06:00:00.000Z');
+    const sectionStartedAt = new Date('2026-09-04T06:02:15.000Z');
+    const completedAt = new Date('2026-09-04T07:02:15.000Z');
+    attemptFindFirst.mockResolvedValue({
+      id: 'attempt-1',
+      status: SessionStatus.GRADED,
+      selectedSections: [ExamSectionType.MATH],
+      startedAt: attemptStartedAt,
+      completedAt,
+      user: { id: 'user-1', displayName: 'Nguyễn Văn A' },
+      sessions: [{ startTime: sectionStartedAt }],
+      exam: {
+        id: 'exam-1',
+        title: 'Đề thi',
+        totalPoints: 10,
+        _count: { mathQuestions: 10 },
+        passageBundles: [],
+      },
+      result: { id: 'result-1', totalScore: 8 },
+    });
+
+    const result = await service.getResult('attempt-1', 'user-1');
+
+    expect(result.startedAt).toEqual(sectionStartedAt);
+    expect(result.attemptCompletedAt).toEqual(completedAt);
+    expect(result.candidate).toEqual({
+      id: 'user-1',
+      displayName: 'Nguyễn Văn A',
+    });
+  });
+
   it('does not expose answer review while an attempt is in progress', async () => {
     attemptFindFirst.mockResolvedValue({
       id: 'attempt-1',

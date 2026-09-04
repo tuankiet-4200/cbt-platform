@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (admin rich-content previews and compact exam management completed)
+> **Last updated:** 2026-09-04 (result summary redesign and review navigator correction completed)
 
 ### Active Sprint
-**Admin Content and Exam Preview UX**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — question/exam previews now render rich content, difficulty labels are localized, and exam actions fit without horizontal scrolling
+**Result Summary and Answer Review UX**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — result overview follows the supplied score-card layout, exposes exact attempt timing and candidate identity, and review correctness colors are fixed
 
 ### Sprint Progress Overview
 
@@ -317,6 +317,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — question/exam previews now
 4. [x] Preserved per-question review flags across sequential sections for the post-exam flagged filter
 5. [x] Added a direct `Thi lại` action beside the latest result on every completed exam card; retakes remain unlimited and reuse the idempotent create-or-resume flow
 6. [x] Retired the standalone user/admin analytics page and navigation; progress, attempt history, and leaderboard now live in the result page for the selected exam, while strength/weakness and pacing insights are intentionally omitted from UI
+7. [x] Redesigned the result summary as a compact score-and-candidate card with exact first-section start time, attempt completion time, direct review/library actions, and expandable full/per-section practice choices; corrected review navigation to green for correct and red for wrong/skipped with a non-clipping active marker
 
 ### Quality — Sprint 4.1
 - [x] API unit tests pass (11/11), including analytics aggregation and leaderboard hydration
@@ -437,13 +438,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — question/exam previews now
 4. [x] Allow manual, snapshot-only, generated, and empty exam shells to open the admin editor
 5. [x] Add guarded tag/question/bundle deletion, Reading bundle legacy-node normalization, and the FILL_TEXT question type
 6. [x] Render admin question/exam rich content consistently, localize difficulty levels, simplify question inspection, and compact the exam list table
-7. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-8. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-9. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-10. [ ] Complete section timeout retry for transient online failures
-11. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-12. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-13. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+7. [x] Redesign the result banner with exact participation details and actions, and correct answer-review navigator colors/selection styling
+8. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+9. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+10. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+11. [ ] Complete section timeout retry for transient online failures
+12. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+13. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+14. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 

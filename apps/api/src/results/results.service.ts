@@ -43,7 +43,8 @@ export class ResultsService {
         ? attempt.selectedSections
         : availableSections,
       availableSections,
-      startedAt: attempt.startedAt,
+      candidate: attempt.user,
+      startedAt: attempt.sessions[0]?.startTime ?? attempt.startedAt,
       attemptCompletedAt: attempt.completedAt,
     };
   }
@@ -250,6 +251,12 @@ export class ResultsService {
             passageBundles: { select: { sectionType: true } },
           },
         },
+        user: { select: { id: true, displayName: true } },
+        sessions: {
+          orderBy: { startTime: 'asc' },
+          take: 1,
+          select: { startTime: true },
+        },
         result: true,
       },
     });
@@ -270,6 +277,12 @@ export class ResultsService {
               _count: { select: { mathQuestions: true } },
               passageBundles: { select: { sectionType: true } },
             },
+          },
+          user: { select: { id: true, displayName: true } },
+          sessions: {
+            orderBy: { startTime: 'asc' },
+            take: 1,
+            select: { startTime: true },
           },
           result: true,
         },

@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowRight,
   BookOpen,
-  CheckCircle2,
-  Clock3,
   FlaskConical,
   History,
   Loader2,
@@ -51,6 +48,7 @@ const SECTION_META = {
 
 export default function ResultPage() {
   const { attemptId = '' } = useParams();
+  const [showRetakeOptions, setShowRetakeOptions] = useState(false);
   const resultQuery = useQuery({
     queryKey: ['exam-result', attemptId],
     queryFn: () => getExamResult(attemptId),
@@ -89,29 +87,55 @@ export default function ResultPage() {
   const result = resultQuery.data;
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-950 via-[#13294f] to-primary-950 p-7 text-white shadow-xl md:p-10">
-        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-primary-500/20 blur-3xl" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center">
-          <div>
-            <p className="text-sm font-semibold text-primary-200">Kết quả bài thi</p>
-            <h1 className="mt-2 text-2xl font-extrabold md:text-3xl">
-              {result.exam.title}
-            </h1>
-            <p className="mt-2 text-sm font-medium text-primary-100">
-              {formatAttemptScope(result.selectedSections)}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Metric icon={CheckCircle2} value={`${result.correctCount} câu đúng`} />
-              <Metric icon={XCircle} value={`${result.wrongCount} câu sai`} />
-              <Metric icon={Clock3} value={formatDuration(result.durationSecs)} />
+      <section className="card overflow-hidden">
+        <header className="border-b border-neutral-200 px-6 py-5">
+          <h1 className="text-xl font-bold text-neutral-900 md:text-2xl">{result.exam.title}</h1>
+          <p className="mt-1 text-sm text-neutral-500">{formatAttemptScope(result.selectedSections)}</p>
+        </header>
+        <div className="grid gap-8 p-6 lg:grid-cols-[minmax(20rem,0.85fr)_minmax(0,1.15fr)] lg:p-8">
+          <article className="rounded-2xl bg-primary-50 p-5 sm:grid sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:gap-6">
+            <div className="text-center sm:border-r sm:border-primary-100 sm:pr-6">
+              <p className="text-sm font-bold text-neutral-800">Điểm TSA</p>
+              <strong className="mt-2 block text-4xl font-black text-primary-600">{formatScore(result.totalScore)}</strong>
+              <span className="mt-1 block text-xs text-neutral-500">/{formatScore(result.maxScore)} điểm</span>
             </div>
-          </div>
-          <div className="flex aspect-square flex-col items-center justify-center rounded-full border-8 border-white/15 bg-white/10 text-center shadow-2xl backdrop-blur">
-            <strong className="text-5xl font-black">{result.percentScore.toFixed(1)}%</strong>
-            <span className="mt-2 text-sm text-neutral-300">
-              {formatScore(result.totalScore)}/{formatScore(result.maxScore)} điểm
-            </span>
-          </div>
+            <div className="mt-5 space-y-2 text-sm sm:mt-0">
+              <p className="font-semibold text-neutral-800">Số câu đúng:</p>
+              {result.sectionScores.map((section) => (
+                <div key={section.section} className="flex items-center justify-between gap-4 text-neutral-600">
+                  <span>{SECTION_META[section.section].label}</span>
+                  <strong className="text-neutral-900">{section.correct}/{section.total}</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article>
+            <h2 className="font-bold text-neutral-900">Thông tin dự thi</h2>
+            <dl className="mt-4 space-y-3 text-sm">
+              <InfoRow label="Thí sinh" value={result.candidate.displayName} />
+              <InfoRow label="Thời gian bắt đầu" value={formatDateTime(result.startedAt)} />
+              <InfoRow label="Thời gian kết thúc" value={formatDateTime(result.attemptCompletedAt ?? result.completedAt)} />
+            </dl>
+            <div className="mt-6 grid gap-2 sm:grid-cols-3">
+              <Link to={`/results/${attemptId}/review`} className="btn btn-primary w-full">
+                Xem chi tiết đáp án
+              </Link>
+              <Link to="/exams" className="btn btn-secondary w-full">
+                Về thư viện đề thi
+              </Link>
+              <button type="button" className="btn btn-secondary w-full" onClick={() => setShowRetakeOptions((current) => !current)}>
+                <RotateCcw className="h-4 w-4" />
+                Luyện tập
+              </button>
+            </div>
+            {showRetakeOptions && (
+              <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Chọn phần cần luyện tập</p>
+                <RetakeOptions examId={result.exam.id} availableSections={result.availableSections} />
+              </div>
+            )}
+          </article>
         </div>
       </section>
 
@@ -187,7 +211,7 @@ export default function ResultPage() {
         currentAttemptId={attemptId}
       />
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <section>
         <article className="card p-6">
           <div className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary-600" />
@@ -219,31 +243,6 @@ export default function ResultPage() {
           )}
         </article>
 
-        <aside className="card flex flex-col p-6">
-          <h2 className="font-bold text-neutral-900">Xem lại bài làm</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-500">
-            Kiểm tra đáp án, lời giải và thời gian làm từng câu để cải thiện lần thi tiếp theo.
-          </p>
-          <Link
-            to={`/results/${attemptId}/review`}
-            className="btn btn-primary mt-6 w-full"
-          >
-            Xem chi tiết đáp án
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link to="/exams" className="btn btn-secondary mt-3 w-full">
-            Về thư viện đề thi
-          </Link>
-          <div className="my-5 border-t border-neutral-100" />
-          <h2 className="font-bold text-neutral-900">Luyện tập lại</h2>
-          <p className="mb-3 mt-1 text-sm leading-6 text-neutral-500">
-            Chọn làm lại toàn bộ hoặc tập trung vào một phần thi.
-          </p>
-          <RetakeOptions
-            examId={result.exam.id}
-            availableSections={result.availableSections}
-          />
-        </aside>
       </section>
     </div>
   );
@@ -568,12 +567,12 @@ function SectionResultCard({ section }: { section: SectionScore }) {
   );
 }
 
-function Metric({ icon: Icon, value }: { icon: typeof Clock3; value: string }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-sm">
-      <Icon className="h-4 w-4 text-primary-300" />
-      {value}
-    </span>
+    <div className="grid gap-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-neutral-500">{label}</dt>
+      <dd className="font-semibold text-neutral-800">{value}</dd>
+    </div>
   );
 }
 
@@ -590,13 +589,17 @@ function formatScore(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
-function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rest = seconds % 60;
-  return hours > 0
-    ? `${hours} giờ ${minutes} phút`
-    : `${minutes}:${String(rest).padStart(2, '0')}`;
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
 }
 
 function formatAttemptScope(sections: SectionScore['section'][]) {

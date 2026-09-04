@@ -39,6 +39,10 @@ export interface ExamResult {
   attemptCompletedAt?: string | null;
   selectedSections: ExamSectionType[];
   availableSections: ExamSectionType[];
+  candidate: {
+    id: string;
+    displayName: string;
+  };
 }
 
 export interface ReviewQuestion {

@@ -7,6 +7,10 @@ export type ReviewFilter =
   | 'SKIPPED'
   | 'CORRECT';
 
+export function getReviewNavigatorTone(isCorrect: boolean | null) {
+  return isCorrect === true ? 'correct' : 'incorrect';
+}
+
 export function getReviewRequest(
   section: ExamSectionType,
   filter: ReviewFilter,

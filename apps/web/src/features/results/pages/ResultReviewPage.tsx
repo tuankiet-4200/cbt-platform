@@ -8,6 +8,7 @@ import type { ExamSectionType, SessionQuestion } from '@/features/exam/api/sessi
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { cn } from '@/lib/utils';
 import { getAnswerReview, getExamResult, type ReviewBundle, type ReviewQuestion } from '../api/results.api';
+import { getReviewNavigatorTone } from '../lib/review-filter';
 
 const SECTIONS: Array<{ value: ExamSectionType; label: string }> = [
   { value: 'MATH', label: 'Tư duy Toán học' },
@@ -121,8 +122,8 @@ function ReviewSidebar({ open, onClose, candidateName, section, selectedSections
       <div className="mt-6 rounded-md border border-neutral-200 px-3 py-3 text-center"><p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Xem lại bài làm</p><p className="mt-1 text-sm font-bold text-[#17386d]">Không giới hạn thời gian</p></div>
       {selectedSections.length > 1 && <div className="mt-5 grid grid-cols-3 gap-1 rounded-lg bg-neutral-100 p-1">{SECTIONS.filter((item) => selectedSections.includes(item.value)).map((item) => <button key={item.value} type="button" onClick={() => onSection(item.value)} className={cn('rounded-md px-2 py-2 text-xs font-semibold', section === item.value ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500')}>{item.value === 'MATH' ? 'Toán' : item.value === 'READING' ? 'Đọc hiểu' : 'Khoa học'}</button>)}</div>}
       <div className="mt-6 flex items-center justify-between"><h3 className="text-sm font-semibold text-neutral-800">Danh sách câu hỏi</h3><span className="text-xs text-neutral-500">{questions.filter((q) => q.isCorrect).length}/{questions.length} đúng</span></div>
-      <div className="mt-4 grid grid-cols-8 gap-3 overflow-y-auto pb-3">{questions.map((question, index) => <button key={question.id} type="button" onClick={() => onGoTo(index)} className={cn('flex aspect-square items-center justify-center rounded-full text-xs font-semibold text-white transition', question.isCorrect ? 'bg-[#b91c1c]' : 'bg-[#15803d]', index === currentIndex && 'ring-2 ring-[#17386d] ring-offset-2')}>{index + 1}</button>)}</div>
-      <div className="mt-auto space-y-3 border-t border-neutral-100 pt-4"><div className="flex flex-wrap gap-3 text-xs text-neutral-500"><span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-[#b91c1c]" />Đúng</span><span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-[#15803d]" />Sai hoặc bỏ trống</span></div><Link to={`/results/${attemptId}`} className="btn btn-secondary w-full"><ArrowLeft className="h-4 w-4" />Kết quả tổng quan</Link></div>
+      <div className="mt-4 grid grid-cols-8 gap-3 overflow-y-auto pb-3">{questions.map((question, index) => <button key={question.id} type="button" onClick={() => onGoTo(index)} className={cn('flex aspect-square items-center justify-center rounded-full text-xs font-semibold text-white transition', getReviewNavigatorTone(question.isCorrect) === 'correct' ? 'bg-[#15803d]' : 'bg-[#b91c1c]', index === currentIndex && 'shadow-[inset_0_0_0_2px_#0f172a,inset_0_0_0_4px_#ffffff]')}>{index + 1}</button>)}</div>
+      <div className="mt-auto space-y-3 border-t border-neutral-100 pt-4"><div className="flex flex-wrap gap-3 text-xs text-neutral-500"><span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-[#15803d]" />Đúng</span><span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-[#b91c1c]" />Sai hoặc bỏ trống</span></div><Link to={`/results/${attemptId}`} className="btn btn-secondary w-full"><ArrowLeft className="h-4 w-4" />Kết quả tổng quan</Link></div>
     </aside>
   </>;
 }
