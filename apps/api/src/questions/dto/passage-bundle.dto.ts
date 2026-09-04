@@ -38,6 +38,7 @@ export class CreatePassageBundleDto {
   title?: string;
 
   @IsArray()
+  @Type(() => Object)
   contentJson!: unknown[];
 
   @IsOptional()
@@ -91,6 +92,7 @@ export class UpdatePassageBundleDto {
 
   @IsOptional()
   @IsArray()
+  @Type(() => Object)
   contentJson?: unknown[];
 
   @IsOptional()
