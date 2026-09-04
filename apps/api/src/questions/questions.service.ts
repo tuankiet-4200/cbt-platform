@@ -271,9 +271,6 @@ export class QuestionsService {
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
     const existing = await this.prisma.question.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Question not found');
-    if (this.changesQuestionContent(dto)) {
-      await this.assertQuestionContentMutable(id);
-    }
 
     const type = dto.type ?? existing.type;
     const data: Prisma.QuestionUpdateInput = {
@@ -481,9 +478,6 @@ export class QuestionsService {
   async updatePassageBundle(id: string, dto: UpdatePassageBundleDto) {
     const existing = await this.prisma.passageBundle.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Passage bundle not found');
-    if (this.changesBundleContent(dto)) {
-      await this.assertBundleContentMutable(id);
-    }
 
     if (dto.questions !== undefined) {
       this.validateBundle(existing.sectionType, dto.questions);
@@ -658,27 +652,6 @@ export class QuestionsService {
     if (!allowed[from].includes(to)) {
       throw new BadRequestException(`Cannot move question from ${from} to ${to}`);
     }
-  }
-
-  private changesQuestionContent(dto: UpdateQuestionDto) {
-    return (
-      dto.type !== undefined ||
-      dto.level !== undefined ||
-      dto.contentJson !== undefined ||
-      dto.irtParams !== undefined ||
-      dto.expectedTimeSecs !== undefined ||
-      dto.tagIds !== undefined
-    );
-  }
-
-  private changesBundleContent(dto: UpdatePassageBundleDto) {
-    return (
-      dto.title !== undefined ||
-      dto.contentJson !== undefined ||
-      dto.expectedTimeSecs !== undefined ||
-      dto.tagIds !== undefined ||
-      dto.questions !== undefined
-    );
   }
 
   private async assertQuestionContentMutable(questionId: string) {

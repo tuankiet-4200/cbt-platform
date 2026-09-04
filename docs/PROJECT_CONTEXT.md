@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (strict decimal-comma and precision matching added for Fill number)
+> **Last updated:** 2026-09-05 (question and passage bundle edits allowed after exam usage)
 
 ### Active Sprint
-**Question Grading Reliability**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Fill number now preserves and strictly matches Vietnamese decimal commas and the exact requested decimal precision while remaining compatible with legacy numeric keys
+**Admin Content Maintenance**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — admins may correct question answers and passage bundle content even after inclusion in published exams or attempts; referenced-content deletion remains protected
 
 ### Sprint Progress Overview
 
@@ -171,7 +171,8 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Fill number now preserves 
 15. [x] Tag Management module added: `/admin/tags` list with MATH/READING/SCIENCE tabs plus shared create/edit tag form pages
 16. [x] READING/SCIENCE bundle list omits empty status filter so "All status" shows seeded bundles correctly
 17. [x] Manual question editor uploads PNG/JPEG/WebP/SVG assets directly to Supabase using an explicit multipart request and inserts image nodes into stems, solutions, passages/stimuli, choice answers, matrix statements, and drag/drop content; edit/save round trips preserve existing images and upload errors expose the API validation message
-18. [x] Tag and question/bundle editors provide Back navigation and guarded Delete actions; used taxonomy/content returns a domain-level conflict instead of unsafe deletion
+18. [x] Tag and question/bundle editors provide Back navigation and guarded Delete actions; referenced taxonomy/content cannot be deleted while still in use
+   - Question and passage bundle updates remain allowed after exam inclusion so admins can correct content and answer keys in place.
 19. [x] Reading/Science bundle passage writes normalize supported legacy paragraph/text/line-break nodes before canonical validation, resolving compatible `contentJson[0].type is invalid` payloads
 20. [x] Added FILL_TEXT authoring, rendering, validation, grading, answer extraction, blueprint selection, and bulk-import support with Vietnamese-aware normalized matching
 21. [x] Question-bank cards and exam previews reuse the production RichText renderer for LaTeX/images; question inspection shows only the rendered stem and structured answers
@@ -415,7 +416,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Fill number now preserves 
 
 ### High Priority
 1. [ ] Implement refresh-token family/reuse detection: live verification returned `401` for the reused token but its successor still refreshed successfully (`201`), so reuse does not revoke all user sessions as documented.
-2. [ ] Preserve published-attempt content: question and passage content can still be edited after exam publication, while grading and answer review read live question-bank JSON. Add an immutable exam/attempt snapshot or prohibit mutations that would alter published/historical attempts.
+2. [ ] Preserve published-attempt content with an immutable exam/attempt snapshot. Admins explicitly remain allowed to correct live question and passage content after publication, so prohibiting those edits is not an acceptable remediation.
 
 ### Medium Priority
 3. [ ] Make offline timeout recovery deterministic: the client marks auto-submit as attempted before an offline sync failure and does not retry the transition after reconnect; the server timeout job submits the section but the current UI can remain stuck.
@@ -433,7 +434,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Fill number now preserves 
 ### Audit Evidence
 - [x] PostgreSQL and Redis healthy; Prisma schema valid; FILL_TEXT migration applied with no drift
 - [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
-- [x] 43/43 API unit tests and 11/11 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
+- [x] 44/44 API unit tests and 11/11 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -453,13 +454,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Fill number now preserves 
 10. [x] Preserve Reading/Science passage RichText nodes through DTO transformation on create and update
 11. [x] Add the full-attempt section lobby, reload-safe five-minute inter-section breaks, expandable Reading/Science workspace, and reference-styled Drag drop options
 12. [x] Make Fill number grading require the exact decimal comma and number of decimal places entered in the answer key
-13. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-14. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-15. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-16. [ ] Complete section timeout retry for transient online failures
-17. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-18. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-19. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+13. [x] Allow admins to correct questions, answer keys, and passage bundles after they are included in published exams or attempts while retaining deletion guards
+14. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+15. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+16. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+17. [ ] Complete section timeout retry for transient online failures
+18. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+19. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+20. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -487,6 +489,7 @@ These decisions are FINAL and must not be reversed without explicit user approva
 |----------|------|
 | **Exam attempt/session lifecycle** | One `ExamAttempt` aggregates either every available section or one selected section. Full attempts remain sequential MATH → READING → SCIENCE and use a shared section lobby before the first section and after every submitted section. Each section keeps its own server-authoritative timer. |
 | **Inter-section break** | Full attempts provide a maximum five-minute break after each non-final section. The deadline is derived from the previous section's durable `submittedAt`, survives reload/reconnect, permits early continuation, and starts the next section automatically when it expires. |
+| **Live question maintenance** | Admins may edit question/answer content and Reading/Science passage bundles after exam inclusion, publication, or attempts. Referenced content still cannot be deleted. Historical immutability must be implemented through snapshots rather than blocking corrections to the live question bank. |
 | **Fixed section durations** | MATH = 60 minutes, READING = 30 minutes, SCIENCE = 60 minutes. |
 | **Aggregate result ownership** | `ExamResult` belongs to `ExamAttempt`; `sectionScores[]` stores the MATH/READING/SCIENCE breakdown. |
 | Tailwind CSS | **v4 only**. CSS-first `@theme {}`. No `tailwind.config.js`. Plugin: `@tailwindcss/vite`. |

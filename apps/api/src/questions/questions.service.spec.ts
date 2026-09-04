@@ -1,14 +1,19 @@
-import { ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { QuestionsService } from './questions.service';
 
-describe('QuestionsService published content protection', () => {
+describe('QuestionsService content updates', () => {
   const questionFindUnique = jest.fn();
   const questionUpdate = jest.fn();
+  const passageBundleFindUnique = jest.fn();
+  const passageBundleUpdate = jest.fn();
   const prisma = {
     question: {
       findUnique: questionFindUnique,
       update: questionUpdate,
+    },
+    passageBundle: {
+      findUnique: passageBundleFindUnique,
+      update: passageBundleUpdate,
     },
     $transaction: jest.fn(
       async (callback: (tx: unknown) => unknown) => callback(prisma),
@@ -20,21 +25,18 @@ describe('QuestionsService published content protection', () => {
     jest.clearAllMocks();
   });
 
-  it('blocks content changes when the question belongs to a published exam', async () => {
-    questionFindUnique
-      .mockResolvedValueOnce({
-        id: 'question-1',
-        type: 'SINGLE_CHOICE',
-      })
-      .mockResolvedValueOnce({
-        mathExamItems: [{ examId: 'exam-1' }],
-        bundleQuestion: null,
-      });
+  it('allows content changes when the question belongs to a published exam', async () => {
+    questionFindUnique.mockResolvedValue({
+      id: 'question-1',
+      type: 'SINGLE_CHOICE',
+    });
+    questionUpdate.mockResolvedValue({ id: 'question-1' });
 
     await expect(
       service.updateQuestion('question-1', { expectedTimeSecs: 120 }),
-    ).rejects.toThrow(ConflictException);
-    expect(questionUpdate).not.toHaveBeenCalled();
+    ).resolves.toEqual({ id: 'question-1' });
+    expect(questionFindUnique).toHaveBeenCalledTimes(1);
+    expect(questionUpdate).toHaveBeenCalled();
   });
 
   it('allows review notes without changing immutable grading content', async () => {
@@ -50,5 +52,19 @@ describe('QuestionsService published content protection', () => {
 
     expect(questionFindUnique).toHaveBeenCalledTimes(1);
     expect(questionUpdate).toHaveBeenCalled();
+  });
+
+  it('allows passage bundle content changes after the bundle is used', async () => {
+    passageBundleFindUnique.mockResolvedValue({
+      id: 'bundle-1',
+      sectionType: 'READING',
+    });
+    passageBundleUpdate.mockResolvedValue({ id: 'bundle-1' });
+
+    await expect(
+      service.updatePassageBundle('bundle-1', { title: 'Đoạn đọc đã sửa' }),
+    ).resolves.toEqual({ id: 'bundle-1' });
+    expect(passageBundleFindUnique).toHaveBeenCalledTimes(1);
+    expect(passageBundleUpdate).toHaveBeenCalled();
   });
 });
