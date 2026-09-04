@@ -200,7 +200,9 @@ Nếu **bất kỳ 1 phát biểu nào sai** → toàn câu **0 điểm**.
 
 ## Type 4: DRAG_DROP (Kéo thả — All-or-Nothing)
 
-Thí sinh phải đặt đúng item vào **tất cả** slot thì mới được điểm.
+Thí sinh phải đặt đúng item vào **tất cả** slot thì mới được điểm. Mỗi slot là một
+node `blank` nằm trực tiếp trong `stem`, tương tự ô trống của `FILL_TEXT`, nhưng
+thí sinh trả lời bằng cách kéo một item vào ô thay vì nhập văn bản.
 
 ```typescript
 interface DragDropPayload {
@@ -209,10 +211,10 @@ interface DragDropPayload {
     id: string;
     content: RichTextNode[];
   }[];
-  /** Các slot mà item được thả vào */
+  /** Các slot mà item được thả vào; id phải khớp một blankId trong stem */
   slots: {
     id: string;
-    label?: RichTextNode[]; // Nhãn slot (hiển thị bên cạnh ô thả)
+    label?: RichTextNode[]; // Ghi chú tùy chọn; không thay thế vị trí inline trong stem
     correctItemId: string;  // ID của item đúng cho slot này
   }[];
 }
@@ -226,21 +228,30 @@ Nếu **bất kỳ 1 slot nào sai** → toàn câu **0 điểm**.
 
 **Answer format:** `{ slots: { slotId: string, itemId: string }[] }`
 
-**Example (Sắp xếp bước giải phương trình):**
+Mỗi `slots[].id` phải xuất hiện **đúng một lần** trong `stem` dưới dạng
+`{ "type": "blank", "blankId": "slot1" }`. Trong trình soạn thảo admin có thể
+nhập token `{{slot1}}` hoặc bấm **Chèn vào đề**.
+
+**Example (điền khoảng nghiệm bằng kéo thả):**
 ```json
 {
-  "stem": [{"type": "text", "content": "Kéo các bước vào đúng thứ tự giải phương trình:"}],
+  "stem": [
+    {"type": "text", "content": "Tập nghiệm là S = ("},
+    {"type": "blank", "blankId": "slot1"},
+    {"type": "text", "content": "; "},
+    {"type": "blank", "blankId": "slot2"},
+    {"type": "text", "content": ")"}
+  ],
   "type": "DRAG_DROP",
   "payload": {
     "items": [
-      {"id": "I1", "content": [{"type": "latex", "content": "2x = 6"}]},
-      {"id": "I2", "content": [{"type": "latex", "content": "x + 3 = 6"}]},
-      {"id": "I3", "content": [{"type": "latex", "content": "x = 3"}]}
+      {"id": "I1", "content": [{"type": "latex", "content": "-\\infty"}]},
+      {"id": "I2", "content": [{"type": "latex", "content": "-8"}]},
+      {"id": "I3", "content": [{"type": "latex", "content": "+\\infty"}]}
     ],
     "slots": [
-      {"id": "slot1", "label": [{"type": "text", "content": "Bước 1"}], "correctItemId": "I2"},
-      {"id": "slot2", "label": [{"type": "text", "content": "Bước 2"}], "correctItemId": "I1"},
-      {"id": "slot3", "label": [{"type": "text", "content": "Kết quả"}], "correctItemId": "I3"}
+      {"id": "slot1", "correctItemId": "I1"},
+      {"id": "slot2", "correctItemId": "I2"}
     ]
   },
   "_version": 2
@@ -466,3 +477,4 @@ interface SectionScore {
 | 2.0 | Sprint 1.1 Rev2 | Add MULTIPLE_CHOICE; FILL_NUMBER → exact match (remove tolerance); TRUE_FALSE/DRAG_DROP → all-or-nothing; Add Passage concept; Add section score schema |
 | 2.1 | Sprint 1.1 Rev3 | FILL_NUMBER → multi-blank support (blanks[]) with all-or-nothing; blank RichTextNode adds blankId field |
 | 2.2 | 2026-09-04 | Add FILL_TEXT with Vietnamese-aware normalized exact matching and all-or-nothing grading |
+| 2.3 | 2026-09-04 | Embed every DRAG_DROP slot exactly once in the stem as a blank node; retain Item distractors and all-or-nothing grading |

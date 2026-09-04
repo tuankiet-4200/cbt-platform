@@ -111,6 +111,62 @@ describe('question content validation', () => {
     ).toBeDefined();
   });
 
+  it('accepts DRAG_DROP slots embedded in the stem', () => {
+    expect(
+      validateQuestionContent(
+        {
+          _version: 2,
+          type: QuestionType.DRAG_DROP,
+          stem: [
+            { type: 'text', content: 'Tập nghiệm là (' },
+            { type: 'blank', blankId: 'slot1' },
+            { type: 'text', content: '; ' },
+            { type: 'blank', blankId: 'slot2' },
+            { type: 'text', content: ')' },
+          ],
+          payload: {
+            items: [
+              { id: 'I1', content: [{ type: 'latex', content: '-\\infty' }] },
+              { id: 'I2', content: [{ type: 'latex', content: '-8' }] },
+            ],
+            slots: [
+              { id: 'slot1', correctItemId: 'I1' },
+              { id: 'slot2', correctItemId: 'I2' },
+            ],
+          },
+        },
+        QuestionType.DRAG_DROP,
+      ),
+    ).toBeDefined();
+  });
+
+  it('rejects a DRAG_DROP slot missing from the stem', () => {
+    expect(() =>
+      validateQuestionContent(
+        {
+          _version: 2,
+          type: QuestionType.DRAG_DROP,
+          stem: [{ type: 'blank', blankId: 'slot1' }],
+          payload: {
+            items: [
+              { id: 'I1', content: [{ type: 'text', content: 'A' }] },
+              { id: 'I2', content: [{ type: 'text', content: 'B' }] },
+            ],
+            slots: [
+              { id: 'slot1', correctItemId: 'I1' },
+              { id: 'slot2', correctItemId: 'I2' },
+            ],
+          },
+        },
+        QuestionType.DRAG_DROP,
+      ),
+    ).toThrow(
+      new BadRequestException(
+        'Every drag-drop slot id must have exactly one matching stem blankId',
+      ),
+    );
+  });
+
   it('normalizes legacy passage nodes before validating a bundle', () => {
     const normalized = normalizeRichTextArray([
       { type: 'paragraph', content: '[1] Nội dung bài đọc' },

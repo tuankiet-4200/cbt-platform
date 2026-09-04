@@ -75,7 +75,7 @@ export function QuestionRenderer({
 
   return (
     <article>
-      <div className="text-[15px] leading-8 text-neutral-900">
+      {question.type !== 'DRAG_DROP' && <div className="text-[15px] leading-8 text-neutral-900">
         <RichText
           nodes={question.content.stem}
           renderBlank={(blankId) => {
@@ -100,7 +100,7 @@ export function QuestionRenderer({
             );
           }}
         />
-      </div>
+      </div>}
 
       {question.type === 'SINGLE_CHOICE' && (
         <div className="mt-5 space-y-3">
@@ -196,6 +196,7 @@ export function QuestionRenderer({
       {question.type === 'DRAG_DROP' && (
         <div className={readOnly ? 'pointer-events-none' : undefined} aria-disabled={readOnly}>
           <DragDropQuestion
+            stem={question.content.stem}
             items={items}
             slots={slots}
             value={

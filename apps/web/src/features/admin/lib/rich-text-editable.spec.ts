@@ -21,4 +21,14 @@ describe('rich text editable image tokens', () => {
 
     expect(parseRichText(richTextToEditableText(nodes))).toEqual(nodes);
   });
+
+  it('parses inline slot tokens when blank support is enabled', () => {
+    expect(parseRichText('S = ({{slot1}}; {{slot2}})', true)).toEqual([
+      { type: 'text', content: 'S = (' },
+      { type: 'blank', blankId: 'slot1' },
+      { type: 'text', content: '; ' },
+      { type: 'blank', blankId: 'slot2' },
+      { type: 'text', content: ')' },
+    ]);
+  });
 });

@@ -847,8 +847,8 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           <p className="font-semibold">Cách tạo câu kéo thả</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
             <li><strong>Phương án kéo (Item)</strong> là nội dung thí sinh sẽ kéo, ví dụ “Hà Nội”, “Huế”.</li>
-            <li><strong>Vị trí thả (Slot)</strong> là ô đích cần ghép, ví dụ “Thủ đô Việt Nam”.</li>
-            <li>Ở ô chọn bên phải mỗi Slot, chọn đúng mã Item tương ứng. Ví dụ Slot “Thủ đô Việt Nam” chọn Item “Hà Nội”.</li>
+            <li><strong>Vị trí thả (Slot)</strong> là ô trống nằm trực tiếp trong Stem. Dùng nút “Chèn vào đề” để thêm token như <code>{'{{slot1}}'}</code>.</li>
+            <li>Ở ô chọn bên phải mỗi Slot, chọn đúng Item tương ứng. Ví dụ Stem “Thủ đô Việt Nam là <code>{'{{slot1}}'}</code>” và slot1 chọn Item “Hà Nội”.</li>
           </ol>
         </div>
         <div className="space-y-3">
@@ -862,16 +862,37 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
           ))}
         </div>
         <div className="space-y-3">
-          <SectionHeader title="Vị trí thả (Slots)" addLabel="Thêm vị trí" onAdd={() => patch({ dragSlots: [...draft.dragSlots, { id: `slot${draft.dragSlots.length + 1}`, label: '', correctItemId: draft.dragItems[0]?.id ?? 'I1' }] })} />
+          <SectionHeader title="Vị trí thả (Slots)" addLabel="Thêm vị trí" onAdd={() => {
+            const nextId = `slot${draft.dragSlots.length + 1}`;
+            patch({
+              dragSlots: [...draft.dragSlots, { id: nextId, label: '', correctItemId: draft.dragItems[0]?.id ?? 'I1' }],
+              stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${nextId}}}`,
+            });
+          }} />
           {draft.dragSlots.map((slot, index) => (
-            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
-              <RichTextControl value={slot.label} onChange={(label) => updateDragSlot(index, { label })} placeholder="Ô đích, VD: Thủ đô Việt Nam" imageWidth={260} compact />
+            <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_7rem_2.25rem]">
+              <RichTextControl value={slot.label} onChange={(label) => updateDragSlot(index, { label })} placeholder="Ghi chú Slot (tuỳ chọn)" imageWidth={260} compact />
               <SelectField
                 value={slot.correctItemId}
                 options={draft.dragItems.map((item) => ({ value: item.id, label: `${item.id} — ${item.content || 'Chưa nhập'}` }))}
                 onChange={(value) => updateDragSlot(index, { correctItemId: value })}
               />
-              <IconButton disabled={draft.dragSlots.length <= 1} label="Remove slot" onClick={() => patch({ dragSlots: draft.dragSlots.filter((_, itemIndex) => itemIndex !== index) })} />
+              <button
+                className="btn btn-secondary btn-sm"
+                type="button"
+                disabled={draft.stem.includes(`{{${slot.id}}}`)}
+                onClick={() => patch({ stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${slot.id}}}` })}
+              >
+                Chèn vào đề
+              </button>
+              <IconButton
+                disabled={draft.dragSlots.length <= 1}
+                label="Remove slot"
+                onClick={() => patch({
+                  dragSlots: draft.dragSlots.filter((_, itemIndex) => itemIndex !== index),
+                  stem: draft.stem.replaceAll(`{{${slot.id}}}`, ''),
+                })}
+              />
             </div>
           ))}
         </div>
@@ -1326,6 +1347,17 @@ function draftFromQuestion(question: AdminQuestion): QuestionDraft {
         correctItemId: value.correctItemId ?? draft.dragItems[0]?.id ?? 'I1',
       };
     });
+    const existingStemSlotIds = new Set(
+      question.contentJson.stem
+        .filter((node) => node.type === 'blank')
+        .map((node) => node.blankId),
+    );
+    const missingTokens = draft.dragSlots
+      .filter((slot) => !existingStemSlotIds.has(slot.id))
+      .map((slot) => `{{${slot.id}}}`);
+    if (missingTokens.length > 0) {
+      draft.stem = `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}${missingTokens.join(' ')}`;
+    }
   }
 
   if (question.type === 'FILL_NUMBER') {
@@ -1357,7 +1389,10 @@ function draftFromQuestion(question: AdminQuestion): QuestionDraft {
 
 function buildQuestionContent(draft: QuestionDraft): CreateQuestionPayload['contentJson'] {
   const content: CreateQuestionPayload['contentJson'] = {
-    stem: parseRichText(draft.stem, draft.type === 'FILL_NUMBER' || draft.type === 'FILL_TEXT'),
+    stem: parseRichText(
+      draft.stem,
+      draft.type === 'FILL_NUMBER' || draft.type === 'FILL_TEXT' || draft.type === 'DRAG_DROP',
+    ),
     type: draft.type,
     payload: {},
     _version: 2,
@@ -1426,6 +1461,16 @@ function validateQuestionDraft(content: CreateQuestionPayload['contentJson']) {
       const textBlanks = (content.payload.blanks as Array<{ correctValue: string }> | undefined) ?? [];
       if (textBlanks.some((blank) => !blank.correctValue.trim())) return 'Đáp án Fill text không được để trống.';
     }
+  }
+  if (content.type === 'DRAG_DROP') {
+    const slotIds = new Set(((content.payload.slots as Array<{ id: string }> | undefined) ?? []).map((slot) => slot.id));
+    const stemSlotIds = content.stem.flatMap((node) =>
+      node.type === 'blank' && node.blankId ? [node.blankId] : [],
+    );
+    const missing = [...slotIds].find((slotId) => !stemSlotIds.includes(slotId));
+    if (missing) return `Stem cần chứa token {{${missing}}} cho vị trí thả ${missing}.`;
+    if (new Set(stemSlotIds).size !== stemSlotIds.length) return 'Mỗi token Slot chỉ được xuất hiện một lần trong Stem.';
+    if (stemSlotIds.some((slotId) => !slotIds.has(slotId))) return 'Stem đang chứa token không khớp với danh sách Slot.';
   }
   return null;
 }

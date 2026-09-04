@@ -419,8 +419,9 @@ These facts about the domain must not be violated in code, API design, or schema
 | `SINGLE_CHOICE` | Radio, 1 correct answer | No |
 | `MULTIPLE_CHOICE` | Checkboxes, N correct answers | Yes (options[]) |
 | `TRUE_FALSE_MATRIX` | Đúng/Sai per statement | Yes (statements[]) |
-| `DRAG_DROP` | Drag items into slots | Yes (slots[]) |
+| `DRAG_DROP` | Drag items into inline stem slots | Yes (slots[]) |
 | `FILL_NUMBER` | Numeric input blanks in stem | Yes (blanks[]) |
+| `FILL_TEXT` | Text input blanks in stem | Yes (blanks[]) |
 
 ### 8.2 Grading Rules — NON-NEGOTIABLE
 
@@ -431,6 +432,7 @@ These facts about the domain must not be violated in code, API design, or schema
 | `TRUE_FALSE_MATRIX` | **All-or-nothing** — all statements must be correct | **NO** |
 | `DRAG_DROP` | **All-or-nothing** — all slots must be correct | **NO** |
 | `FILL_NUMBER` | **All-or-nothing** — all blanks must match exactly | **NO** |
+| `FILL_TEXT` | **All-or-nothing** — all normalized text blanks must match | **NO** |
 
 **No `tolerance` field.** `FILL_NUMBER` uses **exact numeric match** after parsing:
 ```typescript
@@ -460,8 +462,9 @@ The stem links to blanks via `{ type: 'blank', blankId: 'B1' }` RichTextNodes.
 ### 8.4 RichTextNode Types
 
 Valid node types: `text`, `latex`, `latex_block`, `image`, `bold`, `italic`, `break`, `blank` (with `blankId`).
-- `blank` nodes appear in `stem` of `FILL_NUMBER` questions only
-- `blankId` in the stem node must match a corresponding `id` in `payload.blanks[]`
+- `blank` nodes appear in `stem` of `FILL_NUMBER`, `FILL_TEXT`, and `DRAG_DROP` questions
+- `blankId` in the stem node must match a corresponding `id` in `payload.blanks[]` or `payload.slots[]`
+- Every `DRAG_DROP` slot must appear exactly once as an inline blank node in the stem; Items may include distractors
 
 ### 8.5 IRT Parameters
 

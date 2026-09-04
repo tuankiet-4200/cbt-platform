@@ -25,11 +25,13 @@ interface DragSlot {
 }
 
 export function DragDropQuestion({
+  stem,
   items,
   slots,
   value,
   onChange,
 }: {
+  stem: RichTextNode[];
   items: DragItem[];
   slots: DragSlot[];
   value: Array<{ slotId: string; itemId: string }>;
@@ -43,6 +45,10 @@ export function DragDropQuestion({
   );
   const assignedIds = new Set(value.map((entry) => entry.itemId));
   const unassigned = items.filter((item) => !assignedIds.has(item.id));
+  const inlineSlotIds = new Set(
+    stem.filter((node) => node.type === 'blank').map((node) => node.blankId),
+  );
+  const legacySlots = slots.filter((slot) => !inlineSlotIds.has(slot.id));
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over) return;
@@ -68,10 +74,25 @@ export function DragDropQuestion({
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <div className="mt-4 space-y-5">
         <ItemPool items={unassigned} />
-        <div className="space-y-3">
-          {slots.map((slot) => {
+        <div className="text-[15px] leading-10 text-neutral-900">
+          <RichText
+            nodes={stem}
+            renderBlank={(slotId) => {
+              const slot = slots.find((item) => item.id === slotId) ?? { id: slotId };
+              const assignedId = value.find((entry) => entry.slotId === slotId)?.itemId;
+              const assigned = items.find((item) => item.id === assignedId);
+              return (
+                <InlineDropSlot key={slotId} slot={slot}>
+                  {assigned ? <DraggableItem item={assigned} compact /> : null}
+                </InlineDropSlot>
+              );
+            }}
+          />
+        </div>
+        {legacySlots.length > 0 && <div className="space-y-3">
+          {legacySlots.map((slot) => {
             const assignedId = value.find(
               (entry) => entry.slotId === slot.id,
             )?.itemId;
@@ -82,7 +103,7 @@ export function DragDropQuestion({
               </DropSlot>
             );
           })}
-        </div>
+        </div>}
       </div>
     </DndContext>
   );
@@ -102,9 +123,9 @@ function ItemPool({ items }: { items: DragItem[] }) {
       <p className="mb-3 text-xs font-bold uppercase tracking-wide text-neutral-500">
         Kéo đáp án vào vị trí phù hợp
       </p>
-      <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
         {items.map((item) => (
-          <DraggableItem key={item.id} item={item} />
+          <DraggableItem key={item.id} item={item} compact />
         ))}
         {items.length === 0 && (
           <p className="py-5 text-center text-sm text-neutral-400">
@@ -113,6 +134,25 @@ function ItemPool({ items }: { items: DragItem[] }) {
         )}
       </div>
     </section>
+  );
+}
+
+function InlineDropSlot({ slot, children }: { slot: DragSlot; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `slot:${slot.id}` });
+  return (
+    <span
+      ref={setNodeRef}
+      aria-label={`Vị trí thả ${slot.id}`}
+      className={`mx-1 inline-flex min-h-10 min-w-24 items-center justify-center rounded-lg border-2 border-dashed px-1 align-middle transition ${
+        isOver
+          ? 'border-blue-500 bg-blue-50'
+          : children
+            ? 'border-blue-300 bg-blue-50/40'
+            : 'border-neutral-400 bg-white'
+      }`}
+    >
+      {children ?? <span className="px-3 text-xs text-neutral-400">Thả vào đây</span>}
+    </span>
   );
 }
 
@@ -149,7 +189,7 @@ function DropSlot({
   );
 }
 
-function DraggableItem({ item }: { item: DragItem }) {
+function DraggableItem({ item, compact = false }: { item: DragItem; compact?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: `item:${item.id}`,
@@ -160,7 +200,7 @@ function DraggableItem({ item }: { item: DragItem }) {
       ref={setNodeRef}
       type="button"
       style={{ transform: CSS.Translate.toString(transform) }}
-      className={`flex min-h-11 w-full touch-none items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-left text-sm shadow-sm transition ${
+      className={`flex touch-none items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-left text-sm shadow-sm transition ${compact ? 'min-h-9 w-auto' : 'min-h-11 w-full'} ${
         isDragging ? 'z-50 opacity-70 shadow-xl' : 'hover:border-blue-300'
       }`}
       {...listeners}

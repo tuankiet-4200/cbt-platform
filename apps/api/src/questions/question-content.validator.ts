@@ -75,7 +75,7 @@ export function validateQuestionContent(content: unknown, expectedType?: Questio
       validateTrueFalsePayload(content.payload);
       break;
     case QuestionType.DRAG_DROP:
-      validateDragDropPayload(content.payload);
+      validateDragDropPayload(content.payload, content.stem);
       break;
     case QuestionType.FILL_NUMBER:
       validateFillNumberPayload(content.payload, content.stem);
@@ -199,7 +199,7 @@ function validateTrueFalsePayload(payload: Record<string, unknown>) {
   });
 }
 
-function validateDragDropPayload(payload: Record<string, unknown>) {
+function validateDragDropPayload(payload: Record<string, unknown>, stem: unknown) {
   if (!Array.isArray(payload.items) || payload.items.length === 0) {
     throw new BadRequestException('payload.items must be a non-empty array');
   }
@@ -238,6 +238,24 @@ function validateDragDropPayload(payload: Record<string, unknown>) {
     }
     correctItemIds.add(slot.correctItemId);
   });
+
+  const stemSlotIdList = Array.isArray(stem)
+    ? stem
+        .filter((node) => isRecord(node) && node.type === 'blank')
+        .map((node) => String(node.blankId))
+    : [];
+  const stemSlotIds = new Set(stemSlotIdList);
+  if (stemSlotIds.size !== stemSlotIdList.length) {
+    throw new BadRequestException('Stem slot blankId values must be unique');
+  }
+  if (
+    stemSlotIds.size !== slotIds.size ||
+    [...slotIds].some((slotId) => !stemSlotIds.has(slotId))
+  ) {
+    throw new BadRequestException(
+      'Every drag-drop slot id must have exactly one matching stem blankId',
+    );
+  }
 }
 
 function validateFillNumberPayload(payload: Record<string, unknown>, stem: unknown) {
