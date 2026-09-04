@@ -1,11 +1,19 @@
 import { BlockMath, InlineMath } from 'react-katex';
-import type { RichTextNode } from '../api/sessions.api';
+
+interface RenderableRichTextNode {
+  type: 'text' | 'latex' | 'latex_block' | 'image' | 'bold' | 'italic' | 'break' | 'blank';
+  content?: string;
+  url?: string;
+  alt?: string;
+  width?: number;
+  blankId?: string;
+}
 
 export function RichText({
   nodes,
   renderBlank,
 }: {
-  nodes: RichTextNode[];
+  nodes: RenderableRichTextNode[];
   renderBlank?: (blankId: string) => React.ReactNode;
 }) {
   return (
@@ -13,10 +21,10 @@ export function RichText({
       {nodes.map((node, index) => {
         const key = `${node.type}-${index}`;
         if (node.type === 'latex') {
-          return <InlineMath key={key} math={node.content} />;
+          return <InlineMath key={key} math={node.content ?? ''} />;
         }
         if (node.type === 'latex_block') {
-          return <BlockMath key={key} math={node.content} />;
+          return <BlockMath key={key} math={node.content ?? ''} />;
         }
         if (node.type === 'bold') {
           return <strong key={key}>{node.content}</strong>;
@@ -31,7 +39,7 @@ export function RichText({
           return (
             <img
               key={key}
-              src={node.url}
+              src={node.url ?? ''}
               alt={node.alt ?? ''}
               style={{ maxWidth: node.width ? `${node.width}px` : undefined }}
               className="my-4 max-h-[30rem] max-w-full object-contain"
@@ -41,7 +49,7 @@ export function RichText({
         if (node.type === 'blank') {
           return (
             <span key={key} className="mx-1 inline-flex">
-              {renderBlank?.(node.blankId) ?? '______'}
+              {renderBlank?.(node.blankId ?? '') ?? '______'}
             </span>
           );
         }

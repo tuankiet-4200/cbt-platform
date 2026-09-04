@@ -23,6 +23,7 @@ import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
 import { appendImageToken, parseRichText, richTextToEditableText } from '../lib/rich-text-editable';
+import { cognitiveLevelLabel } from '../lib/question-labels';
 import {
   bulkCreateQuestions,
   createPassageBundleWithQuestions,
@@ -744,7 +745,7 @@ function QuestionEditor({
             onChange={(value) => patch({ type: value as QuestionType })}
           />
         </Field>
-        <Field label="Level">
+        <Field label="Mức độ">
           <SelectField
             value={draft.level}
             options={LEVELS}
@@ -1191,7 +1192,7 @@ function QuestionList({ questions }: { questions: AdminQuestion[] }) {
           <p className="font-medium text-neutral-900">{summarizeRichText(question.contentJson.stem)}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="badge badge-neutral">{question.type}</span>
-            <span className="badge badge-primary">{question.level}</span>
+            <span className="badge badge-primary">{cognitiveLevelLabel(question.level)}</span>
             {question.tags.map(({ tag }) => <span key={tag.id} className="badge badge-neutral">{tag.name}</span>)}
           </div>
         </div>

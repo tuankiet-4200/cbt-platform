@@ -108,49 +108,44 @@ export default function AdminExamsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-neutral-200">
+        <div>
+          <table className="w-full table-fixed divide-y divide-neutral-200">
             <thead className="bg-neutral-50">
               <tr>
-                <Th>Exam</Th>
-                <Th>Blueprint</Th>
-                <Th>Access</Th>
-                <Th>Status</Th>
-                <Th>Structure</Th>
-                <Th>Generated</Th>
-                <Th align="right">Actions</Th>
+                <Th className="w-[34%]">Đề thi</Th>
+                <Th className="w-[12%]">Truy cập</Th>
+                <Th className="w-[12%]">Trạng thái</Th>
+                <Th className="w-[20%]">Cấu trúc</Th>
+                <Th className="w-[22%]" align="right">Thao tác</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 bg-white">
               {filteredExams.map((exam) => (
                 <tr key={exam.id} className="hover:bg-neutral-50">
-                  <td className="min-w-72 px-4 py-4">
-                    <p className="font-semibold text-neutral-900">{exam.title}</p>
+                  <td className="px-3 py-4">
+                    <p className="truncate font-semibold text-neutral-900" title={exam.title}>{exam.title}</p>
                     <p className="mt-1 text-sm text-neutral-500">{exam.durationMins} phut · {exam.totalPoints} points</p>
+                    <p className="mt-1 truncate text-xs text-neutral-400" title={exam.blueprint?.name ?? 'Snapshot only'}>
+                      {exam.blueprint?.name ?? 'Snapshot only'} · {formatDateTime(exam.generatedAt)}
+                    </p>
                   </td>
-                  <td className="min-w-56 px-4 py-4 text-sm text-neutral-600">
-                    {exam.blueprint?.name ?? 'Snapshot only'}
-                  </td>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <span className="badge badge-neutral">{exam.accessType}</span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <span className={cn('badge', exam.isPublished ? 'badge-success' : 'badge-warning')}>
                       {exam.isPublished ? 'Published' : 'Draft'}
                     </span>
                   </td>
-                  <td className="min-w-64 px-4 py-4">
-                    <div className="grid grid-cols-3 gap-2">
-                      <MetricMini label="M" value={exam.counts.mathQuestions} />
-                      <MetricMini label="R" value={exam.counts.readingQuestions} />
-                      <MetricMini label="S" value={exam.counts.scienceQuestions} />
+                  <td className="px-3 py-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      <CountBadge label="T" value={exam.counts.mathQuestions} />
+                      <CountBadge label="Đ" value={exam.counts.readingQuestions} />
+                      <CountBadge label="K" value={exam.counts.scienceQuestions} />
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-neutral-500">
-                    {formatDateTime(exam.generatedAt)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-3 py-4">
+                    <div className="flex flex-wrap justify-end gap-1.5">
                       <Link
                         to={`/admin/exams/${exam.id}/edit`}
                         className="btn btn-secondary btn-sm"
@@ -200,18 +195,17 @@ function Metric({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function MetricMini({ label, value }: { label: string; value: string | number }) {
+function CountBadge({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border border-neutral-200 bg-white px-3 py-2">
-      <p className="text-[0.68rem] font-semibold uppercase text-neutral-500">{label}</p>
-      <p className="mt-1 font-bold text-neutral-900">{value}</p>
-    </div>
+    <span className="inline-flex min-w-10 items-center justify-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500">
+      {label} <strong className="text-neutral-900">{value}</strong>
+    </span>
   );
 }
 
-function Th({ children, align = 'left' }: { children: ReactNode; align?: 'left' | 'right' }) {
+function Th({ children, align = 'left', className }: { children: ReactNode; align?: 'left' | 'right'; className?: string }) {
   return (
-    <th className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500', align === 'right' ? 'text-right' : 'text-left')}>
+    <th className={cn('px-3 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500', align === 'right' ? 'text-right' : 'text-left', className)}>
       {children}
     </th>
   );

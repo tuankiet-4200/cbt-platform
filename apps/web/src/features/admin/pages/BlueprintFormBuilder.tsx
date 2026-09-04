@@ -9,6 +9,7 @@ import type {
   SectionBlueprint,
 } from '../api/exams.api';
 import type { CognitiveLevel, ExamSectionType, QuestionType, TagNode } from '../api/questionBank.api';
+import { COGNITIVE_LEVELS, cognitiveLevelLabel } from '../lib/question-labels';
 
 interface FlatTagOption {
   slug: string;
@@ -17,7 +18,6 @@ interface FlatTagOption {
 }
 
 const SECTIONS: ExamSectionType[] = ['MATH', 'READING', 'SCIENCE'];
-const LEVELS: CognitiveLevel[] = ['RECOGNITION', 'COMPREHENSION', 'APPLICATION', 'HIGH_APPLICATION'];
 const QUESTION_TYPES: QuestionType[] = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE_MATRIX', 'DRAG_DROP', 'FILL_NUMBER', 'FILL_TEXT'];
 
 interface BlueprintFormBuilderProps {
@@ -239,17 +239,17 @@ function TagRuleCard({
           )}
         />
         <NestedRulePanel
-          title="Difficulty in tag"
-          addLabel="Add difficulty"
+          title="Mức độ trong tag"
+          addLabel="Thêm mức độ"
           rows={difficultyRules}
           onAdd={() => onChange({ difficultyRules: [...difficultyRules, { level: 'RECOGNITION', min: 1 }] })}
           render={(difficultyRule, index) => (
             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_5rem_5rem_2.5rem]">
               <label className="block">
-                <span className="label">Level</span>
+                <span className="label">Mức độ</span>
                 <SelectField
                   value={difficultyRule.level}
-                  options={LEVELS.map((level) => ({ value: level, label: level }))}
+                  options={COGNITIVE_LEVELS.map((level) => ({ value: level, label: cognitiveLevelLabel(level) }))}
                   onChange={(value) => updateNestedDifficultyRule(rule, index, { level: value as CognitiveLevel }, onChange)}
                 />
               </label>

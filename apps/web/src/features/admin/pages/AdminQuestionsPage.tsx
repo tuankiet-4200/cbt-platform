@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Edit3, FileText, FlaskConical, ListChecks, Plus, Sigma } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SelectField } from '@/components/ui/SelectField';
+import { RichText } from '@/features/exam/components/RichText';
 import {
   listPassageBundles,
   listQuestions,
@@ -13,6 +14,7 @@ import {
   type QuestionStatus,
   type TagNode,
 } from '../api/questionBank.api';
+import { cognitiveLevelLabel } from '../lib/question-labels';
 
 type SectionMode = ExamSectionType;
 
@@ -171,9 +173,11 @@ function MathQuestionList({ questions }: { questions: AdminQuestion[] }) {
             <div className="flex flex-wrap items-center gap-2">
               <span className={cn('badge', statusBadgeClass(question.status))}>{question.status}</span>
               <span className="badge badge-neutral">{question.type}</span>
-              <span className="badge badge-primary">{question.level}</span>
+              <span className="badge badge-primary">{cognitiveLevelLabel(question.level)}</span>
             </div>
-            <p className="mt-3 font-medium text-neutral-900">{summarizeRichText(question.contentJson.stem)}</p>
+            <div className="mt-3 overflow-hidden font-medium leading-7 text-neutral-900 [&_.katex-display]:my-2 [&_img]:max-h-40">
+              <RichText nodes={question.contentJson.stem} />
+            </div>
             <TagBadges tags={question.tags.map(({ tag }) => tag)} />
           </div>
           <Link className="btn btn-secondary btn-md" to={`/admin/questions/${question.id}/edit?section=MATH`}>
@@ -205,7 +209,9 @@ function BundleQuestionList({ bundles }: { bundles: PassageBundle[] }) {
               <FileText className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" />
               <p className="font-medium text-neutral-900">{bundle.title}</p>
             </div>
-            <p className="mt-2 line-clamp-2 text-sm text-neutral-500">{summarizeRichText(bundle.contentJson)}</p>
+            <div className="mt-2 max-h-16 overflow-hidden text-sm leading-7 text-neutral-500 [&_.katex-display]:my-1 [&_img]:max-h-12">
+              <RichText nodes={bundle.contentJson} />
+            </div>
             <TagBadges tags={bundle.tags?.map(({ tag }) => tag) ?? []} />
           </div>
           <Link className="btn btn-secondary btn-md" to={`/admin/questions/bundles/${bundle.id}/edit?section=${bundle.sectionType}`}>
@@ -283,17 +289,4 @@ function statusBadgeClass(status: QuestionStatus) {
   if (status === 'PENDING_REVIEW') return 'badge-warning';
   if (status === 'ARCHIVED') return 'badge-danger';
   return 'badge-neutral';
-}
-
-function summarizeRichText(nodes: Array<{ type: string; content?: string; blankId?: string }>) {
-  return nodes
-    .map((node) => {
-      if (node.type === 'latex' || node.type === 'latex_block') return `$${node.content ?? ''}$`;
-      if (node.type === 'blank') return `[${node.blankId}]`;
-      if (node.type === 'break') return ' ';
-      return node.content ?? '';
-    })
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim() || 'Không có nội dung tóm tắt.';
 }

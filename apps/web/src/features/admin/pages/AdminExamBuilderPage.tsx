@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExamSectionType } from '../api/questionBank.api';
+import { cognitiveLevelLabel } from '../lib/question-labels';
 import {
   addMathQuestion,
   addPassageBundle,
@@ -528,7 +529,7 @@ function QuestionRow({ question, disabled, onReplace, onRemove }: { question: Ex
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="badge badge-neutral">{question.type}</span>
-            <span className="badge badge-neutral">{question.level}</span>
+            <span className="badge badge-neutral">{cognitiveLevelLabel(question.level)}</span>
             <span className="text-sm font-semibold text-neutral-900">{question.points ?? 1} pt</span>
           </div>
           <p className="mt-2 line-clamp-2 text-sm text-neutral-600">{question.snippet || 'No preview text'}</p>
@@ -612,7 +613,7 @@ function CandidateCard({
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {isBundle ? <span className="badge badge-neutral">{candidate.questions.length} questions</span> : <span className="badge badge-neutral">{candidate.level}</span>}
+        {isBundle ? <span className="badge badge-neutral">{candidate.questions.length} questions</span> : <span className="badge badge-neutral">{cognitiveLevelLabel(candidate.level)}</span>}
         <TagLine tags={candidate.tags ?? []} compact />
       </div>
     </div>

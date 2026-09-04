@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { FileText, Layers, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RichText } from '@/features/exam/components/RichText';
 import type {
   ExamPreview,
   ExamPreviewBundle,
   ExamPreviewQuestion,
 } from '../api/exams.api';
-import type { CognitiveLevel, ExamSectionType, RichTextNode } from '../api/questionBank.api';
+import type { ExamSectionType, RichTextNode } from '../api/questionBank.api';
+import { COGNITIVE_LEVELS, cognitiveLevelLabel } from '../lib/question-labels';
 
 const SECTIONS: ExamSectionType[] = ['MATH', 'READING', 'SCIENCE'];
-const LEVELS: CognitiveLevel[] = ['RECOGNITION', 'COMPREHENSION', 'APPLICATION', 'HIGH_APPLICATION'];
 
 interface ExamPreviewModalProps {
   preview: ExamPreview;
@@ -93,10 +94,10 @@ export function ExamPreviewModal({ preview, onClose }: ExamPreviewModalProps) {
             </div>
 
             <section className="mt-5">
-              <h3 className="text-sm font-semibold text-neutral-900">Difficulty</h3>
+              <h3 className="text-sm font-semibold text-neutral-900">Mức độ</h3>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                {LEVELS.map((level) => (
-                  <MetricMini key={level} label={level} value={activePreview.difficulty[level] ?? 0} />
+                {COGNITIVE_LEVELS.map((level) => (
+                  <MetricMini key={level} label={cognitiveLevelLabel(level)} value={activePreview.difficulty[level] ?? 0} />
                 ))}
               </div>
             </section>
@@ -105,9 +106,11 @@ export function ExamPreviewModal({ preview, onClose }: ExamPreviewModalProps) {
               <section className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-neutral-900">Item detail</h3>
+                    <h3 className="text-sm font-semibold text-neutral-900">
+                      {selectedQuestion ? 'Chi tiết câu hỏi' : 'Chi tiết ngữ liệu'}
+                    </h3>
                     <p className="mt-1 text-sm text-neutral-500">
-                      {selectedQuestion ? `${selectedQuestion.type} · ${selectedQuestion.level}` : selectedBundle?.title ?? 'Bundle'}
+                      {selectedQuestion ? `Câu ${selectedQuestion.order + 1}` : selectedBundle?.title ?? 'Bundle'}
                     </p>
                   </div>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSelectedQuestion(null); setSelectedBundle(null); }}>
@@ -119,7 +122,7 @@ export function ExamPreviewModal({ preview, onClose }: ExamPreviewModalProps) {
                   <div className="mt-4">
                     <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Passage / stimulus</h4>
                     <div className="mt-2 rounded-lg bg-white p-4 text-sm leading-7 text-neutral-800">
-                      <RichTextPreview nodes={selectedBundle.contentJson ?? []} />
+                      <RichText nodes={selectedBundle.contentJson ?? []} />
                     </div>
                     {selectedBundle.tags.length > 0 && <TagList tags={selectedBundle.tags} />}
                   </div>
@@ -164,9 +167,11 @@ function QuestionRow({ question, embedded = false, onInspect }: { question: Exam
             <p className="text-sm font-semibold text-neutral-800">
               #{question.order + 1} · {question.type}
             </p>
-            <p className="mt-1 text-sm text-neutral-600">{question.snippet || 'No preview text'}</p>
+            <div className="mt-1 max-h-14 overflow-hidden text-sm leading-6 text-neutral-600 [&_.katex-display]:my-1 [&_img]:max-h-12">
+              <RichText nodes={question.contentJson?.stem ?? []} />
+            </div>
           </div>
-          <span className="badge badge-neutral w-fit">{question.level}</span>
+          <span className="badge badge-neutral w-fit">{cognitiveLevelLabel(question.level)}</span>
         </div>
         <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800" onClick={onInspect}>
           <Search className="h-3.5 w-3.5" />
@@ -183,10 +188,12 @@ function QuestionRow({ question, embedded = false, onInspect }: { question: Exam
           <p className="text-sm font-semibold text-neutral-900">
             #{question.order + 1} · {question.type}
           </p>
-          <p className="mt-1 text-sm text-neutral-600">{question.snippet || 'No preview text'}</p>
+          <div className="mt-1 max-h-14 overflow-hidden text-sm leading-6 text-neutral-600 [&_.katex-display]:my-1 [&_img]:max-h-12">
+            <RichText nodes={question.contentJson?.stem ?? []} />
+          </div>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <span className="badge badge-neutral w-fit">{question.level}</span>
+          <span className="badge badge-neutral w-fit">{cognitiveLevelLabel(question.level)}</span>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onInspect}>
             <Search className="h-4 w-4" />
             Inspect
@@ -218,7 +225,9 @@ function BundleRow({ bundle, onInspectBundle, onInspectQuestion }: {
           <p className="text-sm font-semibold text-neutral-900">
             Bundle #{bundle.order + 1} · {bundle.title ?? 'Untitled bundle'}
           </p>
-          <p className="mt-1 text-sm text-neutral-600">{bundle.snippet || 'No passage preview'}</p>
+          <div className="mt-1 max-h-14 overflow-hidden text-sm leading-6 text-neutral-600 [&_.katex-display]:my-1 [&_img]:max-h-12">
+            <RichText nodes={bundle.contentJson ?? []} />
+          </div>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <span className="badge badge-neutral w-fit">{bundle.questions.length} questions</span>
@@ -246,62 +255,89 @@ function BundleRow({ bundle, onInspectBundle, onInspectQuestion }: {
   );
 }
 
-function QuestionDetail({ question, bundle }: { question: ExamPreviewQuestion; bundle: ExamPreviewBundle | null }) {
+function QuestionDetail({ question }: { question: ExamPreviewQuestion; bundle: ExamPreviewBundle | null }) {
   const content = question.contentJson;
   return (
     <div className="mt-4 space-y-4">
-      {bundle && (
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Bundle</h4>
-          <p className="mt-1 text-sm font-medium text-neutral-800">{bundle.title ?? 'Untitled bundle'}</p>
-        </div>
-      )}
       <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Stem</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Đề bài</h4>
         <div className="mt-2 rounded-lg bg-white p-4 text-sm leading-7 text-neutral-800">
-          <RichTextPreview nodes={content?.stem ?? []} />
+          <RichText nodes={content?.stem ?? []} />
         </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <JsonBlock title="Payload" value={content?.payload ?? {}} />
-        <JsonBlock title="Solution" value={content?.solution ?? []} />
-      </div>
-      {question.tags && question.tags.length > 0 && <TagList tags={question.tags} />}
-      <div className="grid gap-2 sm:grid-cols-3">
-        <MetricMini label="Type" value={question.type} />
-        <MetricMini label="Level" value={question.level} />
-        <MetricMini label="Points" value={question.points ?? 1} />
-      </div>
+      <QuestionAnswers question={question} />
     </div>
   );
 }
 
-function RichTextPreview({ nodes }: { nodes: RichTextNode[] }) {
-  if (nodes.length === 0) return <span className="text-neutral-400">No rich text content.</span>;
-  return (
-    <>
-      {nodes.map((node, index) => {
-        if (node.type === 'break') return <br key={index} />;
-        if (node.type === 'image') return <span key={index} className="text-primary-700">{node.alt ?? node.url ?? 'image'}</span>;
-        if (node.type === 'blank') return <span key={index} className="rounded bg-warning-50 px-1 font-mono text-warning-700">{node.blankId ?? 'blank'}</span>;
-        if (node.type === 'bold') return <strong key={index}>{node.content}</strong>;
-        if (node.type === 'italic') return <em key={index}>{node.content}</em>;
-        if (node.type === 'latex' || node.type === 'latex_block') return <code key={index} className="rounded bg-neutral-100 px-1">{node.content}</code>;
-        return <span key={index}>{node.content}</span>;
-      })}
-    </>
-  );
-}
+function QuestionAnswers({ question }: { question: ExamPreviewQuestion }) {
+  const payload = question.contentJson?.payload ?? {};
+  const options = recordArray(payload.options);
+  const statements = recordArray(payload.statements);
+  const blanks = recordArray(payload.blanks);
+  const items = recordArray(payload.items);
+  const slots = recordArray(payload.slots);
 
-function JsonBlock({ title, value }: { title: string; value: unknown }) {
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</h4>
-      <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-white p-4 text-xs leading-5 text-neutral-700">
-        {JSON.stringify(value, null, 2)}
-      </pre>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Đáp án</h4>
+      <div className="mt-2 space-y-2">
+        {options.map((option, index) => (
+          <AnswerRow key={String(option.id ?? index)} label={String(option.id ?? index + 1)} correct={option.isCorrect === true}>
+            <RichText nodes={richTextNodes(option.content)} />
+          </AnswerRow>
+        ))}
+        {statements.map((statement, index) => (
+          <AnswerRow key={String(statement.id ?? index)} label={String(statement.id ?? index + 1)} correct>
+            <span className="mr-2"><RichText nodes={richTextNodes(statement.content)} /></span>
+            <span className="font-semibold text-success-700">— {statement.isTrue === true ? 'Đúng' : 'Sai'}</span>
+          </AnswerRow>
+        ))}
+        {blanks.map((blank, index) => (
+          <AnswerRow key={String(blank.id ?? index)} label={String(blank.id ?? index + 1)} correct>
+            <span className="font-semibold text-success-700">
+              {String(blank.correctValue ?? '')}{blank.unit ? ` ${String(blank.unit)}` : ''}
+            </span>
+          </AnswerRow>
+        ))}
+        {slots.map((slot, index) => {
+          const correctItem = items.find((item) => item.id === slot.correctItemId);
+          return (
+            <AnswerRow key={String(slot.id ?? index)} label={String(slot.id ?? index + 1)} correct>
+              <RichText nodes={richTextNodes(slot.label)} />
+              <span className="mx-2 text-neutral-400">→</span>
+              <RichText nodes={richTextNodes(correctItem?.content)} />
+            </AnswerRow>
+          );
+        })}
+        {options.length === 0 && statements.length === 0 && blanks.length === 0 && slots.length === 0 && (
+          <p className="rounded-lg bg-white p-4 text-sm text-neutral-400">Chưa có đáp án.</p>
+        )}
+      </div>
     </div>
   );
+}
+
+function AnswerRow({ label, correct, children }: { label: string; correct?: boolean; children: ReactNode }) {
+  return (
+    <div className={cn('flex items-start gap-3 rounded-lg border bg-white p-3 text-sm leading-6', correct ? 'border-success-200' : 'border-neutral-200')}>
+      <span className={cn('flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-xs font-bold', correct ? 'bg-success-100 text-success-700' : 'bg-neutral-100 text-neutral-600')}>
+        {label}
+      </span>
+      <div className="min-w-0 flex-1">{children}</div>
+      {correct && <span className="badge badge-success shrink-0">Đúng</span>}
+    </div>
+  );
+}
+
+function recordArray(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+    : [];
+}
+
+function richTextNodes(value: unknown): RichTextNode[] {
+  return Array.isArray(value) ? value as RichTextNode[] : [];
 }
 
 function TagList({ tags }: { tags: Array<{ id: string; name: string }> }) {

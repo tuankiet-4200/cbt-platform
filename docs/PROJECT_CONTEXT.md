@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (admin content CRUD, Reading bundle compatibility, and FILL_TEXT completed)
+> **Last updated:** 2026-09-04 (admin rich-content previews and compact exam management completed)
 
 ### Active Sprint
-**Admin Content Authoring and Question Type Expansion**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — editor navigation/deletion, Reading bundle content compatibility, and FILL_TEXT are implemented and verified
+**Admin Content and Exam Preview UX**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — question/exam previews now render rich content, difficulty labels are localized, and exam actions fit without horizontal scrolling
 
 ### Sprint Progress Overview
 
@@ -174,6 +174,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — editor navigation/deletion
 18. [x] Tag and question/bundle editors provide Back navigation and guarded Delete actions; used taxonomy/content returns a domain-level conflict instead of unsafe deletion
 19. [x] Reading/Science bundle passage writes normalize supported legacy paragraph/text/line-break nodes before canonical validation, resolving compatible `contentJson[0].type is invalid` payloads
 20. [x] Added FILL_TEXT authoring, rendering, validation, grading, answer extraction, blueprint selection, and bulk-import support with Vietnamese-aware normalized matching
+21. [x] Question-bank cards and exam previews reuse the production RichText renderer for LaTeX/images; question inspection shows only the rendered stem and structured answers
 
 ---
 
@@ -435,13 +436,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — editor navigation/deletion
 3. [x] Fix circular review navigation, unanswered-as-incorrect display, and live per-question elapsed timing
 4. [x] Allow manual, snapshot-only, generated, and empty exam shells to open the admin editor
 5. [x] Add guarded tag/question/bundle deletion, Reading bundle legacy-node normalization, and the FILL_TEXT question type
-6. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-7. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-8. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-9. [ ] Complete section timeout retry for transient online failures
-10. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-11. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-12. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+6. [x] Render admin question/exam rich content consistently, localize difficulty levels, simplify question inspection, and compact the exam list table
+7. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+8. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+9. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+10. [ ] Complete section timeout retry for transient online failures
+11. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+12. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+13. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
