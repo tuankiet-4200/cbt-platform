@@ -843,24 +843,32 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
   if (draft.type === 'DRAG_DROP') {
     return (
       <div className="grid gap-4 border-t border-neutral-200 pt-5 lg:grid-cols-2">
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900 lg:col-span-2">
+          <p className="font-semibold">Cách tạo câu kéo thả</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li><strong>Phương án kéo (Item)</strong> là nội dung thí sinh sẽ kéo, ví dụ “Hà Nội”, “Huế”.</li>
+            <li><strong>Vị trí thả (Slot)</strong> là ô đích cần ghép, ví dụ “Thủ đô Việt Nam”.</li>
+            <li>Ở ô chọn bên phải mỗi Slot, chọn đúng mã Item tương ứng. Ví dụ Slot “Thủ đô Việt Nam” chọn Item “Hà Nội”.</li>
+          </ol>
+        </div>
         <div className="space-y-3">
-          <SectionHeader title="Items" onAdd={() => patch({ dragItems: [...draft.dragItems, { id: `I${draft.dragItems.length + 1}`, content: '' }] })} />
+          <SectionHeader title="Phương án kéo (Items)" addLabel="Thêm phương án" onAdd={() => patch({ dragItems: [...draft.dragItems, { id: `I${draft.dragItems.length + 1}`, content: '' }] })} />
           {draft.dragItems.map((item, index) => (
             <div key={item.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_2.25rem]">
               <input className="input" value={item.id} disabled />
-              <RichTextControl value={item.content} onChange={(content) => updateDragItem(index, { content })} imageWidth={260} compact />
+              <RichTextControl value={item.content} onChange={(content) => updateDragItem(index, { content })} placeholder="Nội dung được kéo, VD: Hà Nội" imageWidth={260} compact />
               <IconButton disabled={draft.dragItems.length <= 1} label="Remove item" onClick={() => patch({ dragItems: draft.dragItems.filter((_, itemIndex) => itemIndex !== index) })} />
             </div>
           ))}
         </div>
         <div className="space-y-3">
-          <SectionHeader title="Slots" onAdd={() => patch({ dragSlots: [...draft.dragSlots, { id: `slot${draft.dragSlots.length + 1}`, label: `Slot ${draft.dragSlots.length + 1}`, correctItemId: draft.dragItems[0]?.id ?? 'I1' }] })} />
+          <SectionHeader title="Vị trí thả (Slots)" addLabel="Thêm vị trí" onAdd={() => patch({ dragSlots: [...draft.dragSlots, { id: `slot${draft.dragSlots.length + 1}`, label: '', correctItemId: draft.dragItems[0]?.id ?? 'I1' }] })} />
           {draft.dragSlots.map((slot, index) => (
             <div key={slot.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_7rem_2.25rem]">
-              <RichTextControl value={slot.label} onChange={(label) => updateDragSlot(index, { label })} imageWidth={260} compact />
+              <RichTextControl value={slot.label} onChange={(label) => updateDragSlot(index, { label })} placeholder="Ô đích, VD: Thủ đô Việt Nam" imageWidth={260} compact />
               <SelectField
                 value={slot.correctItemId}
-                options={draft.dragItems.map((item) => ({ value: item.id, label: item.id }))}
+                options={draft.dragItems.map((item) => ({ value: item.id, label: `${item.id} — ${item.content || 'Chưa nhập'}` }))}
                 onChange={(value) => updateDragSlot(index, { correctItemId: value })}
               />
               <IconButton disabled={draft.dragSlots.length <= 1} label="Remove slot" onClick={() => patch({ dragSlots: draft.dragSlots.filter((_, itemIndex) => itemIndex !== index) })} />
@@ -1189,7 +1197,9 @@ function QuestionList({ questions }: { questions: AdminQuestion[] }) {
     <div className="divide-y divide-neutral-100">
       {questions.map((question) => (
         <div key={question.id} className="p-4">
-          <p className="font-medium text-neutral-900">{summarizeRichText(question.contentJson.stem)}</p>
+          <div className="overflow-hidden font-medium leading-7 text-neutral-900 [&_.katex-display]:my-2 [&_img]:max-h-40">
+            <RichTextPreview nodes={question.contentJson.stem} />
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="badge badge-neutral">{question.type}</span>
             <span className="badge badge-primary">{cognitiveLevelLabel(question.level)}</span>
@@ -1451,20 +1461,6 @@ function payloadPreview(draft: QuestionDraft) {
     { type: 'break' } satisfies RichTextNode,
   ]);
 }
-
-function summarizeRichText(nodes: RichTextNode[]) {
-  return nodes
-    .map((node) => {
-      if (node.type === 'latex' || node.type === 'latex_block') return `$${node.content ?? ''}$`;
-      if (node.type === 'blank') return `[${node.blankId}]`;
-      if (node.type === 'break') return ' ';
-      return node.content ?? '';
-    })
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 
 function isQuestionEnvelope(value: unknown): value is { questions: unknown[] } {
   return Boolean(value && typeof value === 'object' && 'questions' in value && Array.isArray((value as { questions?: unknown }).questions));

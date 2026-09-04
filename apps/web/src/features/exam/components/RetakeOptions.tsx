@@ -14,9 +14,11 @@ import {
 export function RetakeOptions({
   examId,
   availableSections,
+  sectionsOnly = false,
 }: {
   examId: string;
   availableSections: ExamSectionType[];
+  sectionsOnly?: boolean;
 }) {
   const navigate = useNavigate();
   const retakeMutation = useMutation({
@@ -25,7 +27,7 @@ export function RetakeOptions({
     onSuccess: (attempt) => navigate(`/exam/attempt/${attempt.id}`),
   });
   const choices = [
-    ...(availableSections.length > 1
+    ...(!sectionsOnly && availableSections.length > 1
       ? [{
           key: 'ALL',
           label: 'Làm lại toàn bộ',

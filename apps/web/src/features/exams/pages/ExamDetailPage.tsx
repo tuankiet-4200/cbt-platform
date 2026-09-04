@@ -70,28 +70,48 @@ export default function ExamDetailPage() {
         Thư viện đề thi
       </Link>
 
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-950 via-neutral-900 to-primary-950 px-6 py-8 text-white shadow-xl md:px-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#071229] via-[#13294f] to-primary-950 px-6 py-8 text-white shadow-xl md:px-10">
         <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary-500/20 blur-3xl" />
-        <div className="relative">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-primary-100">
-              {exam.accessType === 'PUBLIC' ? 'Đề công khai' : 'Đề đã mở khóa'}
-            </span>
-            {isInProgress && <span className="rounded-full bg-warning-500/20 px-3 py-1 text-xs font-semibold text-warning-100">Đang làm bài</span>}
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-primary-100">
+                {exam.accessType === 'PUBLIC' ? 'Đề công khai' : 'Đề đã mở khóa'}
+              </span>
+              {isInProgress && <span className="rounded-full bg-warning-500/20 px-3 py-1 text-xs font-semibold text-warning-100">Đang làm bài</span>}
+            </div>
+            <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight md:text-4xl">{exam.title}</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300 md:text-base">
+              {exam.description || 'Đề thi mô phỏng theo cấu trúc TSA HUST.'}
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <OverviewPill icon={Clock3} value={`${exam.durationMins} phút`} />
+              <OverviewPill icon={GraduationCap} value={`${exam.counts.totalQuestions} câu hỏi`} />
+              <OverviewPill icon={CheckCircle2} value={`${exam.totalPoints} điểm`} />
+              <OverviewPill
+                icon={exam.accessType === 'PUBLIC' ? BookOpen : KeyRound}
+                value={exam.accessType === 'PUBLIC' ? 'Truy cập tự do' : 'Đã xác thực quyền'}
+              />
+            </div>
           </div>
-          <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight md:text-4xl">{exam.title}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300 md:text-base">
-            {exam.description || 'Đề thi mô phỏng theo cấu trúc TSA HUST.'}
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <OverviewPill icon={Clock3} value={`${exam.durationMins} phút`} />
-            <OverviewPill icon={GraduationCap} value={`${exam.counts.totalQuestions} câu hỏi`} />
-            <OverviewPill icon={CheckCircle2} value={`${exam.totalPoints} điểm`} />
-            <OverviewPill
-              icon={exam.accessType === 'PUBLIC' ? BookOpen : KeyRound}
-              value={exam.accessType === 'PUBLIC' ? 'Truy cập tự do' : 'Đã xác thực quyền'}
-            />
-          </div>
+          <aside className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary-200">Trạng thái đề thi</p>
+            <h2 className="mt-2 text-xl font-bold">
+              {isInProgress ? 'Tiếp tục lượt thi' : isCompleted ? 'Sẵn sàng làm lại' : 'Sẵn sàng bắt đầu'}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-300">
+              {isInProgress ? 'Tiến độ của bạn đã được lưu.' : isCompleted ? 'Tạo một lượt thi mới với toàn bộ nội dung đề.' : 'Thời gian bắt đầu tính khi bạn vào phần thi đầu tiên.'}
+            </p>
+            {isInProgress && exam.latestAttempt ? (
+              <Link to={`/exam/attempt/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">Tiếp tục làm bài</Link>
+            ) : (
+              <button type="button" className="btn btn-primary btn-lg mt-5 w-full" disabled={startMutation.isPending} onClick={() => startMutation.mutate()}>
+                {startMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isCompleted ? 'Làm lại đề' : 'Bắt đầu làm bài'}
+              </button>
+            )}
+            {startMutation.isError && <p className="mt-3 text-center text-xs text-danger-200">{getApiErrorMessage(startMutation.error, 'Không thể tạo lượt thi.')}</p>}
+          </aside>
         </div>
       </section>
 
@@ -128,7 +148,7 @@ export default function ExamDetailPage() {
         />}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section className={`grid gap-6 ${isCompleted && availableSections.length > 1 ? 'xl:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
         <article className="card p-6">
           <h2 className="text-lg font-bold text-neutral-900">Hướng dẫn làm bài</h2>
           {exam.instructions ? (
@@ -145,52 +165,14 @@ export default function ExamDetailPage() {
           )}
         </article>
 
-        <aside className="card p-6">
-          <p className="text-sm font-semibold text-primary-700">Trạng thái</p>
-          <h2 className="mt-2 text-xl font-bold text-neutral-900">
-            {isInProgress ? 'Bạn có bài thi đang làm' : 'Đề thi đã sẵn sàng'}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-500">
-            {isInProgress
-              ? 'Tiếp tục session hiện tại để không mất tiến độ đã lưu.'
-              : 'Chọn phạm vi phù hợp và bắt đầu lượt làm bài tiếp theo.'}
-          </p>
-          {isInProgress && exam.latestAttempt ? (
-            <Link to={`/exam/attempt/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
-              Tiếp tục làm bài
-            </Link>
-          ) : isCompleted && exam.latestAttempt ? (
-            <>
-              <Link to={`/results/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">
-                Xem kết quả gần nhất
-              </Link>
-              <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Chọn phạm vi luyện tập
-              </p>
-              <div>
-                <RetakeOptions
-                  examId={exam.id}
-                  availableSections={availableSections}
-                />
-              </div>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary btn-lg mt-5 w-full"
-              disabled={startMutation.isPending}
-              onClick={() => startMutation.mutate()}
-            >
-              {startMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Bắt đầu làm bài
-            </button>
-          )}
-          {startMutation.isError && (
-            <p className="mt-3 text-center text-xs text-danger-600">
-              {getApiErrorMessage(startMutation.error, 'Không thể tạo lượt thi.')}
-            </p>
-          )}
-        </aside>
+        {isCompleted && availableSections.length > 1 && (
+          <aside className="card p-6">
+            <p className="text-sm font-semibold text-primary-700">Luyện tập theo phần</p>
+            <h2 className="mt-2 text-xl font-bold text-neutral-900">Chọn nội dung cần luyện</h2>
+            <p className="mb-4 mt-2 text-sm leading-6 text-neutral-500">Nếu không muốn làm lại toàn bộ đề, bạn có thể chọn riêng một phần.</p>
+            <RetakeOptions examId={exam.id} availableSections={availableSections} sectionsOnly />
+          </aside>
+        )}
       </section>
     </div>
   );

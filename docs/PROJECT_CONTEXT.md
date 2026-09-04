@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (result summary redesign and review navigator correction completed)
+> **Last updated:** 2026-09-04 (exam overview, Drag drop guidance, and compact access-code table completed)
 
 ### Active Sprint
-**Result Summary and Answer Review UX**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — result overview follows the supplied score-card layout, exposes exact attempt timing and candidate identity, and review correctness colors are fixed
+**Exam Overview and Admin Usability**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — retake actions are clearer, Drag drop authoring is self-explanatory, recent formulas render correctly, and access-code actions fit without horizontal scrolling
 
 ### Sprint Progress Overview
 
@@ -175,6 +175,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — result overview follows th
 19. [x] Reading/Science bundle passage writes normalize supported legacy paragraph/text/line-break nodes before canonical validation, resolving compatible `contentJson[0].type is invalid` payloads
 20. [x] Added FILL_TEXT authoring, rendering, validation, grading, answer extraction, blueprint selection, and bulk-import support with Vietnamese-aware normalized matching
 21. [x] Question-bank cards and exam previews reuse the production RichText renderer for LaTeX/images; question inspection shows only the rendered stem and structured answers
+22. [x] Drag drop authoring now explains Items and Slots inline with examples, clearer Vietnamese labels/placeholders, and answer mappings that include Item content; recent standalone MATH questions render RichText/KaTeX instead of raw markup
 
 ---
 
@@ -225,11 +226,13 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — result overview follows th
    - Exam management now allows every exam shell to open the editor, including manual/snapshot-only and not-yet-generated drafts; edit availability is no longer incorrectly tied to `generatedAt`.
 3. [x] Access Code Management UI
    - `/admin/access-codes` now provides metrics, access code generation for published locked exams, usage/expiry/status table, copy action, and deactivate action.
+   - The access-code table now uses a fixed compact layout, combines status with expiry, truncates long exam metadata, and keeps Copy/deactivate actions visible without horizontal scrolling.
 4. [x] User Exam Library unlock flow
    - `/exams` now provides a student-facing exam library with real exam metadata, progress status, loading/error/empty states, and a polished TSA-themed responsive layout.
    - Added normalized 8-character access code entry wired to `POST /api/v1/exams/unlock`, including success/error feedback and automatic library refresh.
    - `/exams/:id` now shows safe exam metadata, section structure, instructions, access state, and a Sprint 3.1-ready start/resume area.
    - Exam list was refined from the approved visual reference into a two-column information-card layout with a compact exam header, real metadata rows, access status, and green action controls; the unlock banner remains unchanged.
+   - Exam overview now places start/resume/full-retake directly in a compact banner, removes the redundant latest-result action, and keeps per-section practice choices in a dedicated card for multi-section exams.
 
 ### Quality & Tooling — Sprint 2.2 Closeout
 - [x] API unit tests pass (3/3)
@@ -439,13 +442,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — result overview follows th
 5. [x] Add guarded tag/question/bundle deletion, Reading bundle legacy-node normalization, and the FILL_TEXT question type
 6. [x] Render admin question/exam rich content consistently, localize difficulty levels, simplify question inspection, and compact the exam list table
 7. [x] Redesign the result banner with exact participation details and actions, and correct answer-review navigator colors/selection styling
-8. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-9. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-10. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-11. [ ] Complete section timeout retry for transient online failures
-12. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-13. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-14. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+8. [x] Improve exam-overview retake actions, document Drag drop authoring in the UI, render recent-question formulas, and compact access-code management
+9. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+10. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+11. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+12. [ ] Complete section timeout retry for transient online failures
+13. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+14. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+15. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 

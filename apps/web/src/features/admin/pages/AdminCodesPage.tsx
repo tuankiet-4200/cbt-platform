@@ -176,52 +176,52 @@ export default function AdminCodesPage() {
             {codesQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-neutral-200">
+          <div>
+            <table className="w-full table-fixed divide-y divide-neutral-200">
               <thead className="bg-neutral-50">
                 <tr>
-                  <Th>Code</Th>
-                  <Th>Exam</Th>
-                  <Th>Usage</Th>
-                  <Th>Expires</Th>
-                  <Th>Status</Th>
-                  <Th align="right">Actions</Th>
+                  <Th className="w-[18%]">Mã</Th>
+                  <Th className="w-[28%]">Đề thi</Th>
+                  <Th className="w-[12%]">Sử dụng</Th>
+                  <Th className="w-[20%]">Hiệu lực</Th>
+                  <Th className="w-[22%]" align="right">Thao tác</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 bg-white">
                 {codes.map((code) => (
                   <tr key={code.id} className="hover:bg-neutral-50">
-                    <td className="whitespace-nowrap px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-neutral-100 px-2.5 py-1 font-mono text-sm font-bold tracking-wider text-neutral-900">{code.code}</span>
+                    <td className="whitespace-nowrap px-3 py-4">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate rounded-md bg-neutral-100 px-2 py-1 font-mono text-xs font-bold tracking-wide text-neutral-900" title={code.code}>{code.code}</span>
                         {copiedCode === code.code && <Check className="h-4 w-4 text-success-600" />}
                       </div>
                     </td>
-                    <td className="min-w-72 px-4 py-4">
-                      <p className="font-semibold text-neutral-900">{code.exam.title}</p>
-                      <p className="mt-1 text-sm text-neutral-500">{code.exam.durationMins} min · {code.exam.isPublished ? 'Published' : 'Draft'}</p>
+                    <td className="px-3 py-4">
+                      <p className="truncate font-semibold text-neutral-900" title={code.exam.title}>{code.exam.title}</p>
+                      <p className="mt-1 truncate text-xs text-neutral-500">{code.exam.durationMins} phút · {code.exam.isPublished ? 'Đã phát hành' : 'Bản nháp'}</p>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-sm text-neutral-600">
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-neutral-600">
                       {code.usedCount} / {code.maxUses ?? '∞'}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-sm text-neutral-600">{formatDateTime(code.expiresAt)}</td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-4">
                       <span className={cn('badge', statusBadgeClass(resolveStatus(code)))}>{resolveStatus(code)}</span>
+                      <p className="mt-1 truncate text-xs text-neutral-500" title={formatDateTime(code.expiresAt)}>{formatDateTime(code.expiresAt)}</p>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
+                    <td className="px-3 py-4">
+                      <div className="flex justify-end gap-1.5">
                         <button className="btn btn-secondary btn-sm" type="button" onClick={() => copyCode(code.code)}>
                           <Clipboard className="h-4 w-4" />
                           Copy
                         </button>
                         <button
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-secondary btn-sm px-2"
                           type="button"
                           disabled={!code.isActive || deactivateMutation.isPending}
                           onClick={() => deactivateMutation.mutate(code.id)}
+                          title="Vô hiệu hóa mã"
+                          aria-label="Vô hiệu hóa mã"
                         >
                           <Ban className="h-4 w-4" />
-                          Deactivate
                         </button>
                       </div>
                     </td>
@@ -255,9 +255,9 @@ function Metric({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
+function Th({ children, align = 'left', className }: { children: React.ReactNode; align?: 'left' | 'right'; className?: string }) {
   return (
-    <th className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500', align === 'right' ? 'text-right' : 'text-left')}>
+    <th className={cn('px-3 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500', align === 'right' ? 'text-right' : 'text-left', className)}>
       {children}
     </th>
   );
