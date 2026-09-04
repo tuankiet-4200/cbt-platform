@@ -1,4 +1,4 @@
-# Question Content Specification v2.2
+# Question Content Specification v2.4
 
 > **Status:** APPROVED ✅  
 > **Agreed by:** Backend, Frontend  
@@ -46,7 +46,7 @@ interface QuestionContent {
 | `MULTIPLE_CHOICE` | **All-or-nothing** — phải chọn ĐÚNG và ĐỦ tất cả đáp án đúng, không thiếu không thừa |
 | `TRUE_FALSE_MATRIX` | **All-or-nothing** — phải trả lời đúng TẤT CẢ các phát biểu |
 | `DRAG_DROP` | **All-or-nothing** — phải đặt đúng item vào TẤT CẢ các slot |
-| `FILL_NUMBER` | **Exact match** — giá trị nhập phải khớp CHÍNH XÁC với `correctValue` |
+| `FILL_NUMBER` | **Strict textual match** — phải khớp chính xác dấu phẩy và số chữ số thập phân trong `correctValue` |
 | `FILL_TEXT` | **Normalized exact match** — chuẩn hóa Unicode NFC, khoảng trắng và mặc định không phân biệt hoa/thường; vẫn phân biệt dấu tiếng Việt |
 
 > **Lý do all-or-nothing:** Theo cấu trúc đề thi TSA thực tế, các câu hỏi dạng ma trận/kéo thả/điền là một "câu" thống nhất. Không có điểm thành phần.
@@ -264,20 +264,20 @@ nhập token `{{slot1}}` hoặc bấm **Chèn vào đề**.
 
 Một câu hỏi có thể có **một hoặc nhiều ô trống**. Phải điền đúng **tất cả** các ô thì mới được điểm.
 
-> **Exact match:** Backend so sánh `submittedValue === correctValue` (sau khi parse về Number). Không có tolerance.
+> **Strict textual match:** Backend đối chiếu nguyên chuỗi số sau khi bỏ khoảng trắng đầu/cuối. Không parse về Number, không có tolerance, không tự đổi dấu chấm thành dấu phẩy và không bỏ số `0` tận cùng. Ví dụ đáp án `0,64` chỉ nhận `0,64`; các giá trị `0.64`, `0,640` và `0,64abc` đều sai.
 
 ```typescript
 interface FillBlank {
   /** ID khớp với node { type: 'blank', blankId } trong stem */
   id: string;            // 'B1' | 'B2' | ...
 
-  /** Đáp án đúng — exact match required */
-  correctValue: number;
+  /** Đáp án đúng — chuỗi số chuẩn, phần thập phân bắt buộc dùng dấu phẩy */
+  correctValue: string;
 
   /**
    * Gợi ý định dạng hiển thị cho Frontend:
    * - 'integer'        → Số nguyên, ví dụ: 42
-   * - 'decimal_2'      → 2 chữ số thập phân, ví dụ: 3.14
+   * - 'decimal_2'      → 2 chữ số thập phân, ví dụ: 3,14
    * - 'decimal_comma'  → Dùng dấu phẩy thập phân (chuẩn Việt Nam), ví dụ: 3,14
    */
   displayFormat?: 'integer' | 'decimal_2' | 'decimal_comma';
@@ -299,13 +299,14 @@ interface FillNumberPayload {
 **Grading logic (all-or-nothing — áp dụng khi có nhiều ô trống):**
 ```
 isCorrect = blanks.every(b => {
-  submitted = parseFloat(answer.blanks[b.id].toString().replace(',', '.'))
-  return submitted === b.correctValue
+  submitted = answer.blanks[b.id].value.trim()
+  return /^[-+]?\d+(,\d+)?$/.test(submitted)
+    && submitted === b.correctValue
 })
 ```
 Nếu **bất kỳ 1 ô nào sai** → toàn câu **0 điểm**.
 
-**Answer format:** `{ blanks: { blankId: string, value: number }[] }`
+**Answer format:** `{ blanks: { blankId: string, value: string }[] }`
 
 **Example — 1 ô trống:**
 ```json
@@ -318,7 +319,7 @@ Nếu **bất kỳ 1 ô nào sai** → toàn câu **0 điểm**.
   "type": "FILL_NUMBER",
   "payload": {
     "blanks": [
-      {"id": "B1", "correctValue": 25000, "displayFormat": "integer", "unit": "năm ánh sáng"}
+      {"id": "B1", "correctValue": "25000", "displayFormat": "integer", "unit": "năm ánh sáng"}
     ]
   },
   "_version": 2
@@ -338,8 +339,8 @@ Nếu **bất kỳ 1 ô nào sai** → toàn câu **0 điểm**.
   "type": "FILL_NUMBER",
   "payload": {
     "blanks": [
-      {"id": "B1", "correctValue": 2, "displayFormat": "integer"},
-      {"id": "B2", "correctValue": 1, "displayFormat": "integer"}
+      {"id": "B1", "correctValue": "2", "displayFormat": "integer"},
+      {"id": "B2", "correctValue": "1", "displayFormat": "integer"}
     ]
   },
   "_version": 2
@@ -448,7 +449,7 @@ P(θ) = c + (1-c) / (1 + e^(-a(θ-b)))
 | MULTIPLE_CHOICE | `{ "selectedOptionIds": ["A", "C", "D"] }` |
 | TRUE_FALSE_MATRIX | `{ "answers": [{"statementId": "S1", "value": true}, ...] }` |
 | DRAG_DROP | `{ "slots": [{"slotId": "slot1", "itemId": "I2"}, ...] }` |
-| FILL_NUMBER | `{ "blanks": [{"blankId": "B1", "value": 2}, {"blankId": "B2", "value": 1}] }` |
+| FILL_NUMBER | `{ "blanks": [{"blankId": "B1", "value": "0,64"}, {"blankId": "B2", "value": "1"}] }` |
 | FILL_TEXT | `{ "blanks": [{"blankId": "B1", "value": "Nguyễn Du"}] }` |
 
 ---
@@ -478,3 +479,4 @@ interface SectionScore {
 | 2.1 | Sprint 1.1 Rev3 | FILL_NUMBER → multi-blank support (blanks[]) with all-or-nothing; blank RichTextNode adds blankId field |
 | 2.2 | 2026-09-04 | Add FILL_TEXT with Vietnamese-aware normalized exact matching and all-or-nothing grading |
 | 2.3 | 2026-09-04 | Embed every DRAG_DROP slot exactly once in the stem as a blank node; retain Item distractors and all-or-nothing grading |
+| 2.4 | 2026-09-04 | FILL_NUMBER stores canonical Vietnamese numeric text and grades exact punctuation/precision; legacy numeric answer keys remain readable |

@@ -19,14 +19,14 @@ describe('question content validation', () => {
             blanks: [
               {
                 id: 'B1',
-                correctValue: 2,
+                correctValue: '2',
                 displayFormat: 'integer',
                 min: 0,
                 max: 10,
               },
               {
                 id: 'B2',
-                correctValue: 1.5,
+                correctValue: '1,50',
                 displayFormat: 'decimal_comma',
               },
             ],
@@ -35,6 +35,22 @@ describe('question content validation', () => {
         QuestionType.FILL_NUMBER,
       ),
     ).toBeDefined();
+  });
+
+  it('rejects non-canonical FILL_NUMBER answer text', () => {
+    for (const correctValue of ['0.64', '0,64abc', '']) {
+      expect(() =>
+        validateQuestionContent(
+          {
+            _version: 2,
+            type: QuestionType.FILL_NUMBER,
+            stem: [{ type: 'blank', blankId: 'B1' }],
+            payload: { blanks: [{ id: 'B1', correctValue }] },
+          },
+          QuestionType.FILL_NUMBER,
+        ),
+      ).toThrow(BadRequestException);
+    }
   });
 
   it('rejects a stem blank without an exact payload match', () => {

@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-04 (full-attempt section lobby, timed breaks, collapsible exam sidebar, and Drag drop styling completed)
+> **Last updated:** 2026-09-04 (strict decimal-comma and precision matching added for Fill number)
 
 ### Active Sprint
-**Exam Workspace and Full-Attempt Flow**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — full attempts use a persistent section lobby with five-minute breaks, Reading/Science can expand by hiding the sidebar, and Drag drop options match the supplied visual reference
+**Question Grading Reliability**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — Fill number now preserves and strictly matches Vietnamese decimal commas and the exact requested decimal precision while remaining compatible with legacy numeric keys
 
 ### Sprint Progress Overview
 
@@ -281,7 +281,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — full attempts use a persis
 
 ### Backend — Sprint 3.2
 1. [x] Added BullMQ `grade-attempt` worker with exponential retry and dead-letter queue
-2. [x] Implemented all five grading rules; multi-slot types are all-or-nothing and FILL_NUMBER uses exact parsed numeric equality
+2. [x] Implemented all question grading rules; multi-slot types are all-or-nothing and FILL_NUMBER requires exact Vietnamese numeric text, including decimal punctuation and precision
 3. [x] Persisted aggregate `ExamResult`, `sectionScores`, tag breakdown, duration, and graded `SessionAnswer` details
 4. [x] Updated Redis leaderboard after successful grading
 5. [x] Added batched proctoring event ingestion and admin session event timeline API
@@ -433,7 +433,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — full attempts use a persis
 ### Audit Evidence
 - [x] PostgreSQL and Redis healthy; Prisma schema valid; FILL_TEXT migration applied with no drift
 - [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
-- [x] 41/41 API unit tests and 11/11 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
+- [x] 43/43 API unit tests and 11/11 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -452,13 +452,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — full attempts use a persis
 9. [x] Embed Drag drop Slots inline in question stems and enforce one-to-one Slot/token validation
 10. [x] Preserve Reading/Science passage RichText nodes through DTO transformation on create and update
 11. [x] Add the full-attempt section lobby, reload-safe five-minute inter-section breaks, expandable Reading/Science workspace, and reference-styled Drag drop options
-12. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-13. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-14. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-15. [ ] Complete section timeout retry for transient online failures
-16. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-17. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-18. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+12. [x] Make Fill number grading require the exact decimal comma and number of decimal places entered in the answer key
+13. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+14. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+15. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+16. [ ] Complete section timeout retry for transient online failures
+17. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+18. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+19. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -475,7 +476,7 @@ These decisions are FINAL and must not be reversed without explicit user approva
 | Exam assembly | MATH → `ExamMathQuestion` table. READING/SCIENCE → `ExamPassageBundle` table. |
 | `Question.authorId` | = person credited PUBLICLY (contributor's userId for community questions, not the admin's userId) |
 | `ContributionSubmission` | Community uploads PDF/DOCX only. Admin manually enters questions and sets `authorId = contributor.userId` |
-| `FILL_NUMBER` structure | Uses `blanks[]` array. **NO single `correctValue`**. **NO `tolerance`**. Exact match only. |
+| `FILL_NUMBER` structure | Uses `blanks[]`; each `correctValue` is canonical numeric text with a comma decimal separator. Grading matches the exact punctuation and decimal precision after trimming outer whitespace; there is no tolerance. Legacy finite numeric keys remain readable and are interpreted using a Vietnamese decimal comma. |
 | `FILL_TEXT` structure | Uses `blanks[]` with string `correctValue`; Unicode/whitespace normalized, case-insensitive by default, Vietnamese diacritics preserved. |
 | `DRAG_DROP` structure | Every `slots[].id` appears exactly once as an inline `{ type: 'blank', blankId }` node in the stem; Items may include distractors. |
 | All-or-nothing grading | `MULTIPLE_CHOICE`, `TRUE_FALSE_MATRIX`, `DRAG_DROP`, `FILL_NUMBER`, `FILL_TEXT` — partial credit forbidden |
@@ -498,13 +499,13 @@ These decisions are FINAL and must not be reversed without explicit user approva
 | `prisma db push` | **FORBIDDEN** on this project |
 | **UI Mockup rule** | **Before coding UI**, ask the user for screenshots/mockups to replicate. If not provided, autonomously design using project CSS theme. |
 
-### Question Types (6 total, defined in QuestionContentSpec.md v2.3)
+### Question Types (6 total, defined in QuestionContentSpec.md v2.4)
 ```
 SINGLE_CHOICE     → 1 correct option, radio
 MULTIPLE_CHOICE   → N correct options, checkboxes, all-or-nothing
 TRUE_FALSE_MATRIX → Đúng/Sai per statement, all-or-nothing
 DRAG_DROP         → Items into inline stem slots, all-or-nothing
-FILL_NUMBER       → Multiple blanks[], exact match, all-or-nothing
+FILL_NUMBER       → Multiple blanks[], exact decimal-comma text/precision match, all-or-nothing
 FILL_TEXT         → Multiple text blanks[], Vietnamese-aware normalized match, all-or-nothing
 ```
 
@@ -516,7 +517,7 @@ FILL_TEXT         → Multiple text blanks[], Vietnamese-aware normalized match,
 |------|---------|
 | `docs/PROJECT_CONTEXT.md` | **THIS FILE** — Live project state (read first, update last) |
 | `docs/execution_plan.md` | Full 5-month sprint plan with deliverables |
-| `docs/QuestionContentSpec.md` | Canonical question content schema v2.3 |
+| `docs/QuestionContentSpec.md` | Canonical question content schema v2.4 |
 | `docs/section-session-architecture.md` | Approved ExamAttempt + independently timed section-session architecture |
 | `docs/DEPLOY_UBUNTU_NGINX.md` | Production deployment, HTTPS, update, and backup runbook for the Ubuntu host |
 | `deploy/docker-compose.production.yml` | Production API/Web/PostgreSQL/Redis orchestration and migration gate |

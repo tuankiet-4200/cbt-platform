@@ -284,11 +284,16 @@ function validateFillNumberPayload(payload: Record<string, unknown>, stem: unkno
     if (!stemBlankIds.has(blank.id)) {
       throw new BadRequestException(`payload.blanks[${index}].id must match a stem blankId`);
     }
-    if (
-      typeof blank.correctValue !== 'number' ||
-      !Number.isFinite(blank.correctValue)
-    ) {
-      throw new BadRequestException(`payload.blanks[${index}].correctValue must be a number`);
+    const hasLegacyNumericValue =
+      typeof blank.correctValue === 'number' &&
+      Number.isFinite(blank.correctValue);
+    const hasStrictTextValue =
+      typeof blank.correctValue === 'string' &&
+      /^[+-]?\d+(?:,\d+)?$/.test(blank.correctValue.trim());
+    if (!hasLegacyNumericValue && !hasStrictTextValue) {
+      throw new BadRequestException(
+        `payload.blanks[${index}].correctValue must be an exact number using a decimal comma`,
+      );
     }
     if (
       blank.displayFormat !== undefined &&

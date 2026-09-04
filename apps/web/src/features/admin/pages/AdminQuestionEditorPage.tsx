@@ -78,7 +78,7 @@ interface DragSlotState {
 
 interface FillBlankState {
   id: string;
-  correctValue: number;
+  correctValue: string;
   unit: string;
 }
 
@@ -938,7 +938,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
         onAdd={() => {
           const nextId = `B${draft.fillBlanks.length + 1}`;
           patch({
-            fillBlanks: [...draft.fillBlanks, { id: nextId, correctValue: 0, unit: '' }],
+            fillBlanks: [...draft.fillBlanks, { id: nextId, correctValue: '0', unit: '' }],
             stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${nextId}}}`,
           });
         }}
@@ -946,7 +946,7 @@ function PayloadEditor({ draft, setDraft }: { draft: QuestionDraft; setDraft: Di
       {draft.fillBlanks.map((blank, index) => (
         <div key={blank.id} className="grid gap-2 md:grid-cols-[4rem_minmax(0,1fr)_8rem_8rem_2.25rem]">
           <input className="input" value={blank.id} disabled />
-          <input className="input" type="number" value={blank.correctValue} onChange={(event) => updateBlank(index, { correctValue: Number(event.target.value) })} />
+          <input className="input" type="text" inputMode="decimal" value={blank.correctValue} placeholder="VD: 0,64" onChange={(event) => updateBlank(index, { correctValue: event.target.value })} />
           <input className="input" value={blank.unit} onChange={(event) => updateBlank(index, { unit: event.target.value })} />
           <button className="btn btn-secondary btn-sm" type="button" onClick={() => patch({ stem: `${draft.stem}${draft.stem.endsWith(' ') || draft.stem.length === 0 ? '' : ' '}{{${blank.id}}}` })}>Insert</button>
           <IconButton disabled={draft.fillBlanks.length <= 1} label="Remove blank" onClick={() => patch({ fillBlanks: draft.fillBlanks.filter((_, itemIndex) => itemIndex !== index) })} />
@@ -1285,7 +1285,7 @@ function createQuestionDraft(): QuestionDraft {
       { id: 'slot1', label: 'Slot 1', correctItemId: 'I1' },
       { id: 'slot2', label: 'Slot 2', correctItemId: 'I2' },
     ],
-    fillBlanks: [{ id: 'B1', correctValue: 0, unit: '' }],
+    fillBlanks: [{ id: 'B1', correctValue: '0', unit: '' }],
     fillTextBlanks: [{ id: 'B1', correctValue: '', caseSensitive: false }],
   };
 }
@@ -1363,10 +1363,13 @@ function draftFromQuestion(question: AdminQuestion): QuestionDraft {
   if (question.type === 'FILL_NUMBER') {
     const blanks = Array.isArray(payload.blanks) ? payload.blanks : [];
     draft.fillBlanks = blanks.map((blank, index) => {
-      const value = blank as { id?: string; correctValue?: number; unit?: string };
+      const value = blank as { id?: string; correctValue?: string | number; unit?: string };
       return {
         id: value.id ?? `B${index + 1}`,
-        correctValue: Number(value.correctValue ?? 0),
+        correctValue:
+          typeof value.correctValue === 'number'
+            ? String(value.correctValue).replace('.', ',')
+            : (value.correctValue ?? '0'),
         unit: value.unit ?? '',
       };
     });
@@ -1424,7 +1427,7 @@ function buildQuestionContent(draft: QuestionDraft): CreateQuestionPayload['cont
     content.payload = {
       blanks: draft.fillBlanks.map((blank) => ({
         id: blank.id,
-        correctValue: blank.correctValue,
+        correctValue: blank.correctValue.trim(),
         ...(blank.unit ? { unit: blank.unit } : {}),
       })),
     };
@@ -1460,6 +1463,11 @@ function validateQuestionDraft(content: CreateQuestionPayload['contentJson']) {
     if (content.type === 'FILL_TEXT') {
       const textBlanks = (content.payload.blanks as Array<{ correctValue: string }> | undefined) ?? [];
       if (textBlanks.some((blank) => !blank.correctValue.trim())) return 'Đáp án Fill text không được để trống.';
+    } else {
+      const numberBlanks = (content.payload.blanks as Array<{ correctValue: string }> | undefined) ?? [];
+      if (numberBlanks.some((blank) => !/^[+-]?\d+(?:,\d+)?$/.test(blank.correctValue))) {
+        return 'Đáp án Fill number phải là số nguyên hoặc số thập phân dùng dấu phẩy, ví dụ 0,64.';
+      }
     }
   }
   if (content.type === 'DRAG_DROP') {

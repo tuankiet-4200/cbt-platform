@@ -88,27 +88,47 @@ describe('gradeQuestion', () => {
     ).toBe(false);
   });
 
-  it('grades every FILL_NUMBER blank by exact parsed numeric equality', () => {
+  it('grades every FILL_NUMBER blank by exact Vietnamese numeric text', () => {
     const content = question('FILL_NUMBER', {
       blanks: [
-        { id: 'B1', correctValue: 3.14 },
-        { id: 'B2', correctValue: 2 },
+        { id: 'B1', correctValue: '3,14' },
+        { id: 'B2', correctValue: '2' },
       ],
     });
     expect(
       gradeQuestion(QuestionType.FILL_NUMBER, content, {
         blanks: [
           { blankId: 'B1', value: '3,14' },
-          { blankId: 'B2', value: 2 },
+          { blankId: 'B2', value: '2' },
         ],
+      }),
+    ).toBe(true);
+
+    for (const invalidValue of ['3.14', '3,140', '3,14abc']) {
+      expect(
+        gradeQuestion(QuestionType.FILL_NUMBER, content, {
+          blanks: [
+            { blankId: 'B1', value: invalidValue },
+            { blankId: 'B2', value: '2' },
+          ],
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it('keeps legacy numeric FILL_NUMBER keys compatible with decimal commas', () => {
+    const content = question('FILL_NUMBER', {
+      blanks: [{ id: 'B1', correctValue: 0.64 }],
+    });
+
+    expect(
+      gradeQuestion(QuestionType.FILL_NUMBER, content, {
+        blanks: [{ blankId: 'B1', value: '0,64' }],
       }),
     ).toBe(true);
     expect(
       gradeQuestion(QuestionType.FILL_NUMBER, content, {
-        blanks: [
-          { blankId: 'B1', value: 3.1401 },
-          { blankId: 'B2', value: 2 },
-        ],
+        blanks: [{ blankId: 'B1', value: '0.64' }],
       }),
     ).toBe(false);
   });

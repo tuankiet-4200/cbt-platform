@@ -96,13 +96,15 @@ export function gradeQuestion(
         blanks.every((blank) => {
           if (
             typeof blank.id !== 'string' ||
-            typeof blank.correctValue !== 'number'
+            (typeof blank.correctValue !== 'string' &&
+              typeof blank.correctValue !== 'number')
           ) {
             return false;
           }
           const submittedValue = submitted.get(blank.id);
-          const parsed = parseExactNumber(submittedValue);
-          return parsed !== null && parsed === blank.correctValue;
+          const expected = toExactNumberText(blank.correctValue);
+          const submittedText = toExactNumberText(submittedValue);
+          return expected !== null && submittedText === expected;
         })
       );
     }
@@ -180,9 +182,10 @@ export function extractCorrectAnswer(
           .map((blank) => ({
             blankId: String(blank.id ?? ''),
             value:
+              typeof blank.correctValue === 'string' ||
               typeof blank.correctValue === 'number'
-                ? blank.correctValue
-                : 0,
+                ? (toExactNumberText(blank.correctValue) ?? '')
+                : '',
           })),
       };
     case QuestionType.FILL_TEXT:
@@ -223,11 +226,13 @@ function sameArray(left: string[], right: string[]) {
   );
 }
 
-function parseExactNumber(value: Prisma.JsonValue | undefined): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value !== 'string' || value.trim() === '') return null;
-  const parsed = Number.parseFloat(value.replace(',', '.'));
-  return Number.isFinite(parsed) ? parsed : null;
+function toExactNumberText(value: Prisma.JsonValue | undefined): string | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value).replace('.', ',') : null;
+  }
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return /^[+-]?\d+(?:,\d+)?$/.test(trimmed) ? trimmed : null;
 }
 
 function normalizeTextAnswer(value: string, caseSensitive: boolean) {
