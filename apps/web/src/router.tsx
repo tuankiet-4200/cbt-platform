@@ -12,6 +12,8 @@ const LoginPage         = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage      = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const ExamLibraryPage   = lazy(() => import('@/features/exams/pages/ExamLibraryPage'));
 const ExamDetailPage    = lazy(() => import('@/features/exams/pages/ExamDetailPage'));
+const PracticeLibraryPage = lazy(() => import('@/features/exams/pages/PracticeLibraryPage'));
+const PracticePage      = lazy(() => import('@/features/exams/pages/PracticePage'));
 const ExamSessionPage   = lazy(() => import('@/features/exam/pages/ExamSessionPage'));
 const ResultPage        = lazy(() => import('@/features/results/pages/ResultPage'));
 const ResultReviewPage  = lazy(() => import('@/features/results/pages/ResultReviewPage'));
@@ -57,6 +59,7 @@ export const router = createBrowserRouter([
           { index: true,          element: <Navigate to="/exams" replace /> },
           { path: '/exams',       element: withSuspense(ExamLibraryPage) },
           { path: '/exams/:id',   element: withSuspense(ExamDetailPage) },
+          { path: '/practice',    element: withSuspense(PracticeLibraryPage) },
           { path: '/results/:attemptId',        element: withSuspense(ResultPage) },
           { path: '/history',     element: withSuspense(HistoryPage) },
           { path: '/analytics',   element: <Navigate to="/exams" replace /> },
@@ -69,6 +72,8 @@ export const router = createBrowserRouter([
         element: <ExamLayout />,
         children: [
           { path: '/exam/attempt/:attemptId', element: withSuspense(ExamSessionPage) },
+          { path: '/practice/exams/:examId', element: withSuspense(PracticePage) },
+          { path: '/practice/tags/:tagId', element: withSuspense(PracticePage) },
           { path: '/results/:attemptId/review', element: withSuspense(ResultReviewPage) },
         ],
       },

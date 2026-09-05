@@ -21,6 +21,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SelectField } from '@/components/ui/SelectField';
 import type { ExamSectionType } from '../api/questionBank.api';
 import { cognitiveLevelLabel } from '../lib/question-labels';
 import {
@@ -66,6 +67,7 @@ export default function AdminExamBuilderPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [contentFontSizeDraft, setContentFontSizeDraft] = useState(18);
   const [confirmAction, setConfirmAction] = useState<{
     title: string;
     description: string;
@@ -94,13 +96,16 @@ export default function AdminExamBuilderPage() {
   const sectionIds = useMemo(() => getSectionIds(builder, activeSection), [activeSection, builder]);
   const hasMetadataChanges = useMemo(() => {
     if (!builder) return false;
-    return titleDraft !== builder.title || descriptionDraft !== (builder.description ?? '');
-  }, [builder, descriptionDraft, titleDraft]);
+    return titleDraft !== builder.title ||
+      descriptionDraft !== (builder.description ?? '') ||
+      contentFontSizeDraft !== builder.contentFontSize;
+  }, [builder, contentFontSizeDraft, descriptionDraft, titleDraft]);
 
   useEffect(() => {
     if (!builder) return;
     setTitleDraft(builder.title);
     setDescriptionDraft(builder.description ?? '');
+    setContentFontSizeDraft(builder.contentFontSize);
   }, [builder]);
 
   useEffect(() => {
@@ -188,6 +193,7 @@ export default function AdminExamBuilderPage() {
       return updateExamSettings(examId, {
         title: titleDraft,
         description: descriptionDraft,
+        contentFontSize: contentFontSizeDraft,
       });
     },
     onSuccess: () => {
@@ -344,7 +350,7 @@ export default function AdminExamBuilderPage() {
       )}
 
       <section className="card p-5">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_10rem_auto] lg:items-end">
           <label className="block">
             <span className="label">Title</span>
             <input className="input" value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
@@ -352,6 +358,17 @@ export default function AdminExamBuilderPage() {
           <label className="block">
             <span className="label">Description</span>
             <input className="input" value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">Cỡ chữ khi thi</span>
+            <SelectField
+              value={String(contentFontSizeDraft)}
+              options={[16, 18, 20, 22, 24].map((size) => ({
+                value: String(size),
+                label: `${size}px`,
+              }))}
+              onChange={(value) => setContentFontSizeDraft(Number(value))}
+            />
           </label>
           <button
             className="btn btn-primary btn-md"

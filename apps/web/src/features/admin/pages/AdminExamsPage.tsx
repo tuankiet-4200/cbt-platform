@@ -4,22 +4,27 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Eye,
+  BarChart3,
   FilePlus2,
   GraduationCap,
   Layers3,
   Loader2,
   Search,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   listExams,
+  getExamStatistics,
   previewExam,
+  type ExamStatistics,
   type ExamPreview,
 } from '../api/exams.api';
 import { ExamPreviewModal } from './ExamPreviewModal';
 
 export default function AdminExamsPage() {
   const [preview, setPreview] = useState<ExamPreview | null>(null);
+  const [statistics, setStatistics] = useState<ExamStatistics | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
@@ -49,6 +54,15 @@ export default function AdminExamsPage() {
       setActionError(null);
     },
     onError: (error) => setActionError(getErrorMessage(error) ?? 'Preview failed.'),
+  });
+
+  const statisticsMutation = useMutation({
+    mutationFn: getExamStatistics,
+    onSuccess: (result) => {
+      setStatistics(result);
+      setActionError(null);
+    },
+    onError: (error) => setActionError(getErrorMessage(error) ?? 'Không tải được thống kê đề thi.'),
   });
 
   return (
@@ -162,6 +176,15 @@ export default function AdminExamsPage() {
                         {previewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                         Preview
                       </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => statisticsMutation.mutate(exam.id)}
+                        disabled={statisticsMutation.isPending}
+                      >
+                        {statisticsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+                        Thống kê
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -182,6 +205,78 @@ export default function AdminExamsPage() {
       </section>
 
       {preview && <ExamPreviewModal preview={preview} onClose={() => setPreview(null)} />}
+      {statistics && <ExamStatisticsModal statistics={statistics} onClose={() => setStatistics(null)} />}
+    </div>
+  );
+}
+
+function ExamStatisticsModal({
+  statistics,
+  onClose,
+}: {
+  statistics: ExamStatistics;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/55 p-4" role="dialog" aria-modal="true">
+      <section className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <header className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary-700">
+              <BarChart3 className="h-4 w-4" /> Thống kê đề thi
+            </div>
+            <h2 className="mt-1 text-xl font-bold text-neutral-900">{statistics.exam.title}</h2>
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm px-2" onClick={onClose} aria-label="Đóng">
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="grid gap-3 border-b border-neutral-200 p-5 sm:grid-cols-4">
+          <Metric label="Thí sinh" value={statistics.summary.userCount} />
+          <Metric label="Tổng lượt làm" value={statistics.summary.attemptCount} />
+          <Metric label="Đã chấm" value={statistics.summary.completedAttemptCount} />
+          <Metric label="Điểm trung bình" value={formatPercent(statistics.summary.averagePercentScore)} />
+        </div>
+
+        <div className="overflow-auto p-5">
+          <table className="w-full min-w-[760px] table-fixed divide-y divide-neutral-200">
+            <thead className="bg-neutral-50">
+              <tr>
+                <Th className="w-[30%]">Thí sinh</Th>
+                <Th className="w-[12%]">Số lượt</Th>
+                <Th className="w-[17%]">Điểm gần nhất</Th>
+                <Th className="w-[13%]">Cao nhất</Th>
+                <Th className="w-[13%]">Trung bình</Th>
+                <Th className="w-[15%]">Lần gần nhất</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {statistics.users.map((row) => (
+                <tr key={row.user.id}>
+                  <td className="px-3 py-3">
+                    <p className="truncate font-semibold text-neutral-900">{row.user.displayName}</p>
+                    <p className="truncate text-xs text-neutral-500">{row.user.email}</p>
+                  </td>
+                  <td className="px-3 py-3 text-sm text-neutral-700">
+                    <strong>{row.attemptCount}</strong>
+                    {row.inProgressAttemptCount > 0 && <span className="mt-1 block text-xs text-warning-700">{row.inProgressAttemptCount} đang làm</span>}
+                  </td>
+                  <td className="px-3 py-3 text-sm font-semibold text-neutral-800">
+                    {row.latestScore ? `${row.latestScore.totalScore}/${row.latestScore.maxScore} (${formatPercent(row.latestScore.percentScore)})` : '—'}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-neutral-700">{formatPercent(row.bestPercentScore)}</td>
+                  <td className="px-3 py-3 text-sm text-neutral-700">{formatPercent(row.averagePercentScore)}</td>
+                  <td className="px-3 py-3 text-xs text-neutral-500">{formatDateTime(row.lastAttemptAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {statistics.users.length === 0 && (
+            <p className="py-10 text-center text-sm text-neutral-500">Chưa có thí sinh làm đề này.</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -217,6 +312,10 @@ function formatDateTime(value?: string | null) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatPercent(value?: number | null) {
+  return value === null || value === undefined ? '—' : `${value.toFixed(1)}%`;
 }
 
 function getErrorMessage(error: unknown) {

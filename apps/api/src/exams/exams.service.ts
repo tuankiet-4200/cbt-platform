@@ -175,6 +175,268 @@ export class ExamsService {
     return this.toUserExam(exam, true);
   }
 
+  async listPracticeTags() {
+    const [tags, mathLinks, bundleLinks, bundledQuestionLinks] =
+      await this.prisma.$transaction([
+        this.prisma.tag.findMany({
+          orderBy: [
+            { sectionType: 'asc' },
+            { depth: 'asc' },
+            { orderIndex: 'asc' },
+            { name: 'asc' },
+          ],
+        }),
+        this.prisma.questionTag.findMany({
+          where: {
+            question: {
+              status: QuestionStatus.PUBLISHED,
+              bundleQuestion: null,
+            },
+          },
+          select: { tagId: true, questionId: true },
+        }),
+        this.prisma.passageBundleTag.findMany({
+          where: { bundle: { status: QuestionStatus.PUBLISHED } },
+          select: {
+            tagId: true,
+            bundle: {
+              select: {
+                id: true,
+                _count: { select: { questions: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.questionTag.findMany({
+          where: {
+            question: {
+              status: QuestionStatus.PUBLISHED,
+              bundleQuestion: {
+                bundle: { status: QuestionStatus.PUBLISHED },
+              },
+            },
+          },
+          select: {
+            tagId: true,
+            question: {
+              select: {
+                bundleQuestion: {
+                  select: {
+                    bundle: {
+                      select: {
+                        id: true,
+                        _count: { select: { questions: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+      ]);
+
+    const parentById = new Map(tags.map((tag) => [tag.id, tag.parentId]));
+    const entitiesByTag = new Map<string, Map<string, number>>();
+    const addToTagAndAncestors = (
+      tagId: string,
+      entityId: string,
+      questionCount: number,
+    ) => {
+      let currentId: string | null | undefined = tagId;
+      while (currentId) {
+        const entities =
+          entitiesByTag.get(currentId) ?? new Map<string, number>();
+        entities.set(entityId, questionCount);
+        entitiesByTag.set(currentId, entities);
+        currentId = parentById.get(currentId);
+      }
+    };
+
+    mathLinks.forEach((link) =>
+      addToTagAndAncestors(link.tagId, `question:${link.questionId}`, 1),
+    );
+    bundleLinks.forEach((link) =>
+      addToTagAndAncestors(
+        link.tagId,
+        `bundle:${link.bundle.id}`,
+        link.bundle._count.questions,
+      ),
+    );
+    bundledQuestionLinks.forEach((link) => {
+      const bundle = link.question.bundleQuestion?.bundle;
+      if (bundle) {
+        addToTagAndAncestors(
+          link.tagId,
+          `bundle:${bundle.id}`,
+          bundle._count.questions,
+        );
+      }
+    });
+
+    return tags
+      .map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        slug: tag.slug,
+        sectionType: tag.sectionType,
+        parentId: tag.parentId,
+        depth: tag.depth,
+        questionCount: [...(entitiesByTag.get(tag.id)?.values() ?? [])].reduce(
+          (sum, count) => sum + count,
+          0,
+        ),
+      }))
+      .filter((tag) => tag.questionCount > 0);
+  }
+
+  async getTagPractice(tagId: string) {
+    const tags = await this.prisma.tag.findMany();
+    const tag = tags.find((item) => item.id === tagId);
+    if (!tag) throw new NotFoundException('Tag not found');
+    const scopeIds = this.descendantTagIds(tag.id, tags);
+
+    if (tag.sectionType === ExamSectionType.MATH) {
+      const questions = await this.prisma.question.findMany({
+        where: {
+          status: QuestionStatus.PUBLISHED,
+          bundleQuestion: null,
+          tags: { some: { tagId: { in: [...scopeIds] } } },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      return {
+        source: 'TAG',
+        id: tag.id,
+        title: `Luyện tập ${tag.name}`,
+        description: 'Câu hỏi đã phát hành trong chủ đề đã chọn.',
+        contentFontSize: 18,
+        sections: [
+          {
+            sectionType: ExamSectionType.MATH,
+            layout: 'SINGLE_COLUMN',
+            questions: questions.map((question, index) =>
+              this.toPracticeQuestion(question, 1, index),
+            ),
+            bundles: [],
+          },
+        ],
+      };
+    }
+
+    const bundles = await this.prisma.passageBundle.findMany({
+      where: {
+        status: QuestionStatus.PUBLISHED,
+        sectionType: tag.sectionType,
+        OR: [
+          { tags: { some: { tagId: { in: [...scopeIds] } } } },
+          {
+            questions: {
+              some: {
+                question: {
+                  tags: { some: { tagId: { in: [...scopeIds] } } },
+                },
+              },
+            },
+          },
+        ],
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        questions: {
+          orderBy: { orderInBundle: 'asc' },
+          include: { question: true },
+        },
+      },
+    });
+
+    return {
+      source: 'TAG',
+      id: tag.id,
+      title: `Luyện tập ${tag.name}`,
+      description: 'Các bài dẫn và câu hỏi đã phát hành trong chủ đề đã chọn.',
+      contentFontSize: 18,
+      sections: [
+        {
+          sectionType: tag.sectionType,
+          layout: 'TWO_COLUMN',
+          questions: [],
+          bundles: bundles.map((bundle, bundleIndex) => ({
+            id: bundle.id,
+            title: bundle.title,
+            content: bundle.contentJson,
+            orderInSection: bundleIndex,
+            questions: bundle.questions.map((item) =>
+              this.toPracticeQuestion(
+                item.question,
+                item.points,
+                item.orderInBundle,
+              ),
+            ),
+          })),
+        },
+      ],
+    };
+  }
+
+  async getExamPractice(examId: string, userId: string) {
+    await this.getAvailableExam(examId, userId);
+    const preview = await this.previewExam(examId);
+    const sections = [
+      preview.sections.MATH.questionCount > 0
+        ? {
+            sectionType: ExamSectionType.MATH,
+            layout: 'SINGLE_COLUMN',
+            questions: (preview.sections.MATH.items ?? []).map((item) => ({
+              id: item.id,
+              type: item.type,
+              level: item.level,
+              content: item.contentJson,
+              expectedTimeSecs: 0,
+              points: item.points ?? 1,
+              orderInSection: item.order,
+            })),
+            bundles: [],
+          }
+        : null,
+      ...([ExamSectionType.READING, ExamSectionType.SCIENCE] as const).map(
+        (sectionType) => {
+          const section = preview.sections[sectionType];
+          if (section.questionCount === 0) return null;
+          return {
+            sectionType,
+            layout: 'TWO_COLUMN',
+            questions: [],
+            bundles: (section.bundles ?? []).map((bundle) => ({
+              id: bundle.id,
+              title: bundle.title,
+              content: bundle.contentJson,
+              orderInSection: bundle.order,
+              questions: bundle.questions.map((question) => ({
+                id: question.id,
+                type: question.type,
+                level: question.level,
+                content: question.contentJson,
+                expectedTimeSecs: 0,
+                points: question.points ?? 1,
+                orderInBundle: question.order,
+              })),
+            })),
+          };
+        },
+      ),
+    ].filter((section) => section !== null);
+
+    return {
+      source: 'EXAM',
+      id: preview.id,
+      title: preview.title,
+      description: preview.description,
+      contentFontSize: preview.contentFontSize,
+      sections,
+    };
+  }
+
   async listExams() {
     const exams = await this.prisma.exam.findMany({
       orderBy: { updatedAt: 'desc' },
@@ -211,6 +473,7 @@ export class ExamsService {
       title: exam.title,
       description: exam.description,
       durationMins: exam.durationMins,
+      contentFontSize: exam.contentFontSize,
       totalPoints: exam.totalPoints,
       accessType: exam.accessType,
       isPublished: exam.isPublished,
@@ -235,6 +498,100 @@ export class ExamsService {
         accessCodes: exam._count.accessCodes,
       },
     }));
+  }
+
+  async getExamStatistics(examId: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      select: {
+        id: true,
+        title: true,
+        attempts: {
+          orderBy: { startedAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            completedAt: true,
+            user: {
+              select: { id: true, displayName: true, email: true },
+            },
+            result: {
+              select: {
+                totalScore: true,
+                maxScore: true,
+                percentScore: true,
+                correctCount: true,
+                wrongCount: true,
+                skippedCount: true,
+                durationSecs: true,
+                completedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!exam) throw new NotFoundException('Exam not found');
+
+    const users = new Map<
+      string,
+      {
+        user: { id: string; displayName: string; email: string };
+        attempts: typeof exam.attempts;
+      }
+    >();
+    exam.attempts.forEach((attempt) => {
+      const current = users.get(attempt.user.id) ?? {
+        user: attempt.user,
+        attempts: [],
+      };
+      current.attempts.push(attempt);
+      users.set(attempt.user.id, current);
+    });
+
+    const rows = [...users.values()].map(({ user, attempts }) => {
+      const results = attempts.flatMap((attempt) =>
+        attempt.result ? [attempt.result] : [],
+      );
+      const latestResult = attempts.find((attempt) => attempt.result)?.result;
+      return {
+        user,
+        attemptCount: attempts.length,
+        completedAttemptCount: results.length,
+        inProgressAttemptCount: attempts.filter(
+          (attempt) => attempt.status === 'IN_PROGRESS',
+        ).length,
+        latestScore: latestResult ?? null,
+        bestPercentScore: results.length
+          ? Math.max(...results.map((result) => result.percentScore))
+          : null,
+        averagePercentScore: results.length
+          ? results.reduce((sum, result) => sum + result.percentScore, 0) /
+            results.length
+          : null,
+        lastAttemptAt: attempts[0]?.startedAt ?? null,
+      };
+    });
+    const gradedAttempts = exam.attempts.flatMap((attempt) =>
+      attempt.result ? [attempt.result] : [],
+    );
+
+    return {
+      exam: { id: exam.id, title: exam.title },
+      summary: {
+        userCount: rows.length,
+        attemptCount: exam.attempts.length,
+        completedAttemptCount: gradedAttempts.length,
+        averagePercentScore: gradedAttempts.length
+          ? gradedAttempts.reduce(
+              (sum, result) => sum + result.percentScore,
+              0,
+            ) / gradedAttempts.length
+          : null,
+      },
+      users: rows,
+    };
   }
 
   private userExamInclude(userId: string) {
@@ -301,6 +658,7 @@ export class ExamsService {
       description: string | null;
       instructions: string | null;
       durationMins: number;
+      contentFontSize: number;
       totalPoints: number;
       accessType: ExamAccessType;
       createdAt: Date;
@@ -357,6 +715,7 @@ export class ExamsService {
       description: exam.description,
       ...(includeInstructions ? { instructions: exam.instructions } : {}),
       durationMins: exam.durationMins,
+      contentFontSize: exam.contentFontSize,
       totalPoints: exam.totalPoints,
       accessType: exam.accessType,
       access: {
@@ -499,6 +858,7 @@ export class ExamsService {
         title: dto.title,
         description: dto.description,
         instructions: dto.instructions,
+        contentFontSize: dto.contentFontSize ?? 18,
         durationMins: dto.sectionTypes
           ? blueprint.durationMins ?? 150
           : dto.durationMins ?? blueprint.durationMins ?? 150,
@@ -523,6 +883,9 @@ export class ExamsService {
     }
     if (dto.accessType !== undefined) {
       data.accessType = dto.accessType;
+    }
+    if (dto.contentFontSize !== undefined) {
+      data.contentFontSize = dto.contentFontSize;
     }
 
     if (Object.keys(data).length === 0) {
@@ -668,6 +1031,7 @@ export class ExamsService {
       title: exam.title,
       description: exam.description,
       durationMins: exam.durationMins,
+      contentFontSize: exam.contentFontSize,
       accessType: exam.accessType,
       isPublished: exam.isPublished,
       totalPoints: exam.totalPoints,
@@ -1642,6 +2006,47 @@ export class ExamsService {
         updatedAt: new Date(),
       },
     });
+  }
+
+  private descendantTagIds(
+    tagId: string,
+    tags: Array<{ id: string; parentId: string | null }>,
+  ) {
+    const result = new Set<string>([tagId]);
+    const visit = (parentId: string) => {
+      tags
+        .filter((tag) => tag.parentId === parentId)
+        .forEach((child) => {
+          if (result.has(child.id)) return;
+          result.add(child.id);
+          visit(child.id);
+        });
+    };
+    visit(tagId);
+    return result;
+  }
+
+  private toPracticeQuestion(
+    question: {
+      id: string;
+      type: QuestionType;
+      level: CognitiveLevel;
+      contentJson: Prisma.JsonValue;
+      expectedTimeSecs: number;
+    },
+    points: number,
+    order: number,
+  ) {
+    return {
+      id: question.id,
+      type: question.type,
+      level: question.level,
+      content: question.contentJson,
+      expectedTimeSecs: question.expectedTimeSecs,
+      points,
+      orderInSection: order,
+      orderInBundle: order,
+    };
   }
 
   private bundlePreview(items: Array<{

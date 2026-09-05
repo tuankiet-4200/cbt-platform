@@ -17,6 +17,7 @@ export interface SafeQuestionContent {
   stem: RichTextNode[];
   type: string;
   payload: Record<string, unknown>;
+  solution?: RichTextNode[];
   _version: number;
 }
 
@@ -88,6 +89,7 @@ export interface SessionPayload {
   exam: {
     id: string;
     title: string;
+    contentFontSize: number;
   };
   candidate: {
     id: string;

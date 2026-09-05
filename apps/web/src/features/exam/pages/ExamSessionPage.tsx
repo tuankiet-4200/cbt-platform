@@ -565,7 +565,10 @@ function ActiveExam({
         <main className="min-h-0 overflow-hidden p-4">
           {payload.layout === 'TWO_COLUMN' ? (
             <div className="grid h-full min-h-0 gap-2 lg:grid-cols-2">
-              <section className="overflow-y-auto rounded-lg bg-white p-5 text-sm leading-7 shadow-sm">
+              <section
+                className="overflow-y-auto rounded-lg bg-white p-5 leading-[1.8] shadow-sm"
+                style={{ fontSize: `${payload.exam.contentFontSize}px` }}
+              >
                 <h2 className="mb-4 text-center font-bold text-neutral-800">
                   {active.bundle?.title ?? 'Bài đọc'}
                 </h2>
@@ -592,6 +595,7 @@ function ActiveExam({
                         shuffleSeed={payload.attemptId}
                         answer={answers[question.id]}
                         onAnswer={(value) => setAnswer(question.id, value)}
+                        fontSize={payload.exam.contentFontSize}
                       />
                     </div>
                   );
@@ -606,6 +610,7 @@ function ActiveExam({
                 shuffleSeed={payload.attemptId}
                 answer={answers[active.question.id]}
                 onAnswer={(value) => setAnswer(active.question.id, value)}
+                fontSize={payload.exam.contentFontSize}
               />
             </section>
           )}
@@ -722,12 +727,14 @@ function QuestionCard({
   shuffleSeed,
   answer,
   onAnswer,
+  fontSize,
 }: {
   number: number;
   question: SessionQuestion;
   shuffleSeed: string;
   answer?: Record<string, unknown>;
   onAnswer: (answer: Record<string, unknown>) => void;
+  fontSize: number;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -740,6 +747,7 @@ function QuestionCard({
           shuffleSeed={shuffleSeed}
           answer={answer}
           onAnswer={onAnswer}
+          fontSize={fontSize}
         />
       </div>
     </div>

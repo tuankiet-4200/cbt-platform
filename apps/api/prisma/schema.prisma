@@ -416,6 +416,7 @@ model Exam {
   description    String?
   instructions   String? // Displayed before exam starts (Markdown)
   durationMins   Int            @map("duration_mins")
+  contentFontSize Int           @default(18) @map("content_font_size")
   totalPoints    Float          @default(0) @map("total_points")
   accessType     ExamAccessType @default(LOCKED)
   isPublished    Boolean        @default(false) @map("is_published")

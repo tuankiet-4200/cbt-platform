@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-05 (question and passage bundle edits allowed after exam usage)
+> **Last updated:** 2026-09-05 (exam typography, practice modes, drag/drop UX, and admin exam statistics completed)
 
 ### Active Sprint
-**Admin Content Maintenance**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — admins may correct question answers and passage bundle content even after inclusion in published exams or attempts; referenced-content deletion remains protected
+**Practice and Exam Administration**
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific content typography, untimed answer-reveal practice, tag-based practice, smoother drag/drop slots, and per-exam user/attempt statistics are implemented
 
 ### Sprint Progress Overview
 
@@ -385,6 +385,27 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — admins may correct questio
 
 ---
 
+## ✅ Practice and Exam Administration Extension (2026-09-05)
+
+### Exam presentation and interaction
+1. [x] Added an `Exam.contentFontSize` setting with migration `20260905024350_add_exam_content_font_size`, a default of 18px, and 16–24px admin presets on create/edit
+2. [x] Applied the selected content size to question stems, options, matrices, drag/drop content, and Reading/Science passages in the live exam workspace
+3. [x] Removed empty drag/drop slot placeholder text, made placed items fill their slot, and removed transform transitions that caused dragged items to lag behind the pointer
+
+### Practice and reporting
+1. [x] Added untimed full-exam practice without creating `ExamAttempt` or `ExamSession` records
+2. [x] Added per-question answer/solution reveal and hide controls across all six question types
+3. [x] Added practice by hierarchical MATH/READING/SCIENCE tags; parent tags include published content assigned to descendant tags and Reading/Science retain atomic bundles
+4. [x] Added a student practice library and direct “Luyện tập đề này” entry from exam details
+5. [x] Added admin per-exam statistics with participant count, total/completed/in-progress attempts, latest/best/average scores, and last-attempt time
+
+### Quality
+- [x] Prisma schema validated; migration applied and `content_font_size` verified in local PostgreSQL
+- [x] 45/45 API and 11/11 Web unit tests pass
+- [x] API/Web lint, typecheck, and production builds pass
+
+---
+
 ## 🔄 Production Deployment Preparation (2026-09-03)
 
 ### Deployment Stack
@@ -455,13 +476,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — admins may correct questio
 11. [x] Add the full-attempt section lobby, reload-safe five-minute inter-section breaks, expandable Reading/Science workspace, and reference-styled Drag drop options
 12. [x] Make Fill number grading require the exact decimal comma and number of decimal places entered in the answer key
 13. [x] Allow admins to correct questions, answer keys, and passage bundles after they are included in published exams or attempts while retaining deletion guards
-14. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-15. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-16. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-17. [ ] Complete section timeout retry for transient online failures
-18. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-19. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-20. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+14. [x] Add configurable exam typography, improved drag/drop interaction, official-attempt statistics, full-exam practice, and hierarchical tag practice
+15. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+16. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+17. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+18. [ ] Complete section timeout retry for transient online failures
+19. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+20. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+21. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 
@@ -535,7 +557,7 @@ FILL_TEXT         → Multiple text blanks[], Vietnamese-aware normalized match,
 
 | Service | Container | Port | Status (as of last update) |
 |---------|-----------|------|--------------------------|
-| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — FILL_TEXT enum migration applied locally |
+| PostgreSQL 16 | `cbt_postgres` | 5432 | ✅ Working — exam content-font migration applied and verified locally |
 | Redis 7 | `cbt_redis` | 6379 | ✅ Working |
 | pgAdmin | `cbt_pgadmin` | 5050 | ✅ Working — server import uses password exec command |
 | RedisInsight | `cbt_redisinsight` | 5540 | ✅ Working |

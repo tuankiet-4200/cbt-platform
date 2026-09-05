@@ -35,6 +35,13 @@ export class CreateExamDto {
   durationMins?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(14)
+  @Max(28)
+  contentFontSize?: number;
+
+  @IsOptional()
   @IsEnum(ExamAccessType)
   accessType?: ExamAccessType;
 
@@ -120,6 +127,13 @@ export class UpdateExamSettingsDto {
   @IsOptional()
   @IsEnum(ExamAccessType)
   accessType?: ExamAccessType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(14)
+  @Max(28)
+  contentFontSize?: number;
 }
 
 export class CheckBlueprintAvailabilityDto {

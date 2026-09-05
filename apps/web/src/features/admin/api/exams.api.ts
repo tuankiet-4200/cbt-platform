@@ -60,6 +60,7 @@ export interface AdminExam {
   title: string;
   description?: string | null;
   durationMins: number;
+  contentFontSize: number;
   totalPoints: number;
   accessType: ExamAccessType;
   isPublished: boolean;
@@ -122,6 +123,7 @@ export interface ExamPreview {
   title: string;
   description?: string | null;
   durationMins: number;
+  contentFontSize: number;
   accessType: ExamAccessType;
   isPublished: boolean;
   totalPoints: number;
@@ -199,6 +201,35 @@ export interface ReplacementCandidates {
   SCIENCE: Array<ExamPreviewBundle & { sectionType: 'SCIENCE' }>;
 }
 
+export interface ExamStatistics {
+  exam: { id: string; title: string };
+  summary: {
+    userCount: number;
+    attemptCount: number;
+    completedAttemptCount: number;
+    averagePercentScore: number | null;
+  };
+  users: Array<{
+    user: { id: string; displayName: string; email: string };
+    attemptCount: number;
+    completedAttemptCount: number;
+    inProgressAttemptCount: number;
+    latestScore: {
+      totalScore: number;
+      maxScore: number;
+      percentScore: number;
+      correctCount: number;
+      wrongCount: number;
+      skippedCount: number;
+      durationSecs: number;
+      completedAt: string;
+    } | null;
+    bestPercentScore: number | null;
+    averagePercentScore: number | null;
+    lastAttemptAt: string | null;
+  }>;
+}
+
 interface ApiEnvelope<T> {
   data: T;
 }
@@ -213,6 +244,7 @@ export async function createExam(payload: {
   description?: string;
   instructions?: string;
   durationMins?: number;
+  contentFontSize?: number;
   accessType?: ExamAccessType;
   blueprintJson?: ExamBlueprint;
   blueprintId?: string;
@@ -258,8 +290,16 @@ export async function updateExamSettings(id: string, payload: {
   title?: string;
   description?: string;
   accessType?: ExamAccessType;
+  contentFontSize?: number;
 }) {
   const response = await apiClient.patch<ApiEnvelope<AdminExam>>(`/admin/exams/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getExamStatistics(id: string) {
+  const response = await apiClient.get<ApiEnvelope<ExamStatistics>>(
+    `/admin/exams/${id}/statistics`,
+  );
   return response.data.data;
 }
 

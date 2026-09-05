@@ -48,6 +48,7 @@ export default function AdminExamCreatePage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [durationMins, setDurationMins] = useState(150);
+  const [contentFontSize, setContentFontSize] = useState(18);
   const [examScope, setExamScope] = useState<'ALL' | ExamSectionType>('ALL');
   const [accessType, setAccessType] = useState<ExamAccessType>('LOCKED');
   const [blueprintId, setBlueprintId] = useState('');
@@ -91,6 +92,7 @@ export default function AdminExamCreatePage() {
           title,
           description,
           accessType,
+          contentFontSize,
           blueprintJson: createManualBlueprint(sections),
         });
       }
@@ -99,6 +101,7 @@ export default function AdminExamCreatePage() {
         title,
         description,
         durationMins,
+        contentFontSize,
         accessType,
         blueprintId: selectedBlueprint.id,
         sectionTypes: scopedBlueprint.sections.map((section) => section.sectionType),
@@ -234,7 +237,7 @@ export default function AdminExamCreatePage() {
               <FilePlus2 className="h-4 w-4" />
               Exam metadata
             </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem_9rem_9rem]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem_8rem_8rem_9rem]">
               <label className="block">
                 <span className="label">Title</span>
                 <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} disabled={Boolean(createdExam)} />
@@ -256,6 +259,18 @@ export default function AdminExamCreatePage() {
               <label className="block">
                 <span className="label">Duration</span>
                 <input className="input" type="number" min={1} max={600} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value))} disabled />
+              </label>
+              <label className="block">
+                <span className="label">Cỡ chữ</span>
+                <SelectField
+                  value={String(contentFontSize)}
+                  options={[16, 18, 20, 22, 24].map((size) => ({
+                    value: String(size),
+                    label: `${size}px`,
+                  }))}
+                  disabled={Boolean(createdExam)}
+                  onChange={(value) => setContentFontSize(Number(value))}
+                />
               </label>
               <label className="block">
                 <span className="label">Access</span>

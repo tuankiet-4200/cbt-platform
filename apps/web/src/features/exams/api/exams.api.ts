@@ -1,4 +1,9 @@
 import apiClient from '@/lib/api-client';
+import type {
+  ExamSectionType,
+  SessionBundle,
+  SessionQuestion,
+} from '@/features/exam/api/sessions.api';
 
 export type UserExamAccessType = 'PUBLIC' | 'LOCKED';
 export type UserExamAccessSource = 'PUBLIC' | 'ACCESS_CODE' | 'GRANTED';
@@ -10,6 +15,7 @@ export interface UserExam {
   description?: string | null;
   instructions?: string | null;
   durationMins: number;
+  contentFontSize: number;
   totalPoints: number;
   accessType: UserExamAccessType;
   access: {
@@ -56,6 +62,32 @@ export interface UnlockExamResult {
   grantedAt: string;
 }
 
+export interface PracticeTag {
+  id: string;
+  name: string;
+  slug: string;
+  sectionType: ExamSectionType;
+  parentId: string | null;
+  depth: number;
+  questionCount: number;
+}
+
+export interface PracticeSection {
+  sectionType: ExamSectionType;
+  layout: 'SINGLE_COLUMN' | 'TWO_COLUMN';
+  questions: SessionQuestion[];
+  bundles: SessionBundle[];
+}
+
+export interface PracticeContent {
+  source: 'EXAM' | 'TAG';
+  id: string;
+  title: string;
+  description?: string | null;
+  contentFontSize: number;
+  sections: PracticeSection[];
+}
+
 interface ApiEnvelope<T> {
   data: T;
 }
@@ -67,6 +99,27 @@ export async function listAvailableExams() {
 
 export async function getAvailableExam(id: string) {
   const response = await apiClient.get<ApiEnvelope<UserExam>>(`/exams/${id}`);
+  return response.data.data;
+}
+
+export async function getExamPractice(id: string) {
+  const response = await apiClient.get<ApiEnvelope<PracticeContent>>(
+    `/exams/${id}/practice`,
+  );
+  return response.data.data;
+}
+
+export async function listPracticeTags() {
+  const response = await apiClient.get<ApiEnvelope<PracticeTag[]>>(
+    '/exams/practice/tags',
+  );
+  return response.data.data;
+}
+
+export async function getTagPractice(tagId: string) {
+  const response = await apiClient.get<ApiEnvelope<PracticeContent>>(
+    `/exams/practice/tags/${tagId}`,
+  );
   return response.data.data;
 }
 

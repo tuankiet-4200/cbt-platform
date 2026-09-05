@@ -678,7 +678,14 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     const session = await this.prisma.examSession.findFirst({
       where: { id: sessionId, userId },
       include: {
-        exam: { select: { id: true, title: true, blueprintJson: true } },
+        exam: {
+          select: {
+            id: true,
+            title: true,
+            blueprintJson: true,
+            contentFontSize: true,
+          },
+        },
         attempt: {
           include: {
             user: { select: { id: true, displayName: true } },

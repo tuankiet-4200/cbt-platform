@@ -40,12 +40,14 @@ export function QuestionRenderer({
   onAnswer,
   shuffleSeed,
   readOnly = false,
+  fontSize = 18,
 }: {
   question: SessionQuestion;
   answer?: Answer;
   onAnswer: (answer: Answer) => void;
   shuffleSeed: string;
   readOnly?: boolean;
+  fontSize?: number;
 }) {
   const payload = question.content.payload;
   const orderedOptions = useMemo(() => {
@@ -74,8 +76,8 @@ export function QuestionRenderer({
   };
 
   return (
-    <article>
-      {question.type !== 'DRAG_DROP' && <div className="text-[15px] leading-8 text-neutral-900">
+    <article style={{ fontSize: `${fontSize}px` }}>
+      {question.type !== 'DRAG_DROP' && <div className="text-[1em] leading-[1.8] text-neutral-900">
         <RichText
           nodes={question.content.stem}
           renderBlank={(blankId) => {
@@ -90,11 +92,11 @@ export function QuestionRenderer({
                   value={String(value)}
                   onChange={(event) => setBlank(blankId, event.target.value)}
                   readOnly={readOnly}
-                  className="h-8 w-28 border-0 border-b-2 border-blue-400 bg-transparent px-2 text-center outline-none focus:border-blue-600"
+                  className="h-9 w-32 border-0 border-b-2 border-blue-400 bg-transparent px-2 text-center text-[1em] outline-none focus:border-blue-600"
                   aria-label={`Ô trả lời ${blankId}`}
                 />
                 {blank?.unit && (
-                  <span className="text-sm text-neutral-500">{blank.unit}</span>
+                  <span className="text-[0.9em] text-neutral-500">{blank.unit}</span>
                 )}
               </span>
             );
@@ -172,7 +174,7 @@ export function QuestionRenderer({
                 key={statement.id}
                 className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] border-t border-neutral-200"
               >
-                <div className="p-3 text-sm leading-6">
+                <div className="p-3 text-[0.95em] leading-7">
                   <RichText nodes={statement.content} />
                 </div>
                 <MatrixChoice
@@ -231,7 +233,7 @@ function AnswerOption({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left text-sm leading-6 transition ${
+      className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left text-[0.95em] leading-7 transition ${
         selected
           ? 'border-blue-400 bg-blue-50 text-blue-950'
           : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'

@@ -30,6 +30,11 @@ export class ExamsController {
     return this.examsService.listExams();
   }
 
+  @Get(':id/statistics')
+  statistics(@Param('id') id: string): Promise<unknown> {
+    return this.examsService.getExamStatistics(id);
+  }
+
   @Post()
   createExam(@Body() dto: CreateExamDto): Promise<unknown> {
     return this.examsService.createExam(dto);

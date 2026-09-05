@@ -8,6 +8,7 @@ import {
   Clock3,
   FlaskConical,
   GraduationCap,
+  Dumbbell,
   KeyRound,
   Loader2,
   Sigma,
@@ -110,6 +111,13 @@ export default function ExamDetailPage() {
                 {isCompleted ? 'Làm lại đề' : 'Bắt đầu làm bài'}
               </button>
             )}
+            <Link
+              to={`/practice/exams/${exam.id}`}
+              className="btn btn-secondary btn-lg mt-3 w-full border-white/20 bg-white/10 text-white hover:bg-white/20"
+            >
+              <Dumbbell className="h-4 w-4" />
+              Luyện tập đề này
+            </Link>
             {startMutation.isError && <p className="mt-3 text-center text-xs text-danger-200">{getApiErrorMessage(startMutation.error, 'Không thể tạo lượt thi.')}</p>}
           </aside>
         </div>
