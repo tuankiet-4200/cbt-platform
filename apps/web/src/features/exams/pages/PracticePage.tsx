@@ -13,6 +13,7 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { QuestionRenderer } from '@/features/exam/components/QuestionRenderer';
 import { RichText } from '@/features/exam/components/RichText';
+import { getDragDropCorrectAnswerRows } from '@/features/exam/lib/drag-drop-answer';
 import type {
   RichTextNode,
   SessionBundle,
@@ -276,11 +277,9 @@ function AnswerPanel({ question }: { question: SessionQuestion }) {
     const statements = (payload.statements ?? []) as Array<{ id: string; isTrue?: boolean }>;
     statements.forEach((statement) => rows.push({ label: statement.id, value: statement.isTrue ? 'Đúng' : 'Sai' }));
   } else if (question.type === 'DRAG_DROP') {
-    const items = (payload.items ?? []) as Array<{ id: string; content: RichTextNode[] }>;
-    const slots = (payload.slots ?? []) as Array<{ id: string; correctItemId?: string }>;
-    slots.forEach((slot) => rows.push({
-      label: slot.id,
-      content: items.find((item) => item.id === slot.correctItemId)?.content,
+    getDragDropCorrectAnswerRows(payload).forEach((row) => rows.push({
+      label: row.label,
+      content: row.content,
     }));
   } else {
     const blanks = (payload.blanks ?? []) as Array<{ id: string; correctValue?: string }>;

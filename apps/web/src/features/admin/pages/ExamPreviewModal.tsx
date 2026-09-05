@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { FileText, Layers, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RichText } from '@/features/exam/components/RichText';
+import { getDragDropCorrectAnswerRows } from '@/features/exam/lib/drag-drop-answer';
 import type {
   ExamPreview,
   ExamPreviewBundle,
@@ -275,8 +276,7 @@ function QuestionAnswers({ question }: { question: ExamPreviewQuestion }) {
   const options = recordArray(payload.options);
   const statements = recordArray(payload.statements);
   const blanks = recordArray(payload.blanks);
-  const items = recordArray(payload.items);
-  const slots = recordArray(payload.slots);
+  const dragDropAnswers = getDragDropCorrectAnswerRows(payload);
 
   return (
     <div>
@@ -300,17 +300,12 @@ function QuestionAnswers({ question }: { question: ExamPreviewQuestion }) {
             </span>
           </AnswerRow>
         ))}
-        {slots.map((slot, index) => {
-          const correctItem = items.find((item) => item.id === slot.correctItemId);
-          return (
-            <AnswerRow key={String(slot.id ?? index)} label={String(slot.id ?? index + 1)} correct>
-              <RichText nodes={richTextNodes(slot.label)} />
-              <span className="mx-2 text-neutral-400">→</span>
-              <RichText nodes={richTextNodes(correctItem?.content)} />
-            </AnswerRow>
-          );
-        })}
-        {options.length === 0 && statements.length === 0 && blanks.length === 0 && slots.length === 0 && (
+        {dragDropAnswers.map((row) => (
+          <AnswerRow key={row.slotId} label={row.label} correct>
+            <RichText nodes={row.content} />
+          </AnswerRow>
+        ))}
+        {options.length === 0 && statements.length === 0 && blanks.length === 0 && dragDropAnswers.length === 0 && (
           <p className="rounded-lg bg-white p-4 text-sm text-neutral-400">Chưa có đáp án.</p>
         )}
       </div>

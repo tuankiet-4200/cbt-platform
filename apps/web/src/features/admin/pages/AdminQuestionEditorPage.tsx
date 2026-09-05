@@ -1501,11 +1501,14 @@ function payloadPreview(draft: QuestionDraft) {
     ]);
   }
   if (draft.type === 'DRAG_DROP') {
-    return draft.dragSlots.flatMap((slot) => [
-      { type: 'bold', content: `${slot.label}: ` } satisfies RichTextNode,
-      { type: 'text', content: slot.correctItemId } satisfies RichTextNode,
-      { type: 'break' } satisfies RichTextNode,
-    ]);
+    return draft.dragSlots.flatMap((slot, index) => {
+      const correctItem = draft.dragItems.find((item) => item.id === slot.correctItemId);
+      return [
+        { type: 'bold', content: `Vị trí ${index + 1}: ` } satisfies RichTextNode,
+        ...parseRichText(correctItem?.content || slot.correctItemId),
+        { type: 'break' } satisfies RichTextNode,
+      ];
+    });
   }
   const blanks = draft.type === 'FILL_TEXT' ? draft.fillTextBlanks : draft.fillBlanks;
   return blanks.flatMap((blank) => [

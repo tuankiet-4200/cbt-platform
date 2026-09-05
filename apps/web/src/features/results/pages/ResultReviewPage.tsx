@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { QuestionRenderer } from '@/features/exam/components/QuestionRenderer';
 import { RichText } from '@/features/exam/components/RichText';
 import type { ExamSectionType, SessionQuestion } from '@/features/exam/api/sessions.api';
+import { getDragDropCorrectAnswerRows } from '@/features/exam/lib/drag-drop-answer';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { cn } from '@/lib/utils';
 import { getAnswerReview, getExamResult, type ReviewBundle, type ReviewQuestion } from '../api/results.api';
@@ -103,7 +104,7 @@ function ReviewQuestionCard({ question, number, active, shuffleSeed, onSelect }:
           <QuestionRenderer question={toSessionQuestion(question)} answer={question.userAnswer ?? undefined} onAnswer={() => undefined} shuffleSeed={shuffleSeed} readOnly />
           <div className={cn('mt-5 rounded-lg border p-4', question.isCorrect ? 'border-success-100 bg-success-50' : 'border-danger-100 bg-danger-50')}>
             <div className="flex items-center justify-between gap-3"><StatusLabel question={question} /><span className="text-xs font-semibold text-neutral-500">{question.pointsEarned}/{question.points} điểm</span></div>
-            {!question.isCorrect && <p className="mt-3 text-sm text-neutral-700"><strong>Đáp án đúng:</strong> {formatAnswer(question.correctAnswer)}</p>}
+            {!question.isCorrect && <CorrectAnswerDisplay question={question} />}
             {question.content.solution?.length ? <div className="mt-3 border-t border-neutral-200/70 pt-3 text-sm leading-7"><strong>Lời giải: </strong><RichText nodes={question.content.solution} /></div> : null}
           </div>
         </div>
@@ -140,12 +141,38 @@ function toSessionQuestion(question: ReviewQuestion): SessionQuestion {
   return { id: question.id, type: question.type, expectedTimeSecs: question.expectedTimeSecs, points: question.points, content: { _version: 2, type: question.type, stem: question.content.stem, payload: question.content.payload } };
 }
 
+function CorrectAnswerDisplay({ question }: { question: ReviewQuestion }) {
+  if (question.type === 'DRAG_DROP') {
+    const rows = getDragDropCorrectAnswerRows(question.content.payload);
+    return (
+      <div className="mt-3 text-sm text-neutral-700">
+        <strong className="block">Đáp án đúng:</strong>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {rows.map((row) => (
+            <div key={row.slotId} className="inline-flex items-center gap-2 rounded-lg border border-danger-200 bg-white px-3 py-2">
+              <span className="font-semibold text-neutral-600">{row.label}:</span>
+              <span className="font-semibold text-danger-700">
+                <RichText nodes={row.content} />
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <p className="mt-3 text-sm text-neutral-700">
+      <strong>Đáp án đúng:</strong> {formatAnswer(question.correctAnswer)}
+    </p>
+  );
+}
+
 function formatAnswer(value: Record<string, unknown>) {
   if (typeof value.selectedOptionId === 'string') return value.selectedOptionId;
   if (Array.isArray(value.selectedOptionIds)) return value.selectedOptionIds.join(', ');
   if (Array.isArray(value.answers)) return value.answers.map((item) => { const row = item as { statementId?: string; value?: boolean }; return `${row.statementId}: ${row.value ? 'Đúng' : 'Sai'}`; }).join(' · ');
   if (Array.isArray(value.blanks)) return value.blanks.map((item) => { const row = item as { blankId?: string; value?: unknown }; return `${row.blankId}: ${String(row.value ?? '')}`; }).join(' · ');
-  if (Array.isArray(value.slots)) return value.slots.map((item) => { const row = item as { slotId?: string; itemId?: string }; return `${row.slotId}: ${row.itemId}`; }).join(' · ');
   return JSON.stringify(value);
 }
 
