@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-05 (practice answers are checked before solutions can be revealed)
+> **Last updated:** 2026-09-05 (admin exam deletion now removes dependent attempt data transactionally)
 
 ### Active Sprint
 **Practice and Exam Administration**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — product features are implemented, practice now provides per-question checking before answer reveal, and the backup runbooks are ready for production setup
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — product features are implemented, exam deletion handles dependent data safely in one transaction, and the backup runbooks are ready for production setup
 
 ### Sprint Progress Overview
 
@@ -401,10 +401,11 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — product features are imple
 4. [x] Added a student practice library and direct “Luyện tập đề này” entry from exam details
 5. [x] Added admin per-exam statistics with participant count, total/completed/in-progress attempts, latest/best/average scores, and last-attempt time
 6. [x] Added click-to-toggle descending/ascending sorting for attempt count, latest/best/average score, and last-attempt time
+7. [x] Fixed admin exam deletion for exams with attempts: dependent attempts/results/sessions/answers are removed transactionally, exam-owned access data cascades, related Redis state is cleared, and the confirmation shows the full deletion impact
 
 ### Quality
 - [x] Prisma schema validated; migration applied and `content_font_size` verified in local PostgreSQL
-- [x] 45/45 API and 17/17 Web unit tests pass
+- [x] 47/47 API and 17/17 Web unit tests pass
 - [x] API/Web lint, typecheck, and production builds pass
 
 ---
@@ -460,7 +461,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — product features are imple
 ### Audit Evidence
 - [x] PostgreSQL and Redis healthy; Prisma schema valid; FILL_TEXT migration applied with no drift
 - [ ] API and Web dev servers are not currently running on localhost; infrastructure containers remain healthy
-- [x] 44/44 API unit tests and 17/17 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
+- [x] 47/47 API unit tests and 17/17 Web unit tests pass; both lint jobs, both typechecks, and both production builds pass
 - [x] Live seed smoke passed profile, exam library, admin users/questions/exams/access codes
 - [x] Live graded-attempt smoke passed aggregate result, history, leaderboard, and MATH/READING/SCIENCE review endpoints
 
@@ -483,13 +484,14 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — product features are imple
 13. [x] Allow admins to correct questions, answer keys, and passage bundles after they are included in published exams or attempts while retaining deletion guards
 14. [x] Add configurable exam typography, improved drag/drop interaction, official-attempt statistics with sortable columns, full-exam practice, hierarchical tag practice, compact practice navigation, and fullscreen-safe attempt resume
 15. [x] Gate practice answer/solution reveal behind per-question checking and clear stale feedback whenever an answer is edited
-16. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
-17. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
-18. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
-19. [ ] Complete section timeout retry for transient online failures
-20. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
-21. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
-22. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
+16. [x] Allow an admin-confirmed exam deletion to remove all exam-owned attempt/access data transactionally and clean related Redis state
+17. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
+18. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
+19. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations
+20. [ ] Complete section timeout retry for transient online failures
+21. [ ] Close the remaining content-validation gaps and expand integration/regression coverage
+22. [ ] Re-run end-to-end acceptance and only then restore Phase 1–4.1 to 100%
+23. [ ] Keep Sprint 4.2 and 5.2 deferred until explicitly resumed
 
 ---
 

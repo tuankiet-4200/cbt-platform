@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { ExamAccessType, ExamSectionType } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { RedisService } from '@/common/redis/redis.service';
 import { ExamsService } from './exams.service';
 
 describe('ExamsService user exam access', () => {
@@ -8,18 +9,41 @@ describe('ExamsService user exam access', () => {
   const findFirst = jest.fn();
   const findUnique = jest.fn();
   const create = jest.fn();
+  const update = jest.fn();
+  const deleteRecord = jest.fn();
+  const deleteAttempts = jest.fn();
+  const transaction = jest.fn();
   const prisma = {
     exam: {
       findMany,
       findFirst,
       findUnique,
       create,
+      update,
+      delete: deleteRecord,
     },
+    examAttempt: { deleteMany: deleteAttempts },
+    $transaction: transaction,
   } as unknown as PrismaService;
-  const service = new ExamsService(prisma);
+  const redisDel = jest.fn();
+  const redis = { client: { del: redisDel } } as unknown as RedisService;
+  const service = new ExamsService(prisma, redis);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    transaction.mockImplementation(async (input) => {
+      if (typeof input === 'function') {
+        return input({
+          exam: {
+            findUnique,
+            update,
+            delete: deleteRecord,
+          },
+          examAttempt: { deleteMany: deleteAttempts },
+        });
+      }
+      return Promise.all(input);
+    });
   });
 
   it('lists only published public or explicitly unlocked exams and maps section counts', async () => {
@@ -184,6 +208,57 @@ describe('ExamsService user exam access', () => {
       bestPercentScore: 80,
       averagePercentScore: 70,
     }));
+  });
+
+  it('deletes attempts before the exam and clears related Redis state', async () => {
+    findUnique.mockResolvedValue({
+      id: 'exam-1',
+      title: 'Old exam',
+      sessions: [{ id: 'session-1' }, { id: 'session-2' }],
+      _count: {
+        attempts: 2,
+        sessions: 2,
+        accessCodes: 1,
+        accesses: 3,
+      },
+    });
+    deleteAttempts.mockResolvedValue({ count: 2 });
+    deleteRecord.mockResolvedValue({ id: 'exam-1' });
+    redisDel.mockResolvedValue(7);
+
+    await expect(service.deleteExam('exam-1')).resolves.toEqual({
+      ok: true,
+      id: 'exam-1',
+      title: 'Old exam',
+      deleted: {
+        attempts: 2,
+        sessions: 2,
+        accessCodes: 1,
+        accesses: 3,
+      },
+    });
+    expect(deleteAttempts).toHaveBeenCalledWith({ where: { examId: 'exam-1' } });
+    expect(deleteRecord).toHaveBeenCalledWith({ where: { id: 'exam-1' } });
+    expect(redisDel).toHaveBeenCalledWith(
+      'leaderboard:exam-1',
+      'session:session-1:answers',
+      'session:session-1:timing',
+      'session:session-1:meta',
+      'session:session-2:answers',
+      'session:session-2:timing',
+      'session:session-2:meta',
+    );
+  });
+
+  it('returns not found instead of running a partial delete', async () => {
+    findUnique.mockResolvedValue(null);
+
+    await expect(service.deleteExam('missing-exam'))
+      .rejects
+      .toThrow(new NotFoundException('Exam not found'));
+    expect(deleteAttempts).not.toHaveBeenCalled();
+    expect(deleteRecord).not.toHaveBeenCalled();
+    expect(redisDel).not.toHaveBeenCalled();
   });
 });
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { isAxiosError } from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -306,9 +307,9 @@ export default function AdminExamBuilderPage() {
             type="button"
             disabled={!builder || deleteMutation.isPending}
             onClick={() => setConfirmAction({
-              title: 'Delete exam',
-              description: 'This permanently deletes the exam shell and generated assembly. Exams with existing sessions are protected and cannot be deleted.',
-              confirmLabel: 'Delete exam',
+              title: 'Xóa đề thi',
+              description: examDeletionDescription(builder?.deletionImpact),
+              confirmLabel: 'Xóa vĩnh viễn',
               danger: true,
               onConfirm: () => deleteMutation.mutate(),
             })}
@@ -721,6 +722,35 @@ function candidateMatches(candidate: ExamPreviewQuestion | ExamPreviewBundle, se
 }
 
 function getErrorMessage(error: unknown) {
+  if (isAxiosError<{ message?: string | string[] }>(error)) {
+    const message = error.response?.data?.message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (message) return message;
+  }
   if (error instanceof Error) return error.message;
   return null;
+}
+
+function examDeletionDescription(impact?: {
+  attempts: number;
+  sessions: number;
+  accessCodes: number;
+  accesses: number;
+}) {
+  if (!impact) {
+    return 'Đề thi và toàn bộ dữ liệu liên quan sẽ bị xóa vĩnh viễn. Thao tác này không thể hoàn tác.';
+  }
+
+  if (impact.attempts === 0 && impact.accessCodes === 0 && impact.accesses === 0) {
+    return 'Đề thi và nội dung đã lắp ráp sẽ bị xóa vĩnh viễn. Thao tác này không thể hoàn tác.';
+  }
+
+  return [
+    'Đề thi và toàn bộ dữ liệu liên quan sẽ bị xóa vĩnh viễn:',
+    `${impact.attempts} lượt thi`,
+    `${impact.sessions} phiên làm bài`,
+    `${impact.accessCodes} mã truy cập`,
+    `${impact.accesses} lượt mở khóa`,
+    'cùng các câu trả lời và kết quả tương ứng. Thao tác này không thể hoàn tác.',
+  ].join(' ');
 }

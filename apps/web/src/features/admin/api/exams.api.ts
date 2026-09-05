@@ -130,6 +130,12 @@ export interface ExamPreview {
   generationSeed?: string | null;
   generatedAt?: string | null;
   blueprintJson?: ExamBlueprint | null;
+  deletionImpact: {
+    attempts: number;
+    sessions: number;
+    accessCodes: number;
+    accesses: number;
+  };
   sections: {
     MATH: {
       questionCount: number;
@@ -304,7 +310,17 @@ export async function getExamStatistics(id: string) {
 }
 
 export async function deleteExam(id: string) {
-  const response = await apiClient.delete<ApiEnvelope<{ ok: boolean; id: string; title: string }>>(`/admin/exams/${id}`);
+  const response = await apiClient.delete<ApiEnvelope<{
+    ok: boolean;
+    id: string;
+    title: string;
+    deleted: {
+      attempts: number;
+      sessions: number;
+      accessCodes: number;
+      accesses: number;
+    };
+  }>>(`/admin/exams/${id}`);
   return response.data.data;
 }
 

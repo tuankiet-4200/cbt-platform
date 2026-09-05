@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CognitiveLevel,
   ExamAccessType,
@@ -9,6 +14,7 @@ import {
   QuestionType,
 } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { RedisService } from '@/common/redis/redis.service';
 import {
   CreateExamBlueprintDto,
   CreateExamDto,
@@ -137,7 +143,12 @@ const SECTION_DURATION_MINS: Record<SectionType, number> = {
 
 @Injectable()
 export class ExamsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ExamsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async listAvailableExams(userId: string) {
     const exams = await this.prisma.exam.findMany({
@@ -899,25 +910,47 @@ export class ExamsService {
   }
 
   async deleteExam(examId: string) {
-    const exam = await this.prisma.exam.findUnique({
-      where: { id: examId },
-      select: {
-        id: true,
-        title: true,
-        _count: {
-          select: {
-            sessions: true,
+    const deleted = await this.prisma.$transaction(async (tx) => {
+      const exam = await tx.exam.findUnique({
+        where: { id: examId },
+        select: {
+          id: true,
+          title: true,
+          sessions: { select: { id: true } },
+          _count: {
+            select: {
+              attempts: true,
+              sessions: true,
+              accessCodes: true,
+              accesses: true,
+            },
           },
         },
-      },
-    });
-    if (!exam) throw new NotFoundException('Exam not found');
-    if (exam._count.sessions > 0) {
-      throw new BadRequestException('Cannot delete an exam that already has exam sessions');
-    }
+      });
+      if (!exam) throw new NotFoundException('Exam not found');
 
-    await this.prisma.exam.delete({ where: { id: examId } });
-    return { ok: true, id: examId, title: exam.title };
+      // Attempts own sessions, answers, proctoring events, and results through
+      // cascading relations. Remove them first because their direct Exam
+      // relation intentionally does not cascade at the schema level.
+      await tx.examAttempt.deleteMany({ where: { examId } });
+      await tx.exam.delete({ where: { id: examId } });
+
+      return {
+        id: exam.id,
+        title: exam.title,
+        sessionIds: exam.sessions.map((session) => session.id),
+        counts: exam._count,
+      };
+    });
+
+    await this.clearDeletedExamCache(deleted.id, deleted.sessionIds);
+
+    return {
+      ok: true,
+      id: deleted.id,
+      title: deleted.title,
+      deleted: deleted.counts,
+    };
   }
 
   async updateBlueprint(examId: string, rawBlueprint: Record<string, unknown>) {
@@ -993,6 +1026,14 @@ export class ExamsService {
     const exam = await this.prisma.exam.findUnique({
       where: { id: examId },
       include: {
+        _count: {
+          select: {
+            attempts: true,
+            sessions: true,
+            accessCodes: true,
+            accesses: true,
+          },
+        },
         mathQuestions: {
           orderBy: { orderInSection: 'asc' },
           include: {
@@ -1038,6 +1079,12 @@ export class ExamsService {
       generationSeed: exam.generationSeed,
       generatedAt: exam.generatedAt,
       blueprintJson: exam.blueprintJson,
+      deletionImpact: {
+        attempts: exam._count.attempts,
+        sessions: exam._count.sessions,
+        accessCodes: exam._count.accessCodes,
+        accesses: exam._count.accesses,
+      },
       sections: {
         MATH: {
           questionCount: exam.mathQuestions.length,
@@ -2168,6 +2215,26 @@ export class ExamsService {
     level: CognitiveLevel,
   ) {
     return this.availableLevelCount(section, selected, level);
+  }
+
+  private async clearDeletedExamCache(examId: string, sessionIds: string[]) {
+    const keys = [
+      `leaderboard:${examId}`,
+      ...sessionIds.flatMap((sessionId) => [
+        `session:${sessionId}:answers`,
+        `session:${sessionId}:timing`,
+        `session:${sessionId}:meta`,
+      ]),
+    ];
+
+    try {
+      await this.redis.client.del(...keys);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Exam ${examId} was deleted, but related Redis cache cleanup failed: ${message}`,
+      );
+    }
   }
 }
 
