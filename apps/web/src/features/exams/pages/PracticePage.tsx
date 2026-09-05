@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  XCircle,
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { QuestionRenderer } from '@/features/exam/components/QuestionRenderer';
@@ -22,6 +23,10 @@ import {
   getTagPractice,
   type PracticeSection,
 } from '../api/exams.api';
+import {
+  gradePracticeAnswer,
+  isPracticeAnswerComplete,
+} from '../lib/practice-grading';
 import { cn } from '@/lib/utils';
 
 interface FlatQuestion {
@@ -34,6 +39,7 @@ export default function PracticePage() {
   const { examId, tagId } = useParams();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
+  const [checkedResults, setCheckedResults] = useState<Record<string, boolean>>({});
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
   const practiceQuery = useQuery({
     queryKey: ['practice', examId ? 'exam' : 'tag', examId ?? tagId],
@@ -59,9 +65,29 @@ export default function PracticePage() {
   }
 
   const practice = practiceQuery.data;
-  const showAnswer = revealed.has(active.question.id);
+  const questionId = active.question.id;
+  const activeAnswer = answers[questionId];
+  const hasChecked = hasOwn(checkedResults, questionId);
+  const isCorrect = checkedResults[questionId] === true;
+  const canCheck = isPracticeAnswerComplete(active.question, activeAnswer);
+  const showAnswer = hasChecked && revealed.has(questionId);
   const goTo = (index: number) =>
     setCurrentIndex(Math.max(0, Math.min(index, flattened.length - 1)));
+  const updateAnswer = (answer: Record<string, unknown>) => {
+    setAnswers((current) => ({ ...current, [questionId]: answer }));
+    setCheckedResults((current) => {
+      if (!hasOwn(current, questionId)) return current;
+      const next = { ...current };
+      delete next[questionId];
+      return next;
+    });
+    setRevealed((current) => {
+      if (!current.has(questionId)) return current;
+      const next = new Set(current);
+      next.delete(questionId);
+      return next;
+    });
+  };
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-neutral-50">
@@ -102,27 +128,48 @@ export default function PracticePage() {
                 <div className="min-w-0 flex-1">
                   <QuestionRenderer
                     question={active.question}
-                    answer={answers[active.question.id]}
-                    onAnswer={(answer) => setAnswers((current) => ({
-                      ...current,
-                      [active.question.id]: answer,
-                    }))}
+                    answer={activeAnswer}
+                    onAnswer={updateAnswer}
                     shuffleSeed={`practice:${practice.id}`}
                     fontSize={practice.contentFontSize}
                   />
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-md mt-6"
-                    onClick={() => setRevealed((current) => {
-                      const next = new Set(current);
-                      if (next.has(active.question.id)) next.delete(active.question.id);
-                      else next.add(active.question.id);
-                      return next;
-                    })}
-                  >
-                    {showAnswer ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    {showAnswer ? 'Ẩn đáp án' : 'Xem đáp án'}
-                  </button>
+                  {!hasChecked ? (
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-md"
+                        disabled={!canCheck}
+                        onClick={() => setCheckedResults((current) => ({
+                          ...current,
+                          [questionId]: gradePracticeAnswer(active.question, activeAnswer),
+                        }))}
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> Kiểm tra
+                      </button>
+                      {!canCheck && (
+                        <span className="text-sm text-neutral-500">
+                          Hoàn thành câu trả lời để kiểm tra.
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <PracticeResult correct={isCorrect} />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-md mt-4"
+                        onClick={() => setRevealed((current) => {
+                          const next = new Set(current);
+                          if (next.has(questionId)) next.delete(questionId);
+                          else next.add(questionId);
+                          return next;
+                        })}
+                      >
+                        {showAnswer ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showAnswer ? 'Ẩn đáp án' : 'Xem đáp án'}
+                      </button>
+                    </>
+                  )}
                   {showAnswer && <AnswerPanel question={active.question} />}
                 </div>
               </div>
@@ -134,27 +181,36 @@ export default function PracticePage() {
           <h2 className="font-bold text-neutral-900">Danh sách câu hỏi</h2>
           <p className="mt-1 text-sm text-neutral-500">{flattened.length} câu</p>
           <div className="mt-4 grid grid-cols-8 gap-3 overflow-y-auto pb-4">
-            {flattened.map((item, index) => (
-              <button
-                key={`${item.question.id}:${index}`}
-                type="button"
-                onClick={() => goTo(index)}
-                className={cn(
-                  'flex aspect-square items-center justify-center rounded-full text-xs font-bold transition',
-                  index === safeIndex
-                    ? 'bg-[#17386d] text-white ring-2 ring-inset ring-primary-500'
-                    : answers[item.question.id]
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200',
-                )}
-              >
-                {index + 1}
-              </button>
-            ))}
+            {flattened.map((item, index) => {
+              const itemId = item.question.id;
+              const itemChecked = hasOwn(checkedResults, itemId);
+              return (
+                <button
+                  key={`${itemId}:${index}`}
+                  type="button"
+                  onClick={() => goTo(index)}
+                  className={cn(
+                    'flex aspect-square items-center justify-center rounded-full text-xs font-bold transition',
+                    itemChecked
+                      ? checkedResults[itemId]
+                        ? 'bg-success-600 text-white'
+                        : 'bg-danger-700 text-white'
+                      : answers[itemId]
+                        ? 'bg-blue-500 text-white'
+                        : index === safeIndex
+                          ? 'bg-[#17386d] text-white'
+                          : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200',
+                    index === safeIndex && 'ring-2 ring-inset ring-primary-500',
+                  )}
+                >
+                  {index + 1}
+                </button>
+              );
+            })}
           </div>
           <div className="mt-auto rounded-lg bg-primary-50 p-4 text-sm leading-6 text-primary-800">
             <strong className="block">Mẹo luyện tập</strong>
-            Tự trả lời trước, sau đó mở đáp án của từng câu để đối chiếu.
+            Trả lời, bấm Kiểm tra, sau đó mở đáp án để xem lời giải.
           </div>
         </aside>
       </div>
@@ -180,6 +236,34 @@ function flattenPractice(sections: PracticeSection[]): FlatQuestion[] {
           bundle.questions.map((question) => ({ section, bundle, question })),
         ),
   );
+}
+
+function PracticeResult({ correct }: { correct: boolean }) {
+  const Icon = correct ? CheckCircle2 : XCircle;
+  return (
+    <section className={cn(
+      'mt-5 flex items-center gap-3 rounded-xl border p-4',
+      correct
+        ? 'border-success-200 bg-success-50 text-success-800'
+        : 'border-danger-200 bg-danger-50 text-danger-800',
+    )}>
+      <Icon className="h-5 w-5 shrink-0" />
+      <div>
+        <strong className="block">
+          {correct ? 'Bạn trả lời đúng' : 'Bạn trả lời chưa chính xác'}
+        </strong>
+        <span className="text-sm">
+          {correct
+            ? 'Bạn có thể xem đáp án và lời giải chi tiết.'
+            : 'Bạn có thể sửa câu trả lời hoặc xem đáp án để đối chiếu.'}
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function hasOwn(record: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(record, key);
 }
 
 function AnswerPanel({ question }: { question: SessionQuestion }) {
