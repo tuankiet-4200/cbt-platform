@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-05 (practice navigation, resume fullscreen, and sortable exam statistics completed)
+> **Last updated:** 2026-09-05 (3-2-1 backup and disaster-recovery plan documented)
 
 ### Active Sprint
 **Practice and Exam Administration**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific typography, practice modes, smoother drag/drop, compact practice navigation, fullscreen-safe attempt resume, and sortable per-exam statistics are implemented
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — product features are implemented and a GitHub-safe 3-2-1 PostgreSQL/Supabase backup plus disaster-recovery runbook is ready for production setup
 
 ### Sprint Progress Overview
 
@@ -416,8 +416,9 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific typography, 
 2. [x] Added production Compose orchestration for API, Web, PostgreSQL, Redis, and one-shot Prisma migrations
 3. [x] Kept API/Web host bindings on loopback and PostgreSQL/Redis private to Docker networks
 4. [x] Added host Nginx reverse-proxy configuration for `demoserver.io.vn` and an Ubuntu deployment/backup/update runbook
-5. [x] Added a safe production environment template; real credentials remain excluded from Git
-6. [ ] Point `demoserver.io.vn` to the Ubuntu server, perform the remote rollout, and issue the Let's Encrypt certificate
+5. [x] Added a dedicated 3-2-1 backup and disaster-recovery plan covering encrypted offsite PostgreSQL dumps, Supabase Storage copies, secrets recovery, automated verification, retention, and restore drills
+6. [x] Added a safe production environment template; real credentials remain excluded from Git
+7. [ ] Point `demoserver.io.vn` to the Ubuntu server, perform the remote rollout, and issue the Let's Encrypt certificate
 
 ### Security and Quality
 1. [x] Enabled the configured NestJS throttler globally and trusted exactly one production reverse proxy
@@ -548,6 +549,7 @@ FILL_TEXT         → Multiple text blanks[], Vietnamese-aware normalized match,
 | `docs/QuestionContentSpec.md` | Canonical question content schema v2.4 |
 | `docs/section-session-architecture.md` | Approved ExamAttempt + independently timed section-session architecture |
 | `docs/DEPLOY_UBUNTU_NGINX.md` | Production deployment, HTTPS, update, and backup runbook for the Ubuntu host |
+| `docs/BACKUP_RECOVERY_PLAN.md` | GitHub-safe 3-2-1 backup, verification, retention, and full disaster-recovery runbook |
 | `deploy/docker-compose.production.yml` | Production API/Web/PostgreSQL/Redis orchestration and migration gate |
 | `.agents/AGENTS.md` | Agent rules — Prisma workflow, commit convention, checklists |
 | `apps/api/prisma/schema.prisma` | Database schema — source of truth (18 tables) |

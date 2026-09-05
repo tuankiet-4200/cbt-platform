@@ -223,5 +223,10 @@ docker compose \
   > "cbt-platform-$(date +%F-%H%M).sql"
 ```
 
+For the complete offsite schedule, Supabase Storage copy, verification, restore
+drills, and total-server-loss runbook, follow
+[`BACKUP_RECOVERY_PLAN.md`](./BACKUP_RECOVERY_PLAN.md). A dump kept only on the
+production server is not considered a backup.
+
 Do not expose ports `3100`, `8180`, `5432`, or `6379` through UFW or the cloud
 firewall. Public traffic should enter only through Nginx on ports 80 and 443.
