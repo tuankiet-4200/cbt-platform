@@ -4,6 +4,8 @@
 >
 > Tài liệu này được phép commit lên GitHub. **Không đưa mật khẩu, khóa Supabase, file `.env.production`, database dump hoặc mã hóa key vào repository.**
 
+> Với hệ thống nhỏ và ưu tiên bảo vệ PostgreSQL khi server hỏng, bắt đầu bằng hướng dẫn gọn tại [`POSTGRES_BACKUP_TO_SUPABASE.md`](./POSTGRES_BACKUP_TO_SUPABASE.md). Tài liệu hiện tại là phương án mở rộng khi cần thêm một nhà cung cấp backup độc lập.
+
 ## 1. Điều cần hiểu trước tiên
 
 GitHub chỉ bảo vệ source code và migration. Dữ liệu thật của hệ thống nằm ở các nơi khác:
