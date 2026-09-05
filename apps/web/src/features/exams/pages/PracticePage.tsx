@@ -79,7 +79,7 @@ export default function PracticePage() {
         </Link>
       </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_25rem]">
         <main className="min-h-0 overflow-hidden p-4">
           <div className={cn(
             'grid h-full min-h-0 overflow-hidden rounded-xl bg-white shadow-sm',
@@ -133,7 +133,7 @@ export default function PracticePage() {
         <aside className="flex min-h-0 flex-col border-l border-neutral-200 bg-white p-5">
           <h2 className="font-bold text-neutral-900">Danh sách câu hỏi</h2>
           <p className="mt-1 text-sm text-neutral-500">{flattened.length} câu</p>
-          <div className="mt-5 grid grid-cols-6 gap-2 overflow-y-auto pb-4">
+          <div className="mt-4 grid grid-cols-8 gap-3 overflow-y-auto pb-4">
             {flattened.map((item, index) => (
               <button
                 key={`${item.question.id}:${index}`}
@@ -142,7 +142,7 @@ export default function PracticePage() {
                 className={cn(
                   'flex aspect-square items-center justify-center rounded-full text-xs font-bold transition',
                   index === safeIndex
-                    ? 'bg-[#17386d] text-white ring-2 ring-primary-500 ring-offset-2'
+                    ? 'bg-[#17386d] text-white ring-2 ring-inset ring-primary-500'
                     : answers[item.question.id]
                       ? 'bg-blue-500 text-white'
                       : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200',

@@ -110,6 +110,7 @@ export default function ExamSessionPage() {
         setFullscreenWarning(true);
       }
     };
+    handleFullscreen();
     document.addEventListener('fullscreenchange', handleFullscreen);
     return () =>
       document.removeEventListener('fullscreenchange', handleFullscreen);

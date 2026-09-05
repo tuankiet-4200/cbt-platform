@@ -3,8 +3,11 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
+  ArrowUpDown,
   Eye,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
   FilePlus2,
   GraduationCap,
   Layers3,
@@ -217,6 +220,36 @@ function ExamStatisticsModal({
   statistics: ExamStatistics;
   onClose: () => void;
 }) {
+  const [sort, setSort] = useState<StatisticsSort | null>(null);
+  const sortedUsers = useMemo(() => {
+    if (!sort) return statistics.users;
+
+    return [...statistics.users].sort((left, right) => {
+      const leftValue = getStatisticsSortValue(left, sort.key);
+      const rightValue = getStatisticsSortValue(right, sort.key);
+
+      if (leftValue === null && rightValue === null) {
+        return left.user.displayName.localeCompare(right.user.displayName, 'vi');
+      }
+      if (leftValue === null) return 1;
+      if (rightValue === null) return -1;
+
+      const difference = leftValue - rightValue;
+      if (difference === 0) {
+        return left.user.displayName.localeCompare(right.user.displayName, 'vi');
+      }
+      return sort.direction === 'asc' ? difference : -difference;
+    });
+  }, [sort, statistics.users]);
+
+  const toggleSort = (key: StatisticsSortKey) => {
+    setSort((current) => ({
+      key,
+      direction:
+        current?.key === key && current.direction === 'desc' ? 'asc' : 'desc',
+    }));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/55 p-4" role="dialog" aria-modal="true">
       <section className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -244,15 +277,15 @@ function ExamStatisticsModal({
             <thead className="bg-neutral-50">
               <tr>
                 <Th className="w-[30%]">Thí sinh</Th>
-                <Th className="w-[12%]">Số lượt</Th>
-                <Th className="w-[17%]">Điểm gần nhất</Th>
-                <Th className="w-[13%]">Cao nhất</Th>
-                <Th className="w-[13%]">Trung bình</Th>
-                <Th className="w-[15%]">Lần gần nhất</Th>
+                <SortableTh className="w-[12%]" label="Số lượt" sortKey="attemptCount" sort={sort} onSort={toggleSort} />
+                <SortableTh className="w-[17%]" label="Điểm gần nhất" sortKey="latestScore" sort={sort} onSort={toggleSort} />
+                <SortableTh className="w-[13%]" label="Cao nhất" sortKey="bestScore" sort={sort} onSort={toggleSort} />
+                <SortableTh className="w-[13%]" label="Trung bình" sortKey="averageScore" sort={sort} onSort={toggleSort} />
+                <SortableTh className="w-[15%]" label="Lần gần nhất" sortKey="lastAttemptAt" sort={sort} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {statistics.users.map((row) => (
+              {sortedUsers.map((row) => (
                 <tr key={row.user.id}>
                   <td className="px-3 py-3">
                     <p className="truncate font-semibold text-neutral-900">{row.user.displayName}</p>
@@ -278,6 +311,80 @@ function ExamStatisticsModal({
         </div>
       </section>
     </div>
+  );
+}
+
+type StatisticsSortKey =
+  | 'attemptCount'
+  | 'latestScore'
+  | 'bestScore'
+  | 'averageScore'
+  | 'lastAttemptAt';
+
+interface StatisticsSort {
+  key: StatisticsSortKey;
+  direction: 'asc' | 'desc';
+}
+
+type StatisticsUser = ExamStatistics['users'][number];
+
+function getStatisticsSortValue(
+  row: StatisticsUser,
+  key: StatisticsSortKey,
+): number | null {
+  switch (key) {
+    case 'attemptCount':
+      return row.attemptCount;
+    case 'latestScore':
+      return row.latestScore?.percentScore ?? null;
+    case 'bestScore':
+      return row.bestPercentScore;
+    case 'averageScore':
+      return row.averagePercentScore;
+    case 'lastAttemptAt': {
+      const timestamp = row.lastAttemptAt
+        ? new Date(row.lastAttemptAt).getTime()
+        : Number.NaN;
+      return Number.isNaN(timestamp) ? null : timestamp;
+    }
+  }
+}
+
+function SortableTh({
+  className,
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  className?: string;
+  label: string;
+  sortKey: StatisticsSortKey;
+  sort: StatisticsSort | null;
+  onSort: (key: StatisticsSortKey) => void;
+}) {
+  const isActive = sort?.key === sortKey;
+  const SortIcon = !isActive
+    ? ArrowUpDown
+    : sort.direction === 'asc'
+      ? ChevronUp
+      : ChevronDown;
+
+  return (
+    <Th className={className}>
+      <button
+        type="button"
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded py-1 text-left transition hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+          isActive && 'text-primary-700',
+        )}
+        onClick={() => onSort(sortKey)}
+        aria-label={`${label}: sắp xếp ${isActive && sort.direction === 'desc' ? 'tăng dần' : 'giảm dần'}`}
+      >
+        {label}
+        <SortIcon className="h-3.5 w-3.5 shrink-0" />
+      </button>
+    </Th>
   );
 }
 

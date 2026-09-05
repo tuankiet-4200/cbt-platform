@@ -22,11 +22,11 @@
 
 ## 📊 Current Status
 
-> **Last updated:** 2026-09-05 (exam typography, practice modes, drag/drop UX, and admin exam statistics completed)
+> **Last updated:** 2026-09-05 (practice navigation, resume fullscreen, and sortable exam statistics completed)
 
 ### Active Sprint
 **Practice and Exam Administration**
-Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific content typography, untimed answer-reveal practice, tag-based practice, smoother drag/drop slots, and per-exam user/attempt statistics are implemented
+Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific typography, practice modes, smoother drag/drop, compact practice navigation, fullscreen-safe attempt resume, and sortable per-exam statistics are implemented
 
 ### Sprint Progress Overview
 
@@ -391,6 +391,8 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific content typo
 1. [x] Added an `Exam.contentFontSize` setting with migration `20260905024350_add_exam_content_font_size`, a default of 18px, and 16–24px admin presets on create/edit
 2. [x] Applied the selected content size to question stems, options, matrices, drag/drop content, and Reading/Science passages in the live exam workspace
 3. [x] Removed empty drag/drop slot placeholder text, made placed items fill their slot, and removed transform transitions that caused dragged items to lag behind the pointer
+4. [x] Matched the practice question navigator to the compact eight-column exam navigator and moved the active marker inside each circle so it cannot be clipped
+5. [x] Restored fullscreen from both exam-library and exam-overview resume actions, with an in-session user-action prompt as fallback after direct navigation or reload
 
 ### Practice and reporting
 1. [x] Added untimed full-exam practice without creating `ExamAttempt` or `ExamSession` records
@@ -398,6 +400,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific content typo
 3. [x] Added practice by hierarchical MATH/READING/SCIENCE tags; parent tags include published content assigned to descendant tags and Reading/Science retain atomic bundles
 4. [x] Added a student practice library and direct “Luyện tập đề này” entry from exam details
 5. [x] Added admin per-exam statistics with participant count, total/completed/in-progress attempts, latest/best/average scores, and last-attempt time
+6. [x] Added click-to-toggle descending/ascending sorting for attempt count, latest/best/average score, and last-attempt time
 
 ### Quality
 - [x] Prisma schema validated; migration applied and `content_font_size` verified in local PostgreSQL
@@ -476,7 +479,7 @@ Status: ✅ FEATURE COMPLETE / DEPLOYMENT PENDING — exam-specific content typo
 11. [x] Add the full-attempt section lobby, reload-safe five-minute inter-section breaks, expandable Reading/Science workspace, and reference-styled Drag drop options
 12. [x] Make Fill number grading require the exact decimal comma and number of decimal places entered in the answer key
 13. [x] Allow admins to correct questions, answer keys, and passage bundles after they are included in published exams or attempts while retaining deletion guards
-14. [x] Add configurable exam typography, improved drag/drop interaction, official-attempt statistics, full-exam practice, and hierarchical tag practice
+14. [x] Add configurable exam typography, improved drag/drop interaction, official-attempt statistics with sortable columns, full-exam practice, hierarchical tag practice, compact practice navigation, and fullscreen-safe attempt resume
 15. [ ] Push the verified commits, deploy the updated containers to `demoserver.io.vn`, and verify the new flows over HTTPS
 16. [ ] Complete the coordinated NestJS major upgrade and clear remaining production dependency audit findings
 17. [ ] Complete atomic refresh-token rotation and protect published/historical exam assembly mutations

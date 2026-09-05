@@ -32,6 +32,15 @@ export default function ExamDetailPage() {
     onSuccess: (attempt) => navigate(`/exam/attempt/${attempt.id}`),
   });
 
+  const resumeAttempt = async (attemptId: string) => {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      // The session page will show a user-action prompt if fullscreen is denied.
+    }
+    navigate(`/exam/attempt/${attemptId}`);
+  };
+
   if (examQuery.isLoading) {
     return (
       <div className="flex min-h-80 items-center justify-center gap-2 text-sm text-neutral-500">
@@ -104,7 +113,13 @@ export default function ExamDetailPage() {
               {isInProgress ? 'Tiến độ của bạn đã được lưu.' : isCompleted ? 'Tạo một lượt thi mới với toàn bộ nội dung đề.' : 'Thời gian bắt đầu tính khi bạn vào phần thi đầu tiên.'}
             </p>
             {isInProgress && exam.latestAttempt ? (
-              <Link to={`/exam/attempt/${exam.latestAttempt.id}`} className="btn btn-primary btn-lg mt-5 w-full">Tiếp tục làm bài</Link>
+              <button
+                type="button"
+                className="btn btn-primary btn-lg mt-5 w-full"
+                onClick={() => void resumeAttempt(exam.latestAttempt!.id)}
+              >
+                Tiếp tục làm bài
+              </button>
             ) : (
               <button type="button" className="btn btn-primary btn-lg mt-5 w-full" disabled={startMutation.isPending} onClick={() => startMutation.mutate()}>
                 {startMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import {
@@ -194,9 +194,18 @@ export default function ExamLibraryPage() {
 }
 
 function ExamCard({ exam }: { exam: UserExam }) {
+  const navigate = useNavigate();
   const isInProgress = exam.latestAttempt?.status === 'IN_PROGRESS';
   const isCompleted = ['SUBMITTED', 'GRADED'].includes(exam.latestAttempt?.status ?? '');
   const sectionCount = getAvailableExamSections(exam.counts).length;
+  const resumeAttempt = async (attemptId: string) => {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      // The session page will show a user-action prompt if fullscreen is denied.
+    }
+    navigate(`/exam/attempt/${attemptId}`);
+  };
 
   return (
     <article className="overflow-hidden rounded-lg border border-neutral-100 bg-white shadow-soft">
@@ -234,12 +243,13 @@ function ExamCard({ exam }: { exam: UserExam }) {
               : 'Đã mở khóa'}
         </span>
         {isInProgress && exam.latestAttempt ? (
-          <Link
-            to={`/exam/attempt/${exam.latestAttempt.id}`}
+          <button
+            type="button"
+            onClick={() => void resumeAttempt(exam.latestAttempt!.id)}
             className="inline-flex h-9 items-center justify-center rounded-lg bg-success-600 px-5 text-sm font-semibold text-white transition hover:bg-success-700"
           >
             Tiếp tục làm bài
-          </Link>
+          </button>
         ) : isCompleted && exam.latestAttempt ? (
           <div className="flex flex-wrap justify-end gap-2">
             <Link
